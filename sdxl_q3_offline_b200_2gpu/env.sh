@@ -3,7 +3,21 @@
 # Every value can be overridden before invoking project_command.sh.
 
 export PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-export ASSET_ROOT="${ASSET_ROOT:-$PROJECT_ROOT/offline_assets}"
+# download.txt was originally materialized under the first repository name.
+# Prefer colocated assets when present, otherwise reuse that persistent tree.
+# ASSET_ROOT remains explicitly overridable for other platform layouts.
+if [[ -z "${ASSET_ROOT:-}" ]]; then
+  project_asset_root="$PROJECT_ROOT/offline_assets"
+  downloaded_asset_root="/mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets"
+  if [[ -d "$project_asset_root/data/pickapic_v2_full/data" ]]; then
+    ASSET_ROOT="$project_asset_root"
+  elif [[ -d "$downloaded_asset_root/data/pickapic_v2_full/data" ]]; then
+    ASSET_ROOT="$downloaded_asset_root"
+  else
+    ASSET_ROOT="$project_asset_root"
+  fi
+fi
+export ASSET_ROOT
 export RUNTIME_ROOT="${RUNTIME_ROOT:-$PROJECT_ROOT/runtime}"
 
 export PIPELINE_MODE="${PIPELINE_MODE:-full851k}"
