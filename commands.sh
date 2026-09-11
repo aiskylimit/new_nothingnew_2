@@ -1,4 +1,4 @@
-#i stop 2026-09-11_08-32-47
+#i stop all
 #test-talas
 #v1
 
