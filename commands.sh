@@ -1,4 +1,4 @@
-#2 -0-5
+#i ssft_eval.txt
 #sdxl
 #v1
 
