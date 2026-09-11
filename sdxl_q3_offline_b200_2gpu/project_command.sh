@@ -27,7 +27,7 @@ IFS=',' read -r -a configured_gpus <<< "$GPU_IDS"
   "effective batch is not divisible by NUM_GPUS*TRAIN_BATCH_SIZE" 11
 
 log ENV "mode=$PIPELINE_MODE target=$TARGET_GPU_FAMILY gpu_ids=$GPU_IDS num_gpus=$NUM_GPUS"
-log ENV "offline=1 effective_batch=$EFFECTIVE_BATCH model=$MODEL_DIR data=$DATA_DIR"
+log ENV "offline=1 effective_batch=$EFFECTIVE_BATCH asset_root=$ASSET_ROOT model=$MODEL_DIR data=$DATA_DIR"
 
 log SETUP "using platform-managed uv environment at $VENV_DIR"
 [[ -f "$VENV_DIR/bin/activate" && -x "$VENV_DIR/bin/python" ]] || fail \
