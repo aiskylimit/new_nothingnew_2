@@ -1,4 +1,4 @@
-#1 +10
+#2 -0-5
 #sdxl
 #v1
 
@@ -74,5 +74,5 @@ export NCCL_DEBUG=WARN
 # cd ./cypher-extract
 # bash ./project_command.sh
 
-cd ./sdxl_q3_offline_b200_2gpu
-CUDA_VISIBLE_DEVICES=6,7 bash ./project_command.sh
+# cd ./sdxl_q3_offline_b200_2gpu
+# CUDA_VISIBLE_DEVICES=6,7 bash ./project_command.sh
