@@ -21,7 +21,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-dir", type=pathlib.Path, required=True)
     parser.add_argument("--target-rows", type=int, default=851_293)
     parser.add_argument("--workers", type=int, default=16)
-    parser.add_argument("--first-training-shard", type=int, default=1)
+    parser.add_argument("--first-training-shard", type=int, default=0)
+    parser.add_argument("--expected-shards", type=int)
     parser.add_argument("--repo-id", default="liuhuohuo2/pick-a-pic-v2")
     parser.add_argument("--revision", default="main")
     parser.add_argument("--output", type=pathlib.Path, required=True)
@@ -32,6 +33,10 @@ def main() -> None:
     args = parse_args()
     if args.target_rows <= 0 or args.workers <= 0:
         raise ValueError("target rows and workers must be positive")
+    if args.first_training_shard < 0:
+        raise ValueError("first training shard must be non-negative")
+    if args.expected_shards is not None and args.expected_shards <= 0:
+        raise ValueError("expected shards must be positive when set")
 
     shards: list[tuple[int, pathlib.Path]] = []
     held_out: list[str] = []
@@ -45,6 +50,12 @@ def main() -> None:
             held_out.append(filename)
         else:
             shards.append((shard_index, path))
+    discovered_shards = len(shards) + len(held_out)
+    if args.expected_shards is not None and discovered_shards != args.expected_shards:
+        raise RuntimeError(
+            f"found {discovered_shards} train parquet shards; "
+            f"expected {args.expected_shards}"
+        )
     if not shards:
         raise RuntimeError(f"no training parquet shards found in {args.data_dir}")
 
@@ -89,8 +100,8 @@ def main() -> None:
         "revision": args.revision,
         "target_rows": args.target_rows,
         "selection": (
-            "local materialized train shards after held-out shard 0; exact human "
-            "labels label_0 in {0,1}; deterministic shard/row shuffle"
+            f"local materialized train shards from index {args.first_training_shard}; "
+            "exact human labels label_0 in {0,1}; deterministic shard/row shuffle"
         ),
         "pair_label_source": "human_label_0",
         "pair_label_policy": "prefiltered_binary_error",

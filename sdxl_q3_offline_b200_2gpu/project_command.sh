@@ -55,6 +55,7 @@ if [[ ! -s "$STREAM_MANIFEST" ]]; then
   "$VENV_DIR/bin/python" "$PROJECT_ROOT/hessian/prepare_binary_local_manifest.py" \
     --data-dir "$DATA_DIR" --output "$STREAM_MANIFEST" \
     --target-rows 851293 --workers "${MANIFEST_WORKERS:-16}" \
+    --first-training-shard 0 --expected-shards 645 \
     | tee "$LOG_DIR/dataset-manifest.log"
 fi
 
