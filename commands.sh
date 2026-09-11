@@ -1,4 +1,4 @@
-#i sdxl-q3-offline-b200-2gpu.txt
+#1 +10
 #sdxl
 #v1
 
