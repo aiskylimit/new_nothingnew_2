@@ -25,8 +25,11 @@ export NCCL_DEBUG=WARN
 
 cd ./talas_vlm_embed
 pwd
-cp -r /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/datasets /mnt/local/aiskylimit_new_nothing_2/talas_vlm_embed/
-cp -r /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/models /mnt/local/aiskylimit_new_nothing_2/talas_vlm_embed/
+cp -r /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/datasets /mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/
+cp -r /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/models /mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/
+cp -r /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/vlm2vec_train /mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/
+cp -r /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/vlm2vec_eval /mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/
+cp -r /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/en_core_web_sm.zip /mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python3 multi_gpu.py &
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python3 multi_gpu.py &
 bash ./project_commands.sh
