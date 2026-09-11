@@ -24,6 +24,7 @@ export HF_DATASETS_OFFLINE=1
 export NCCL_DEBUG=WARN
 
 cd ./talas_vlm_embed
+pwd
 cp -r /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/dataset /mnt/local/aiskylimit_new_nothing_2/talas_vlm_embed/
 cp -r /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/models /mnt/local/aiskylimit_new_nothing_2/talas_vlm_embed/
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python3 multi_gpu.py &
