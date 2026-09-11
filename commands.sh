@@ -1,4 +1,4 @@
-#2 -0-5
+#1 +10 
 #sdxl
 #v1
 
@@ -22,6 +22,9 @@ export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
 export NCCL_DEBUG=WARN
+
+source /mnt/local/uvenvs/talas-vlm-embed/bin/activate
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python3 ./talas_vlm_embed/multi_gpu_v2.py
 
 # cd ./talas_vlm_embed
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python3 multi_gpu.py &
@@ -71,5 +74,5 @@ export NCCL_DEBUG=WARN
 # cd ./cypher-extract
 # bash ./project_command.sh
 
-cd ./sdxl_q3_offline_b200_2gpu
-CUDA_VISIBLE_DEVICES=6,7 bash ./project_command.sh
+# cd ./sdxl_q3_offline_b200_2gpu
+# CUDA_VISIBLE_DEVICES=6,7 bash ./project_command.sh
