@@ -2,6 +2,7 @@
 # python: 3.11
 # Environment name: sdxl-q3-offline-b200-2gpu
 numpy==1.26.4
+packaging==25.0
 torch==2.9.0
 torchvision==0.24.0
 accelerate==0.33.0
