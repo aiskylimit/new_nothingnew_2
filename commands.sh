@@ -24,6 +24,7 @@ export HF_DATASETS_OFFLINE=1
 export NCCL_DEBUG=WARN
 
 cd ./talas_vlm_embed
+ls models/B3_Qwen2_2B
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python3 multi_gpu.py &
 # CUDA_VISIBLE_DEVICES=0,1,2,3 python3 multi_gpu.py &
 bash ./project_commands.sh
