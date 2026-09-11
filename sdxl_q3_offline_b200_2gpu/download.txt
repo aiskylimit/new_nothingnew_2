@@ -2,7 +2,7 @@
 #datasets
 --hf-dataset liuhuohuo2/pick-a-pic-v2 /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/data/pickapic_v2_full
 --hf-dataset nateraw/parti-prompts /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/eval_sources/parti-prompts
---hf-dataset ymhao/HPDv2 /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/eval_sources/HPDv2
+--url https://huggingface.co/datasets/ymhao/HPDv2/resolve/main/test.json /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/eval_sources/HPDv2/
 #models
 --hf stabilityai/stable-diffusion-xl-base-1.0 /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/models/stable-diffusion-xl-base-1.0
 --hf madebyollin/sdxl-vae-fp16-fix /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/models/sdxl-vae-fp16-fix
