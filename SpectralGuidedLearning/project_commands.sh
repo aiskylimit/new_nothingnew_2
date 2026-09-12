@@ -15,7 +15,7 @@ export GPUS="${GPUS:-1}"
 # ============================ TRAIN ============================
 # per model: data -> capture (spectral + entropy) -> masks -> four matched SFT arms.
 # IWC and IWC-Stable share exactly the spectral-selected token set; only weights differ.
-
+source /mnt/local/uvenvs/spectral_guided_learning/bin/activate
 scripts/data/data_qwen25-7b.sh
 scripts/capture/capture_qwen25-7b.sh
 scripts/masks/masks_qwen25-7b.sh

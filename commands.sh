@@ -2,7 +2,6 @@
 #spectral_guided_learning
 #v2
 
-source /mnt/local/uvenvs/spectral_guided_learning/bin/activate
 cd ./SpectralGuidedLearning && bash ./project_commands.sh
 
 
