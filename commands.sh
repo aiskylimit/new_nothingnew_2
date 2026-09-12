@@ -1,20 +1,9 @@
-#d
-#datasets
---hf-dataset simplescaling/s1K-1.1 /mnt/local/_data/@PROJECT@/s1K-1.1
---hf-dataset GAIR/LIMO /mnt/local/_data/@PROJECT@/LIMO
---hf-dataset math-ai/aime24 /mnt/local/_data/@PROJECT@/aime24
---hf-dataset math-ai/aime25 /mnt/local/_data/@PROJECT@/aime25
---hf-dataset HuggingFaceH4/MATH-500 /mnt/local/_data/@PROJECT@/MATH-500
---hf-dataset AI-MO/aimo-validation-amc /mnt/local/_data/@PROJECT@/aimo-validation-amc
-#models
---hf deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-1.5B
---hf deepseek-ai/DeepSeek-R1-Distill-Qwen-7B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-7B
---hf Qwen/Qwen3-8B /mnt/local/_models/@PROJECT@/Qwen3-8B
-#set_up_spectral_guided_learning
+#1 +10
+#spectral_guided_learning
 #v2
 
-# source /mnt/local/uvenvs/spectral-guided-learning/bin/activate
-# cd ./SpectralGuidedLearning && bash ./project_commands.sh
+source /mnt/local/uvenvs/spectral_guided_learning/bin/activate
+cd ./SpectralGuidedLearning && bash ./project_commands.sh
 
 
 #2 -f-/mnt/local/aiskylimit_new_nothing/talas_vlm_embed/MMEB-evaloutputs-json-v3/ +a
