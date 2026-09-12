@@ -15,7 +15,7 @@ fi
 export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p logs
 
-LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothing}"
+LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
 MODEL_NAME="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-7B"
 DATA_PATH="data/r1-qwen-7b/train-segmented.jsonl"
 OUTPUT_DIR="data/r1-qwen-7b/spectral"

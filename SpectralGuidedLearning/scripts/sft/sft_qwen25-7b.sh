@@ -27,7 +27,7 @@ fi
 export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p "${BASE_PATH}/logs"
 
-LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothing}"
+LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
 MODEL_NAME="${LOCAL_MODELS_ROOT}/Qwen2.5-7B-Instruct"
 DATA_PATH="${BASE_PATH}/data/qwen25-7b/train-vanilla.jsonl"
 OUTPUT_DIR="${BASE_PATH}/checkpoints/vanilla-qwen25-7b"

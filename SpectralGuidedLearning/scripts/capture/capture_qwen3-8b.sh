@@ -15,7 +15,7 @@ fi
 export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p logs
 
-LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothing}"
+LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
 MODEL_NAME="${LOCAL_MODELS_ROOT}/Qwen3-8B"
 DATA_PATH="data/qwen3-8b/train-segmented.jsonl"
 OUTPUT_DIR="data/qwen3-8b/spectral"

@@ -13,8 +13,8 @@ export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p logs "data/r1-qwen-1.5b"
 
 # Offline server: no HF Hub access, load from local mirrors (see download.txt).
-LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothing}"
-LOCAL_DATA_ROOT="${LOCAL_DATA_ROOT:-/mnt/local/_data/aiskylimit_new_nothing}"
+LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
+LOCAL_DATA_ROOT="${LOCAL_DATA_ROOT:-/mnt/local/_data/aiskylimit_new_nothingnew_2}"
 MODEL_NAME="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-1.5B"
 DATASET_NAME="${DATASET_NAME:-${LOCAL_DATA_ROOT}/LIMO}"
 OUTPUT_PATH="data/r1-qwen-1.5b/train-segmented.jsonl"
