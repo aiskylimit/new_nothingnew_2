@@ -1,5 +1,5 @@
 #d
 #datasets
---hf-dataset baesad/s1K-1.1-deepseek-cot /mnt/local/_data/aiskylimit_new_nothingnew_2/s1k
+--hf-dataset baesad/s1K-1.1-deepseek-cot /mnt/local/_data/@PROJECT@/s1k
 #models
---hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen2.5-7B-Instruct
+--hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/@PROJECT@/Qwen2.5-7B-Instruct

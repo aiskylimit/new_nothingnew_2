@@ -217,6 +217,18 @@ def parse_args():
     p.add_argument("--max_input_tokens", type=int, default=0,
                    help="0 = khong gioi han. >0 = mau dai hon nguong nay se duoc gan diem 0 "
                         "thay vi tinh IG, de khong OOM giua chung")
+    p.add_argument("--ig_batch_size", type=int, default=1,
+                   help="So buoc noi suy IG tinh chung trong MOT forward/backward (batch). "
+                        "Tang len de dung het GPU lon; OOM thi tu chia doi va thu lai.")
+    p.add_argument("--ig_token_budget", type=int, default=0,
+                   help="0 = tat. >0 = gioi han batch x so_token <= budget, de mau dai tu "
+                        "giam batch thay vi OOM roi moi thu lai.")
+    p.add_argument("--shard_id", type=int, default=0,
+                   help="Chay song song nhieu GPU: process nay xu ly phan thu shard_id "
+                        "(chia lien tiep) cua input. Xem --num_shards.")
+    p.add_argument("--num_shards", type=int, default=1,
+                   help="Tong so phan chia input. Moi shard ghi ra file rieng; wrapper "
+                        "(run_pipeline.sh) noi cac file lai theo thu tu shard.")
     # p.add_argument("--baseline_token", type=str, default="pad", choices=["pad", "zero"], help="Baseline token choice")
     return p.parse_args()
 
@@ -236,6 +248,19 @@ if __name__ == "__main__":
         for line in f:
             json_obj = json.loads(line.strip())  
             input_data.append(json_obj)
+
+    # Chia lien tiep (khong xen ke) de wrapper chi can `cat` cac shard theo
+    # thu tu la ra dung thu tu input - get_important_segments.py doi chieu
+    # tung dong voi file segment nen thu tu la bat buoc.
+    if not (0 <= args.shard_id < args.num_shards):
+        raise SystemExit("--shard_id %d phai nam trong [0, %d)" % (args.shard_id, args.num_shards))
+    if args.num_shards > 1:
+        n_total = len(input_data)
+        per = math.ceil(n_total / args.num_shards)
+        lo, hi = args.shard_id * per, min((args.shard_id + 1) * per, n_total)
+        input_data = input_data[lo:hi]
+        print("Shard %d/%d: mau [%d, %d) trong %d mau"
+              % (args.shard_id, args.num_shards, lo, hi, n_total))
 
     skipped_oom = 0
     skipped_long = 0
@@ -379,21 +404,35 @@ if __name__ == "__main__":
                 importance_scores = zero_scores
                 skipped_long += 1
             else:
-                try:
-                    importance_scores = attribution_calculator.batch_compute_step_to_answer_attribution_integrated(
-                        full_tokens, adjusted_spans, answer_indices,
-                        baseline_token_id=attribution_calculator.tokenizer.pad_token_id,
-                        steps=args.ig_steps)
-                except OOM_ERROR:
-                    # Mot mau qua dai khong duoc lam chet ca job nhieu gio. Gan
-                    # diem 0 -> train_mask.py roi ve 3 segment mac dinh cho mau nay.
-                    print("  OOM o mau %d (%d token), gan diem 0 va chay tiep"
-                          % (n, len(full_tokens)))
-                    attribution_calculator.model.zero_grad(set_to_none=True)
-                    gc.collect()
-                    torch.cuda.empty_cache()
-                    importance_scores = zero_scores
-                    skipped_oom += 1
+                # Batch = so buoc noi suy IG chay chung mot forward. Mau dai thi
+                # tu giam theo --ig_token_budget; van OOM thi chia doi va thu lai
+                # cho den batch 1. Ket qua khong phu thuoc batch (chi la tong
+                # gradient qua cac buoc).
+                bs = max(1, args.ig_batch_size)
+                if args.ig_token_budget > 0:
+                    bs = max(1, min(bs, args.ig_token_budget // max(1, len(full_tokens))))
+                importance_scores = None
+                while importance_scores is None:
+                    try:
+                        importance_scores = attribution_calculator.batch_compute_step_to_answer_attribution_integrated(
+                            full_tokens, adjusted_spans, answer_indices,
+                            baseline_token_id=attribution_calculator.tokenizer.pad_token_id,
+                            steps=args.ig_steps, batch_size=bs)
+                    except OOM_ERROR:
+                        attribution_calculator.model.zero_grad(set_to_none=True)
+                        gc.collect()
+                        torch.cuda.empty_cache()
+                        if bs > 1:
+                            bs = bs // 2
+                            print("  OOM o mau %d (%d token), thu lai voi ig_batch_size=%d"
+                                  % (n, len(full_tokens), bs))
+                            continue
+                        # Mot mau qua dai khong duoc lam chet ca job nhieu gio. Gan
+                        # diem 0 -> train_mask.py roi ve 3 segment mac dinh cho mau nay.
+                        print("  OOM o mau %d (%d token) ngay ca voi batch 1, gan diem 0 va chay tiep"
+                              % (n, len(full_tokens)))
+                        importance_scores = zero_scores
+                        skipped_oom += 1
 
             input_data[n]["attribution"] = importance_scores
 
