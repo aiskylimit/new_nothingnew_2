@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/_run_log_/_run-2026-09-12_02-21-40-test3.log
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/_run_log_/
 #test3
 #v1
 
