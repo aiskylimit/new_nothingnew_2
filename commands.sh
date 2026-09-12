@@ -1,8 +1,20 @@
-#1 +10
-#spectral_guided_learning
-#v1
-cd ./SpectralGuidedLearning
-bash ./project_commands.sh
+#d
+#datasets
+--hf-dataset simplescaling/s1K-1.1 /mnt/local/_data/@PROJECT@/s1K-1.1
+--hf-dataset GAIR/LIMO /mnt/local/_data/@PROJECT@/LIMO
+--hf-dataset math-ai/aime24 /mnt/local/_data/@PROJECT@/aime24
+--hf-dataset math-ai/aime25 /mnt/local/_data/@PROJECT@/aime25
+--hf-dataset HuggingFaceH4/MATH-500 /mnt/local/_data/@PROJECT@/MATH-500
+--hf-dataset AI-MO/aimo-validation-amc /mnt/local/_data/@PROJECT@/aimo-validation-amc
+#models
+--hf deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-1.5B
+--hf deepseek-ai/DeepSeek-R1-Distill-Qwen-7B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-7B
+--hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/@PROJECT@/Qwen2.5-7B-Instruct
+--hf Qwen/Qwen3-8B /mnt/local/_models/@PROJECT@/Qwen3-8B
+# #spectral_guided_learning
+# #v1
+# cd ./SpectralGuidedLearning
+# bash ./project_commands.sh
 
 # SDXL Q3 DSPO full851k on physical GPU 2,3.
 # env.sh maps CUDA_VISIBLE_DEVICES -> GPU_IDS (2,3); NUM_GPUS=2, effective batch 64.
