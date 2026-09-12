@@ -1,5 +1,5 @@
-#3
-#watch_log_index
+#2 -10
+#logs_ssft
 #v4
 
 # SDXL Q3 DSPO full851k on physical GPU 2,3.
