@@ -1,6 +1,8 @@
-#2 -10
-#logs_ssft
-#v4
+#1 +10
+#spectral_guided_learning
+#v1
+cd ./SpectralGuidedLearning
+bash ./project_commands.sh
 
 # SDXL Q3 DSPO full851k on physical GPU 2,3.
 # env.sh maps CUDA_VISIBLE_DEVICES -> GPU_IDS (2,3); NUM_GPUS=2, effective batch 64.
