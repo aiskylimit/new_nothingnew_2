@@ -2,7 +2,7 @@
 #stage_segment_ssft
 #v1
 
-cd SegmentSelectiveSFT && bash commands.sh
+CUDA_VISIBLE_DEVICES=0,1 cd ./SegmentSelectiveSFT && bash commands.sh
 
 #2 -f-/mnt/local/aiskylimit_new_nothing/talas_vlm_embed/MMEB-evaloutputs-json-v3/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothing/_run_log_/_run-2026-09-03_17-01-16-VLM-Distillation.log
@@ -81,11 +81,11 @@ export NCCL_DEBUG=WARN
 
 # SDXL Q3 full restart after the previous B200 node stopped.
 # Assigned physical devices: GPU 2 and GPU 3.
-cd ./sdxl_q3_offline_b200_2gpu
-CUDA_VISIBLE_DEVICES=2,3 \
-PIPELINE_MODE=full851k \
-RUN_NAME=q3_dspo_sdxl_full851k_eb64_2gpu_gpu23_restart_20260912 \
-bash ./project_command.sh
+# cd ./sdxl_q3_offline_b200_2gpu
+# CUDA_VISIBLE_DEVICES=2,3 \
+# PIPELINE_MODE=full851k \
+# RUN_NAME=q3_dspo_sdxl_full851k_eb64_2gpu_gpu23_restart_20260912 \
+# bash ./project_command.sh
 
 # cd ./SegmentSelectiveSFT
 # bash train.sh

@@ -1,4 +1,3 @@
-cd SegmentSelectiveSFT
 source /mnt/local/uvenvs/ssft_eval/bin/activate
 ls "$DATA_DIR" "$MODEL_DIR"
 MODEL_DIR=/mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen2.5-7B-Instruct
