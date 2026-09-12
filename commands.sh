@@ -1,8 +1,8 @@
-#1 +10
+#3
 #spectral_guided_learning
 #v2
 
-cd ./SpectralGuidedLearning && bash ./project_commands.sh
+# cd ./SpectralGuidedLearning && bash ./project_commands.sh
 
 
 #2 -f-/mnt/local/aiskylimit_new_nothing/talas_vlm_embed/MMEB-evaloutputs-json-v3/ +a
