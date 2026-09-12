@@ -1,6 +1,6 @@
 #1 +10
 #sdxl-q3-gpu23-restart
-#v1
+#v2
 
 # SSFT GPU 0-1 was triggered by the preceding commit; do not launch it twice.
 # CUDA_VISIBLE_DEVICES=0,1 cd ./SegmentSelectiveSFT && bash commands.sh
