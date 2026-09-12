@@ -41,5 +41,5 @@ export NCCL_DEBUG=WARN
 # CUDA_VISIBLE_DEVICES=2,3 bash ./project_command.sh
 
 
-# cd ./SegmentSelectiveSFT
-# CUDA_VISIBLE_DEVICES=0,1 bash commands.sh
+cd ./SegmentSelectiveSFT
+CUDA_VISIBLE_DEVICES=0,1 bash commands.sh
