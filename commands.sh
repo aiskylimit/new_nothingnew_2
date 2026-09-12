@@ -1,15 +1,17 @@
-#i sdxl-q3-offline-b200-2gpu.txt
-#set_up_sdxl_q3_offline_b200_2gpu
-#v1
+#1 +10
+#sdxl-q3-gpu23-restart
+#v4
 
-# Env install only. /mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu is missing on this
-# node, so project_command.sh fails at its SETUP gate before it can reach the asset
-# check. The #1 run block is commented out here and restored once the env exists.
-# cd ./sdxl_q3_offline_b200_2gpu
-# CUDA_VISIBLE_DEVICES=2,3 \
-# PIPELINE_MODE=full851k \
-# RUN_NAME=q3_dspo_sdxl_full851k_eb64_2gpu_gpu23_restart_20260912 \
-# bash ./project_command.sh
+# SDXL Q3 DSPO full851k on physical GPU 2,3.
+# env.sh maps CUDA_VISIBLE_DEVICES -> GPU_IDS (2,3); NUM_GPUS=2, effective batch 64.
+# The uv env /mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu was installed by f2885fd.
+# SpectralGuidedLearning stays commented: it runs in the foreground and cd's away,
+# which would both block this job and break the relative cd below.
+cd ./sdxl_q3_offline_b200_2gpu
+CUDA_VISIBLE_DEVICES=2,3 \
+PIPELINE_MODE=full851k \
+RUN_NAME=q3_dspo_sdxl_full851k_eb64_2gpu_gpu23_restart_20260912 \
+bash ./project_command.sh
 
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 
