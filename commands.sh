@@ -1,8 +1,9 @@
 #1 +10
-#stage_segment_ssft
+#sdxl-q3-gpu23-restart
 #v1
 
-CUDA_VISIBLE_DEVICES=0,1 cd ./SegmentSelectiveSFT && bash commands.sh
+# SSFT GPU 0-1 was triggered by the preceding commit; do not launch it twice.
+# CUDA_VISIBLE_DEVICES=0,1 cd ./SegmentSelectiveSFT && bash commands.sh
 
 #2 -f-/mnt/local/aiskylimit_new_nothing/talas_vlm_embed/MMEB-evaloutputs-json-v3/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothing/_run_log_/_run-2026-09-03_17-01-16-VLM-Distillation.log
