@@ -77,5 +77,13 @@ export NCCL_DEBUG=WARN
 # cd ./sdxl_q3_offline_b200_2gpu
 # CUDA_VISIBLE_DEVICES=6,7 bash ./project_command.sh
 
+# SDXL Q3 full restart after the previous B200 node stopped.
+# Assigned physical devices: GPU 2 and GPU 3.
+cd ./sdxl_q3_offline_b200_2gpu
+CUDA_VISIBLE_DEVICES=2,3 \
+PIPELINE_MODE=full851k \
+RUN_NAME=q3_dspo_sdxl_full851k_eb64_2gpu_gpu23_restart_20260912 \
+bash ./project_command.sh
+
 # cd ./SegmentSelectiveSFT
 # bash train.sh
