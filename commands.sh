@@ -1,10 +1,20 @@
 #1 +10
-#spectral_guided_learning
-#v2
+#sdxl-q3-gpu23-restart
+#v3
 
-cd ./SpectralGuidedLearning && bash ./project_commands.sh
+# SDXL Q3 DSPO full851k on physical GPU 2,3.
+# env.sh maps CUDA_VISIBLE_DEVICES -> GPU_IDS (2,3); NUM_GPUS=2, effective batch 64.
+# SpectralGuidedLearning is kept commented below: project_commands.sh runs in the
+# foreground (and cd's away), so it would block this job and break the relative cd.
+cd ./sdxl_q3_offline_b200_2gpu
+CUDA_VISIBLE_DEVICES=2,3 \
+PIPELINE_MODE=full851k \
+RUN_NAME=q3_dspo_sdxl_full851k_eb64_2gpu_gpu23_restart_20260912 \
+bash ./project_command.sh
 
+# cd ./SpectralGuidedLearning && bash ./project_commands.sh
 
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/sdxl_q3_offline_b200_2gpu/runtime/logs/
 #2 -f-/mnt/local/aiskylimit_new_nothing/talas_vlm_embed/MMEB-evaloutputs-json-v3/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothing/_run_log_/_run-2026-09-03_17-01-16-VLM-Distillation.log
 #2 -f-/mnt/local/aiskylimit_new_nothing/VLM_Distillation-main/outputs/eval/ +a
