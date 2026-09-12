@@ -1,9 +1,9 @@
-#1 +10
-#spectral_guided_learning
+#i spectral_guided_learning.txt
+#set_up_spectral_guided_learning
 #v2
 
-source /mnt/local/uvenvs/spectral-guided-learning/bin/activate
-cd ./SpectralGuidedLearning && bash ./project_commands.sh
+# source /mnt/local/uvenvs/spectral-guided-learning/bin/activate
+# cd ./SpectralGuidedLearning && bash ./project_commands.sh
 
 
 #2 -f-/mnt/local/aiskylimit_new_nothing/talas_vlm_embed/MMEB-evaloutputs-json-v3/ +a
