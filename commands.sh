@@ -1,8 +1,8 @@
 #1 +10
-#watch_nvidia_smi
+#spectral_guided_learning
 #v2
 
-
+cd ./SpectralGuidedLearning && bash ./project_commands.sh
 
 
 #2 -f-/mnt/local/aiskylimit_new_nothing/talas_vlm_embed/MMEB-evaloutputs-json-v3/ +a

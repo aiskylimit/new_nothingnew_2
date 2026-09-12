@@ -9,6 +9,9 @@ set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 
+# Which GPU(s) every phase script runs on (space-separated ids). Override: GPUS="0 1" ./project_commands.sh
+export GPUS="${GPUS:-1}"
+
 # ============================ TRAIN ============================
 # per model: data -> capture (spectral + entropy) -> masks -> four matched SFT arms.
 # IWC and IWC-Stable share exactly the spectral-selected token set; only weights differ.
