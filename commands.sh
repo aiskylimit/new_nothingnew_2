@@ -1,9 +1,4 @@
-#d
-#datasets
---hf-dataset baesad/s1K-1.1-deepseek-cot /mnt/local/_data/@PROJECT@/s1k
-#models
---hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/@PROJECT@/Qwen2.5-7B-Instruct
-
+#1 +10
 #test
 #v1
 
@@ -81,3 +76,6 @@ export NCCL_DEBUG=WARN
 
 # cd ./sdxl_q3_offline_b200_2gpu
 # CUDA_VISIBLE_DEVICES=6,7 bash ./project_command.sh
+
+# cd ./SegmentSelectiveSFT
+# bash train.sh
