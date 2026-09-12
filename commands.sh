@@ -1,5 +1,5 @@
 #1 +10
-#sdxl-q3-gpu23-restart
+#segment-selective-sft
 #v2
 
 
