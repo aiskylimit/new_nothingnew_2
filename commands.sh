@@ -1,5 +1,5 @@
-#1 +10
-#sdxl-q3-gpu23-restart
+#2 -5
+#logs_ssft
 #v4
 
 # SDXL Q3 DSPO full851k on physical GPU 2,3.
@@ -7,11 +7,11 @@
 # The uv env /mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu was installed by f2885fd.
 # SpectralGuidedLearning stays commented: it runs in the foreground and cd's away,
 # which would both block this job and break the relative cd below.
-cd ./sdxl_q3_offline_b200_2gpu
-CUDA_VISIBLE_DEVICES=2,3 \
-PIPELINE_MODE=full851k \
-RUN_NAME=q3_dspo_sdxl_full851k_eb64_2gpu_gpu23_restart_20260912 \
-bash ./project_command.sh
+# cd ./sdxl_q3_offline_b200_2gpu
+# CUDA_VISIBLE_DEVICES=2,3 \
+# PIPELINE_MODE=full851k \
+# RUN_NAME=q3_dspo_sdxl_full851k_eb64_2gpu_gpu23_restart_20260912 \
+# bash ./project_command.sh
 
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 
