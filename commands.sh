@@ -1,34 +1,8 @@
-#d
-#datasets
---hf-dataset simplescaling/s1K-1.1 /mnt/local/_data/@PROJECT@/s1K-1.1
---hf-dataset GAIR/LIMO /mnt/local/_data/@PROJECT@/LIMO
---hf-dataset math-ai/aime24 /mnt/local/_data/@PROJECT@/aime24
---hf-dataset math-ai/aime25 /mnt/local/_data/@PROJECT@/aime25
---hf-dataset HuggingFaceH4/MATH-500 /mnt/local/_data/@PROJECT@/MATH-500
---hf-dataset AI-MO/aimo-validation-amc /mnt/local/_data/@PROJECT@/aimo-validation-amc
---hf-dataset liuhuohuo2/pick-a-pic-v2 /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/data/pickapic_v2_full
---hf-dataset nateraw/parti-prompts /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/eval_sources/parti-prompts
---url https://huggingface.co/datasets/ymhao/HPDv2/resolve/main/test.json /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/eval_sources/HPDv2/
-#models
---hf deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-1.5B
---hf deepseek-ai/DeepSeek-R1-Distill-Qwen-7B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-7B
---hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/@PROJECT@/Qwen2.5-7B-Instruct
---hf Qwen/Qwen3-8B /mnt/local/_models/@PROJECT@/Qwen3-8B
---hf stabilityai/stable-diffusion-xl-base-1.0 /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/models/stable-diffusion-xl-base-1.0
---hf madebyollin/sdxl-vae-fp16-fix /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/models/sdxl-vae-fp16-fix
---hf laion/CLIP-ViT-H-14-laion2B-s32B-b79K /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/reward_models/CLIP-ViT-H-14-laion2B-s32B-b79K
---hf yuvalkirstain/PickScore_v1 /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/reward_models/PickScore_v1
---hf google-bert/bert-base-uncased /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/reward_models/bert-base-uncased
---url https://huggingface.co/xswu/HPSv2/resolve/main/HPS_v2.1_compressed.pt /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/reward_models/HPSv2/
---url https://raw.githubusercontent.com/tgxs002/HPSv2/master/hpsv2/src/open_clip/bpe_simple_vocab_16e6.txt.gz /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/reward_models/HPSv2/
---url https://openaipublic.azureedge.net/clip/models/b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836/ViT-L-14.pt /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/reward_models/open_clip/
---url https://huggingface.co/trl-lib/ddpo-aesthetic-predictor/resolve/main/aesthetic-model.pth /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/reward_models/ddpo-aesthetic-predictor/
---url https://huggingface.co/THUDM/ImageReward/resolve/main/ImageReward.pt /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/reward_models/ImageReward/
---url https://huggingface.co/THUDM/ImageReward/resolve/main/med_config.json /mnt/local/_data/@PROJECT@/sdxl_q3_offline_assets/reward_models/ImageReward/
-# #spectral_guided_learning
-# #v1
-# cd ./SpectralGuidedLearning
-# bash ./project_commands.sh
+#1 +10
+#spectral_guided_learning
+#v1
+cd ./SpectralGuidedLearning
+bash ./project_commands.sh
 #download_sdxl_q3_offline_assets
 #v1
 
@@ -57,10 +31,10 @@
 # "download: 9 item(s) OK". Training stays commented until _RUN_STATUS_.log
 # reports this download complete; a follow-up commit then restores the #1 +10
 # launch on GPUs 2,3.
-echo "=== disk headroom before the ~410 GiB SDXL refetch ==="
-df -h /mnt/local 2>&1
-ls -la /mnt/local/_data 2>&1 | head
-ls -la /mnt/local/_data/aiskylimit_new_nothingnew_2 2>&1 | head -20
+# echo "=== disk headroom before the ~410 GiB SDXL refetch ==="
+# df -h /mnt/local 2>&1
+# ls -la /mnt/local/_data 2>&1 | head
+# ls -la /mnt/local/_data/aiskylimit_new_nothingnew_2 2>&1 | head -20
 
 # SDXL Q3 DSPO full851k on physical GPU 2,3.
 # env.sh maps CUDA_VISIBLE_DEVICES -> GPU_IDS (2,3); NUM_GPUS=2, effective batch 64.
