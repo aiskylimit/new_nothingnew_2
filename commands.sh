@@ -1,6 +1,6 @@
 #2 -0
 #spectral_guided_learning
-#v1
+#v2
 # cd ./SpectralGuidedLearning
 # bash ./project_commands.sh
 #download_sdxl_q3_offline_assets
