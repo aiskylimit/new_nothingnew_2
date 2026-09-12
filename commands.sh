@@ -1,8 +1,8 @@
-#1 +10
+#3
 #spectral_guided_learning
 #v1
-cd ./SpectralGuidedLearning
-bash ./project_commands.sh
+# cd ./SpectralGuidedLearning
+# bash ./project_commands.sh
 #download_sdxl_q3_offline_assets
 #v1
 
