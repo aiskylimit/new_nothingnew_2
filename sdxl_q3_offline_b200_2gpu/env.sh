@@ -3,19 +3,27 @@
 # Every value can be overridden before invoking project_command.sh.
 
 export PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-# download.txt was originally materialized under the first repository name.
-# Prefer colocated assets when present, otherwise reuse that persistent tree.
+# /mnt/local is node-local storage, so a replacement node comes back with no
+# offline assets at all. download.txt therefore materializes into the platform
+# dataset area (_data/<project>), which is not part of the git clone and so
+# survives a re-clone; the colocated and legacy trees stay as fallbacks.
 # ASSET_ROOT remains explicitly overridable for other platform layouts.
 if [[ -z "${ASSET_ROOT:-}" ]]; then
-  project_asset_root="$PROJECT_ROOT/offline_assets"
-  downloaded_asset_root="/mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets"
-  if [[ -d "$project_asset_root/data/pickapic_v2_full/data" ]]; then
-    ASSET_ROOT="$project_asset_root"
-  elif [[ -d "$downloaded_asset_root/data/pickapic_v2_full/data" ]]; then
-    ASSET_ROOT="$downloaded_asset_root"
-  else
-    ASSET_ROOT="$project_asset_root"
-  fi
+  asset_root_candidates=(
+    "/mnt/local/_data/aiskylimit_new_nothingnew_2/sdxl_q3_offline_assets"
+    "$PROJECT_ROOT/offline_assets"
+    "/mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets"
+  )
+  # Default to the download target so a missing-asset error names the path that
+  # download.txt is supposed to populate.
+  ASSET_ROOT="${asset_root_candidates[0]}"
+  for asset_root_candidate in "${asset_root_candidates[@]}"; do
+    if [[ -d "$asset_root_candidate/data/pickapic_v2_full/data" ]]; then
+      ASSET_ROOT="$asset_root_candidate"
+      break
+    fi
+  done
+  unset asset_root_candidate
 fi
 export ASSET_ROOT
 export RUNTIME_ROOT="${RUNTIME_ROOT:-$PROJECT_ROOT/runtime}"
