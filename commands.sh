@@ -1,6 +1,6 @@
 #2 -0
 #ssft
-#v2
+#v3
 # cd ./SegmentSelectiveSFTv2
 # bash ./commands.sh
 #download_sdxl_q3_offline_assets
