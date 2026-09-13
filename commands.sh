@@ -1,3 +1,9 @@
+#d
+#datasets
+--hf-dataset baesad/s1K-1.1-deepseek-cot /mnt/local/_data/@PROJECT@/s1k
+#models
+--hf deepseek-ai/DeepSeek-R1-Distill-Qwen-7B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-7B
+
 #i ssft_eval.txt
 #spectral_guided_learning
 #v2
