@@ -5,6 +5,7 @@
 # bash ./commands.sh
 #download_sdxl_q3_offline_assets
 #v1
+watch -n 1 nvidia-smi
 
 # The 10 spectral_guided_learning items above are kept intact and first in the
 # block; the 14 sdxl_q3_offline_assets items are appended, so one download
