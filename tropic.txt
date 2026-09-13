@@ -1,0 +1,13 @@
+# manager: uv
+# python: 3.11
+# From this repo's own scripts/tropic (RLSD/SDPO baselines) - audited imports only.
+torch
+transformers
+datasets
+accelerate
+peft
+huggingface-hub
+numpy
+sentencepiece
+math-verify[antlr4_13_2]
+vllm
