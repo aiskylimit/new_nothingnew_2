@@ -43,7 +43,7 @@ train() {
       --model-path "${model_path}" --seed 0 --output-dir "${output_dir}" --skip-eval \
       --use-vllm-rollout --vllm-gpu-ids "${VLLM_GPU_IDS}" --vllm-base-port ${VLLM_BASE_PORT} \
       --vllm-executable "${VLLM_EXECUTABLE}" --vllm-gpu-memory-utilization ${GPU_MEM_UTIL} \
-      > "${output_dir}_train.log" 2>&1
+      2>&1 | tee "${output_dir}_train.log"
 }
 
 train_dry_run() {
@@ -54,7 +54,7 @@ train_dry_run() {
       --training-steps 3 \
       --use-vllm-rollout --vllm-gpu-ids "${VLLM_GPU_IDS}" --vllm-base-port ${VLLM_BASE_PORT} \
       --vllm-executable "${VLLM_EXECUTABLE}" --vllm-gpu-memory-utilization ${GPU_MEM_UTIL} \
-      > "${output_dir}_dryrun_train.log" 2>&1
+      2>&1 | tee "${output_dir}_dryrun_train.log"
   echo "Dry run finished - check ${output_dir}_dryrun_train.log for errors before continuing."
 }
 
@@ -73,7 +73,7 @@ eval_checkpoint() {
       --eval-engine vllm --vllm-gpu-ids "${VLLM_GPU_IDS}" --vllm-base-port ${VLLM_BASE_PORT} \
       --vllm-executable "${VLLM_EXECUTABLE}" --vllm-gpu-memory-utilization ${GPU_MEM_UTIL} \
       --eval-benchmarks ${BENCHMARKS} \
-      > "${output_dir}_eval_step${step}.log" 2>&1
+      2>&1 | tee "${output_dir}_eval_step${step}.log"
 }
 
 # ============================================================
