@@ -4,9 +4,8 @@
 
 # nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
-# nvidia-smi
-# cd ./SegmentSelectiveSFT
-# bash ./commands.sh
+# cd ./SegmentSelectiveSFT && bash ./commands.sh
+# cd SegmentSelectiveSFT && ls Attribution/processed_data/s1k
 #download_sdxl_q3_offline_assets
 
 # cd ./sdxl_q3_offline_b200_2gpu
