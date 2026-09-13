@@ -1,4 +1,4 @@
-#i tropic.txt
+#1 +30
 #offline_rlsd_sdpo_b200
 #v1
 
@@ -59,4 +59,4 @@ export NCCL_DEBUG=WARN
 
 cd ./offline_rlsd_sdpo_b200
 # tail -n 30 results_rlsd_4b_dryrun_train.log
-# bash ./project_commands.sh
+bash ./project_commands.sh
