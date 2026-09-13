@@ -203,7 +203,7 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--model_name", type=str, required=True, help="HuggingFace model name or local path")
     p.add_argument("--input_data", type=str, required=True, help="Path to input jsonl")
-    p.add_argument("--output_data_file", type=str, required=True, help="Path to output jsonl (appended)")
+    p.add_argument("--output_data_file", type=str, required=True, help="Path to output jsonl (ghi de)")
     p.add_argument("--output_ig_file", type=str, required=True, help="Path to output IG jsonl")
     p.add_argument("--ig_steps", type=int, default=20, help="Number of IG steps")
     p.add_argument("--no_gradient_checkpointing", action="store_true",
@@ -212,8 +212,9 @@ def parse_args():
                    help="File tong hop theo SEGMENT (3 so/segment) thay vi tung token. "
                         "De trong = tu dat ten <output_ig_file> doi duoi thanh _compact.jsonl. "
                         "Nho hon ~30 lan ma get_important_segments.py van dung duoc.")
-    p.add_argument("--overwrite", action="store_true",
-                   help="Tinh lai tu dau. Mac dinh: neu da co ket qua do dang thi chay tiep tu do.")
+    p.add_argument("--resume", action="store_true",
+                   help="Chay tiep tu ket qua do dang trong output_data_file. "
+                        "Mac dinh: xoa file cu va tinh lai tu dau.")
     p.add_argument("--max_input_tokens", type=int, default=0,
                    help="0 = khong gioi han. >0 = mau dai hon nguong nay se duoc gan diem 0 "
                         "thay vi tinh IG, de khong OOM giua chung")
@@ -244,14 +245,16 @@ if __name__ == "__main__":
     skipped_long = 0
     os.makedirs(os.path.dirname(args.output_data_file), exist_ok=True)
 
-    # --- Chay tiep tu ket qua do dang ---
-    # Stage nay chay nhieu gio nen dut giua chung la chuyen binh thuong. Doc lai
-    # phan da xong, doi chieu 'question' de chac chan khop dung mau, roi chay
-    # tiep. Khong khop (doi dataset, doi cach chia segment) thi dung han thay vi
-    # tron hai lan chay vao nhau.
+    # --- Mac dinh: xoa file cu, ghi lai tu dau ---
+    # Chi khi co --resume moi doc lai phan da xong, doi chieu 'question' de chac
+    # chan khop dung mau, roi chay tiep. Khong khop (doi dataset, doi cach chia
+    # segment) thi dung han thay vi tron hai lan chay vao nhau.
     done = 0
     write_mode = 'w'
-    if not args.overwrite and os.path.exists(args.output_data_file):
+    if not args.resume and os.path.exists(args.output_data_file):
+        print("Xoa ket qua cu: %s (dung --resume de chay tiep)" % args.output_data_file)
+        os.remove(args.output_data_file)
+    elif args.resume and os.path.exists(args.output_data_file):
         existing = []
         with open(args.output_data_file, 'r') as f:
             for line in f:
@@ -269,7 +272,7 @@ if __name__ == "__main__":
                 raise SystemExit(
                     "Ket qua cu trong %s khong khop du lieu dau vao tai mau %d.\n"
                     "Co ve la cua lan chay voi dataset/cach chia segment khac. "
-                    "Chay lai voi --overwrite de tinh lai tu dau." % (args.output_data_file, i)
+                    "Bo --resume de xoa file cu va tinh lai tu dau." % (args.output_data_file, i)
                 )
         done = len(existing)
         if done >= len(input_data):

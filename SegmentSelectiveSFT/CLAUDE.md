@@ -65,7 +65,7 @@ bash run_pipeline.sh --stages prep,split    # -> data/s1k/solution_segments.json
 
 # Default pipeline: attribution + selective SFT (assumes solution_segments.jsonl exists)
 bash run_pipeline.sh                        # = --stages ig,segments,train
-bash run_pipeline.sh --stages ig --force     # ig stage appends; --force clears the old file first
+bash run_pipeline.sh --stages ig --resume    # ig stage overwrites by default; --resume continues a partial run
 bash run_pipeline.sh --offline               # air-gapped: sets HF_HUB_OFFLINE + HF_DATASETS_OFFLINE
 bash run_pipeline.sh --segment-mode cue      # paper's backtracking-cue split instead of "\n\n"
 DRY_RUN=1 bash run_pipeline.sh
@@ -162,11 +162,12 @@ silently misalign every downstream span, and a zero-length segment divides by ze
 - **A sample whose labels are all `-100` yields `nan` loss and poisons the run.** This happens when
   `max_seq_length` truncates away the response. `train_mask.py` drops such samples in `.map()` and
   reports the count; it does not crash.
-- **The `ig` stage resumes by default.** It re-reads its output, checks each record's `question` against
-  the input, and continues from the first unprocessed sample; a truncated last line (from a `kill -9`) is
-  dropped. A mismatch stops the run rather than interleaving two different runs — pass `--overwrite` to
-  recompute from scratch. The output file is opened `'w'` on a fresh run and `'a'` when resuming, so a
-  re-run never silently duplicates records.
+- **The `ig` stage overwrites by default.** `grad_analyze.py` deletes its old `output_data_file` and
+  opens it `'w'`, so a re-run never silently duplicates or interleaves records. Pass `--resume`
+  (`run_pipeline.sh --resume` / `IG_RESUME=1`) to continue a partial run instead: it re-reads the
+  output, checks each record's `question` against the input, continues from the first unprocessed
+  sample and opens the file `'a'`; a truncated last line (from a `kill -9`) is dropped, and a mismatch
+  stops the run rather than mixing two different runs.
 - **Per-token IG is never needed downstream.** `get_important_segments.py` only uses
   `Σ|IG|`, `ΣIG` and the token count per segment (Eq 3), so `grad_analyze.py` also writes
   `IG_compact.jsonl` holding exactly those three numbers — ~25x smaller than `IG.jsonl`, with verified
