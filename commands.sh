@@ -1,4 +1,4 @@
-#1 +60
+#2
 #offline_rlsd_sdpo_b200
 #v1
 # nvidia-smi
@@ -56,5 +56,5 @@ export NCCL_DEBUG=WARN
 # cd ./SegmentSelectiveSFT
 # CUDA_VISIBLE_DEVICES=0,1 bash commands.sh
 
-cd ./offline_rlsd_sdpo_b200
-bash ./project_commands.sh
+# cd ./offline_rlsd_sdpo_b200
+# bash ./project_commands.sh
