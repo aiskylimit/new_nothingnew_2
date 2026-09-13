@@ -9,4 +9,4 @@ huggingface-hub
 numpy==1.26.4
 sentencepiece
 math-verify[antlr4_13_2]
-vllm
+vllm==0.18.0
