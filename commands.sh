@@ -5,6 +5,7 @@
 # bash ./commands.sh
 #download_sdxl_q3_offline_assets
 #v1
+ls SegmentSelectiveSFT/
 watch -n 1 nvidia-smi
 ps -a
 
