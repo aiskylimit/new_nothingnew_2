@@ -1,5 +1,5 @@
-#2
-#offline_rlsd_sdpo_b200
+#1 +10
+#test
 #v1
 # nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
