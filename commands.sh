@@ -1,4 +1,4 @@
-#2 -0
+#1 #10
 #ssft
 #v3
 # cd ./SegmentSelectiveSFTv2
