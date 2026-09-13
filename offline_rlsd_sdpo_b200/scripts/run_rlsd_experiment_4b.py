@@ -174,7 +174,7 @@ CONFIG = dict(
     student_thinking=False,
     max_length=20000,
     lora=LORA_CONFIG,
-    # temperature=1.0/top_p=1.0/top_k=-1 (unrestricted) and questions_per_step=8 (vs. the online
+    # temperature=1.0/top_p=1.0/top_k=-1 (unrestricted) and questions_per_step=4 (vs. the online
     # cluster's 1.1/0.95/20 and questions_per_step=4) are this offline B200 deployment's own
     # deliberate choices (see offline_rlsd_sdpo_b200's project_commands.sh) - NOT copied from the
     # online run_rlsd_experiment_4b.py, which keeps OPSD's real recipe unchanged.
@@ -182,9 +182,11 @@ CONFIG = dict(
                max_new_tokens=1024, temperature=1.0, top_p=1.0, top_k=-1, seed=args.seed,
                gradient_checkpointing=True),
     rlsd=dict(
-        group_size=8,           # paper's own G (Implementation Details)
-        questions_per_step=8,   # 8*8=64 rollouts/step (this deployment's own choice for the 4B model;
-                                 # the 8B script keeps questions_per_step=4 -> 32, unchanged)
+        group_size=4,           # REDUCED from the paper's own G=8 for safety margin on this
+                                 # untested-on-B200 pipeline (the 8B script uses G=2) - note this
+                                 # changes GRPO-style advantage normalization (noisier with a
+                                 # smaller group), not just a memory/throughput knob
+        questions_per_step=4,   # 4*4=16 rollouts/step; the 8B script uses 2*2=4
         epsilon_w=0.2,          # paper's own value; verified == real repo's rlsd_reweight_clip_range=0.2
         lambda_init=0.5,        # paper's own value; verified == real repo's rlsd_lambda=0.5
         lambda_decay_steps=50,  # paper's own value ("linearly decayed to 0 over the first 50 steps");

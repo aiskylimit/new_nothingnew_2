@@ -13,6 +13,7 @@ scalar/binary reward.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 import torch
@@ -43,7 +44,12 @@ def load_opsd_math_examples_with_answer(
     keeping (and requiring) the dataset's own `Answer` column, since RLSD/SDPO
     are meaningless without a gold answer to grade rollouts against. Rows
     with a missing/empty `Answer` are dropped."""
-    ds = load_dataset(OPSD_DATASET_PATH, split=split)
+    # Offline deployment: same TROPIC_TRAIN_DATA_PATH override as
+    # tropic.data.load_opsd_math_examples (see that function's own comment) -
+    # this loader has its OWN load_dataset() call site, so the override has
+    # to be duplicated here rather than inherited automatically.
+    dataset_path = os.environ.get("TROPIC_TRAIN_DATA_PATH", OPSD_DATASET_PATH)
+    ds = load_dataset(dataset_path, split=split)
     if only_correct and "correct" in ds.column_names:
         ds = ds.filter(lambda r: bool(r["correct"]))
     if "Answer" not in ds.column_names:

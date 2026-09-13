@@ -153,9 +153,11 @@ CONFIG = dict(
                max_new_tokens=1024, temperature=1.0, top_p=1.0, top_k=-1, seed=args.seed,
                gradient_checkpointing=True),
     sdpo=dict(
-        group_size=8,           # matches RLSD's group size / this project's rollout budget
-        questions_per_step=4,   # 4*8=32 rollouts/step (unchanged; the 4B script instead uses
-                                 # questions_per_step=8 -> 64, this deployment's own choice for 4B)
+        group_size=2,           # REDUCED from the paper-matching G=8 for safety margin on this
+                                 # untested-on-B200 pipeline (the 4B script uses G=4) - note this
+                                 # changes the self-teacher's group statistics, not just a
+                                 # memory/throughput knob
+        questions_per_step=2,   # 2*2=4 rollouts/step; the 4B script uses 4*4=16
         top_k=100,              # verified live against the REAL reference script's
                                  # `distillation_topk=100` (run_local_sdpo.sh, github.com/lasgroup/SDPO)
         default_mass=1e-5,      # numerical-stability tail floor (reused from TROPIC-P's Remark 4
