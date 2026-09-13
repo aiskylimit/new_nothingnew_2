@@ -46,7 +46,7 @@ CONDA_ENV="${CONDA_ENV:-selective_sft}"
 PYTHON_VERSION="${PYTHON_VERSION:-3.11}"
 
 # --- Model ---
-ATTR_MODEL="${ATTR_MODEL:-Qwen/Qwen2.5-7B-Instruct}"   # model tinh IG
+ATTR_MODEL="${ATTR_MODEL:-deepseek-ai/DeepSeek-R1-Distill-Qwen-7B}"   # model tinh IG (paper App C.3: luon la R1-Distill-Qwen-7B)
 TRAIN_MODEL="${TRAIN_MODEL:-Qwen/Qwen2.5-7B-Instruct}"  # model SFT
 COT_MODEL="${COT_MODEL:-deepseek-ai/DeepSeek-R1-Distill-Qwen-7B}"     # model sinh CoT
 

@@ -202,14 +202,17 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   point `--data_dir` at a copy.
 - **`downloads.txt` lists what an offline server must fetch beforehand** (one `--hf-dataset` /
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
-  (`baesad/s1K-1.1-deepseek-cot`) and `Qwen/Qwen2.5-7B-Instruct`. Pair with `run_pipeline.sh --offline`.
+  (`baesad/s1K-1.1-deepseek-cot`), `Qwen/Qwen2.5-7B-Instruct` (train) and
+  `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
 
 ## Defaults worth knowing
 
-- Attribution model = training model = `Qwen/Qwen2.5-7B-Instruct` — the only model in `downloads.txt`.
-  The paper always attributes with `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (the model that generated
-  its CoTs), even when the trained model is Qwen2.5-7B-Instruct; `run_pipeline.sh --attr-model` still
-  separates the two if that checkpoint becomes available offline.
+- Attribution model ≠ training model, as in the paper: `run_pipeline.sh` attributes with
+  `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (the model that generated the s1K CoTs; paper App. C.3 uses
+  it in every setting, even when the trained model is Qwen2.5-7B-Instruct) and `train.sh` trains
+  `Qwen/Qwen2.5-7B-Instruct`. Both are listed in `downloads.txt`; `commands.sh` points `--attr-model` at
+  the R1-Distill directory. Attributing with Qwen2.5-7B-Instruct instead runs, but that model was never
+  trained on R1-style long CoT, so its IG scores are off-distribution relative to the paper's.
 - IG attribution is the expensive stage: `ig_steps=20` (paper: 50) forward+backward passes over the full
   sequence per sample, on a 7B model. Model weights are frozen in `grad_analyze.py` — IG only needs
   gradients w.r.t. `inputs_embeds`, and freezing stops every `Linear` from saving its input activation.
