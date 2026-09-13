@@ -1,7 +1,6 @@
 #1 +10
 #test
 #v2
-# kill -9 114651
 nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT
