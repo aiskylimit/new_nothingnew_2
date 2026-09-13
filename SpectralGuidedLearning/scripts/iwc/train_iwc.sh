@@ -19,6 +19,9 @@ read -ra GPUS <<< "${GPUS:-0 1}"
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 export TOKENIZERS_PARALLELISM=false
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
+# ZeRO-2 offload JIT-compiles cpu_adam against system nvcc, which can trail the torch cuXXX
+# build (see docs/server-runbook.md CUDAMismatchException) -- skip that version check.
+export DS_SKIP_CUDA_CHECK=1
 
 MASTER_ADDR=localhost
 MASTER_PORT=66$(($RANDOM%90+10))

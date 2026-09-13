@@ -25,14 +25,15 @@ bash scripts/masks/iwc_qwen25-7b.sh
 bash scripts/iwc/train_iwc.sh qwen25-7b iwc
 bash scripts/iwc/train_iwc.sh qwen25-7b iwc-stable
 
-bash scripts/data/data_qwen3-8b.sh
-bash scripts/capture/capture_qwen3-8b.sh
-bash scripts/masks/masks_qwen3-8b.sh
-bash scripts/masks/iwc_qwen3-8b.sh
+# 8B tạm tắt để thử qwen25-7b trước.
+# bash scripts/data/data_qwen3-8b.sh
+# bash scripts/capture/capture_qwen3-8b.sh
+# bash scripts/masks/masks_qwen3-8b.sh
+# bash scripts/masks/iwc_qwen3-8b.sh
 # bash scripts/spectral/spectral_qwen3-8b.sh
 # bash scripts/sft/sft_qwen3-8b.sh
-bash scripts/iwc/train_iwc.sh qwen3-8b iwc
-bash scripts/iwc/train_iwc.sh qwen3-8b iwc-stable
+# bash scripts/iwc/train_iwc.sh qwen3-8b iwc
+# bash scripts/iwc/train_iwc.sh qwen3-8b iwc-stable
 
 # ============================ EVAL =============================
 # only the iwc / iwc-stable checkpoints (vanilla/spectral training is commented out above)
@@ -44,8 +45,8 @@ bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-stable-qwen25-7b iwc-stable-
 
 # bash scripts/eval/eval_qwen3-8b.sh
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-qwen3-8b vanilla-qwen3-8b
-bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-qwen3-8b iwc-qwen3-8b
-bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-stable-qwen3-8b iwc-stable-qwen3-8b
+# bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-qwen3-8b iwc-qwen3-8b
+# bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-stable-qwen3-8b iwc-stable-qwen3-8b
 
 # =========================== COMPARE ==========================
 # writes results/comparison-table.md and results/eval-summary.json
