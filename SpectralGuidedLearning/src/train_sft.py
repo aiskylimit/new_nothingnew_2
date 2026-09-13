@@ -67,7 +67,10 @@ def build_training_arguments(config: dict) -> TrainingArguments:
         gradient_accumulation_steps=config["gradient_accumulation_steps"],
         learning_rate=config["learning_rate"],
         lr_scheduler_type="cosine_with_min_lr",
-        lr_scheduler_kwargs={"min_lr": config["min_learning_rate"]},
+        # min_lr_rate (not min_lr) -- min_lr makes transformers compute the ratio via
+        # optimizer.defaults["lr"], which DeepSpeed's wrapped ZeRO optimizer doesn't expose
+        # (AttributeError: 'DeepSpeedZeroOptimizer' object has no attribute 'defaults').
+        lr_scheduler_kwargs={"min_lr_rate": config["min_learning_rate"] / config["learning_rate"]},
         warmup_ratio=config["warmup_ratio"],  # deprecated in transformers>=5 (still functions correctly)
         bf16=on_gpu,
         use_cpu=not on_gpu,
