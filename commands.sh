@@ -1,16 +1,11 @@
-#d
-#datasets
---hf-dataset baesad/s1K-1.1-deepseek-cot /mnt/local/_data/@PROJECT@/s1k
-#models
---hf deepseek-ai/DeepSeek-R1-Distill-Qwen-7B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-7B
-
-#i ssft_eval.txt
-#spectral_guided_learning
+#1 +10
+#ssft
 #v2
 # nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
-# cd ./SegmentSelectiveSFT
-# bash ./commands.sh
+nvidia-smi
+cd ./SegmentSelectiveSFT
+bash ./commands.sh
 #download_sdxl_q3_offline_assets
 
 # The 10 spectral_guided_learning items above are kept intact and first in the
