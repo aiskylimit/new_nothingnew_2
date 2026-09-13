@@ -2,12 +2,29 @@
 set -e
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# bash "${PROJECT_ROOT}/setup_env.sh"
-source "${ENV_PATH:-/mnt/local/uvenvs/opsd}/bin/activate"
+source /mnt/local/uvenvs/opsd/bin/activate
+
+# Must match the destinations in download.txt.
+PROJECT_NAME="aiskylimit_new_nothingnew_2"
+BASE_DIR="/mnt/local/${PROJECT_NAME}/OPSD"
+export MODEL_ROOT="${BASE_DIR}/models"
+export RAW_DATA_ROOT="${BASE_DIR}/data/raw"
+export PREPARED_DATA_ROOT="${BASE_DIR}/data/processed"
+export OUTPUT_ROOT="${BASE_DIR}/outputs"
+export RESULTS_ROOT="${BASE_DIR}/results"
+export HF_HOME="${BASE_DIR}/.cache/huggingface"
+
+# Two-GPU training and evaluation allocation.
+export CUDA_VISIBLE_DEVICES="2,3"
+export NUM_PROCESSES=2
+export EVAL_TENSOR_PARALLEL_SIZE=2
+export VLLM_GPU_MEMORY_UTILIZATION=0.6
+export GPU_MEMORY_UTILIZATION=0.9
+export MAIN_PROCESS_PORT=19346
 
 python "${PROJECT_ROOT}/data/prepare_data.py" \
-    --raw_root "${PROJECT_ROOT}/data/raw" \
-    --output_root "${PROJECT_ROOT}/data/processed" \
+    --raw_root "${RAW_DATA_ROOT}" \
+    --output_root "${PREPARED_DATA_ROOT}" \
     --overwrite
 
 bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 4b
