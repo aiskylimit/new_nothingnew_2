@@ -1,6 +1,7 @@
 #2 -0-3
 #test
 #v1
+
 # nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # nvidia-smi
