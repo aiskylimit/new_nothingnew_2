@@ -1,7 +1,7 @@
-#1 +3
+#i ssft_eval.txt
 #spectral_guided_learning
 #v2
-nvidia-smi
+# nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT
 # bash ./commands.sh
