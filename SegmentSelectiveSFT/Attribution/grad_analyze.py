@@ -217,6 +217,9 @@ def parse_args():
     p.add_argument("--max_input_tokens", type=int, default=0,
                    help="0 = khong gioi han. >0 = mau dai hon nguong nay se duoc gan diem 0 "
                         "thay vi tinh IG, de khong OOM giua chung")
+    p.add_argument("--ig_batch_size", type=int, default=1,
+                   help="So buoc noi suy IG tinh chung mot forward/backward. Tang de dung "
+                        "them VRAM (ket qua khong doi); OOM thi mau do bi gan diem 0.")
     # p.add_argument("--baseline_token", type=str, default="pad", choices=["pad", "zero"], help="Baseline token choice")
     return p.parse_args()
 
@@ -383,7 +386,7 @@ if __name__ == "__main__":
                     importance_scores = attribution_calculator.batch_compute_step_to_answer_attribution_integrated(
                         full_tokens, adjusted_spans, answer_indices,
                         baseline_token_id=attribution_calculator.tokenizer.pad_token_id,
-                        steps=args.ig_steps)
+                        steps=args.ig_steps, batch_size=args.ig_batch_size)
                 except OOM_ERROR:
                     # Mot mau qua dai khong duoc lam chet ca job nhieu gio. Gan
                     # diem 0 -> train_mask.py roi ve 3 segment mac dinh cho mau nay.

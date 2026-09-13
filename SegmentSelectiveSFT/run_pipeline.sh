@@ -70,6 +70,7 @@ SEGMENT_MODE="${SEGMENT_MODE:-paragraph}"
 IG_STEPS="${IG_STEPS:-50}"
 IG_MAX_TOKENS="${IG_MAX_TOKENS:-0}"      # 0 = khong gioi han; >0 = mau dai hon thi gan diem 0
 IG_GRAD_CKPT="${IG_GRAD_CKPT:-1}"        # 1 = bat gradient checkpointing (it VRAM hon nhieu)
+IG_BATCH_SIZE="${IG_BATCH_SIZE:-4}"      # so buoc IG tinh chung mot forward; tang de dung them VRAM
 EPOCHS="${EPOCHS:-3}"
 LR="${LR:-5e-5}"
 MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
@@ -110,6 +111,7 @@ while [[ $# -gt 0 ]]; do
     --ig-steps)        IG_STEPS="$2"; shift 2 ;;
     --ig-max-tokens)   IG_MAX_TOKENS="$2"; shift 2 ;;
     --ig-no-grad-checkpoint) IG_GRAD_CKPT=0; shift ;;
+    --ig-batch-size)   IG_BATCH_SIZE="$2"; shift 2 ;;
     --epochs)          EPOCHS="$2"; shift 2 ;;
     --lr)              LR="$2"; shift 2 ;;
     --max-seq-length)  MAX_SEQ_LENGTH="$2"; shift 2 ;;
@@ -292,6 +294,7 @@ stage_ig() {
       --output_ig_file "${ROOT_DIR}/${IG_FILE}" \
       --output_compact_file "${ROOT_DIR}/${IG_COMPACT_FILE}" \
       --ig_steps "${IG_STEPS}" \
+      --ig_batch_size "${IG_BATCH_SIZE}" \
       ${IG_ARGS[@]+"${IG_ARGS[@]}"} )
 
   log "Da tao ${IG_FILE}"
@@ -378,7 +381,7 @@ cat <<EOF
   Dataset      : ${HF_DATASET}  (segment mode: ${SEGMENT_MODE})
   Attr model   : ${ATTR_MODEL}   (GPU ${GPU_ATTR})
   Train model  : ${TRAIN_MODEL}  (GPU ${GPU_TRAIN})
-  IG steps     : ${IG_STEPS}
+  IG steps     : ${IG_STEPS}  (batch ${IG_BATCH_SIZE})
   Epochs / LR  : ${EPOCHS} / ${LR}
   Training file: ${TRAINING_FILE}
   Tracking     : ${REPORT_TO}
