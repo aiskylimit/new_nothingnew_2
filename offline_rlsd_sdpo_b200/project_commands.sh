@@ -9,7 +9,7 @@ source /mnt/local/uvenvs/tropic/bin/activate
 # 1. Paths - MUST match how download.txt's @PROJECT@ was actually resolved.
 #    Fill in PROJECT_NAME before running.
 # ============================================================
-PROJECT_NAME="CHANGE_ME"
+PROJECT_NAME="aiskylimit_new_nothingnew_2"
 BASE_DIR="/mnt/local/${PROJECT_NAME}/tropic_baselines"
 MODEL_4B="${BASE_DIR}/models/Qwen3-4B"
 MODEL_8B="${BASE_DIR}/models/Qwen3-8B"
