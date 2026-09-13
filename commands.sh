@@ -1,8 +1,8 @@
-#1 +10
+#2 -0
 #ssft
 #v2
-cd ./SegmentSelectiveSFTv2
-bash ./commands.sh
+# cd ./SegmentSelectiveSFTv2
+# bash ./commands.sh
 #download_sdxl_q3_offline_assets
 #v1
 
