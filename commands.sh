@@ -1,11 +1,5 @@
-#d
-#datasets
---hf-dataset siyanzhao/Openthoughts_math_30k_opsd /mnt/local/@PROJECT@/tropic_baselines/data/train
---hf-dataset yentinglin/aime_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime25
---hf-dataset MathArena/aime_2026 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime26
---hf-dataset MathArena/hmmt_feb_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/hmmt25
-
-#ssft
+#1 +60
+#offline_rlsd_sdpo_b200
 #v1
 # nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
@@ -61,3 +55,6 @@ export NCCL_DEBUG=WARN
 
 # cd ./SegmentSelectiveSFT
 # CUDA_VISIBLE_DEVICES=0,1 bash commands.sh
+
+cd ./offline_rlsd_sdpo_b200
+bash ./project_commands.sh
