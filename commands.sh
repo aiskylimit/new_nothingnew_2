@@ -1,12 +1,13 @@
-#1 +5
-#ssft
+#1 +10
+#spectral_guided_learning
 #v3
+cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFTv2
 # bash ./commands.sh
 #download_sdxl_q3_offline_assets
 #v1
-kill -9 12947 13542 69044 70372
-nvidia-smi
+# kill -9 12947 13542 69044 70372
+# nvidia-smi
 
 # The 10 spectral_guided_learning items above are kept intact and first in the
 # block; the 14 sdxl_q3_offline_assets items are appended, so one download
