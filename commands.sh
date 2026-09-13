@@ -1,12 +1,10 @@
-#2 -10
+#2 -8
 #ssft
 #v1
 
 # nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
-# nvidia-smi
-# cd ./SegmentSelectiveSFT
-# bash ./commands.sh
+# cd ./SegmentSelectiveSFT && bash ./commands.sh
 #download_sdxl_q3_offline_assets
 
 # cd ./sdxl_q3_offline_b200_2gpu
