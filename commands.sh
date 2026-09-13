@@ -1,5 +1,5 @@
 #1 +10
-#ssft
+#test
 #v2
 # kill -9 114651
 nvidia-smi
