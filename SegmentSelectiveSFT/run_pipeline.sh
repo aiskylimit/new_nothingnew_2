@@ -21,8 +21,6 @@
 #   bash run_pipeline.sh --stages train --epochs 5 --lr 1e-5
 #   bash run_pipeline.sh --stages cot           # tu sinh CoT truoc khi split
 #   bash run_pipeline.sh --offline              # may khong co mang
-#   bash run_pipeline.sh --stages ig --gpu-attr 0,1 --ig-batch-size 8
-#                                               # ig: 2 process song song, moi GPU mot nua mau
 #   DRY_RUN=1 bash run_pipeline.sh              # chi in lenh, khong chay
 # -----------------------------------------------------------------------------
 
@@ -72,9 +70,7 @@ SEGMENT_MODE="${SEGMENT_MODE:-paragraph}"
 IG_STEPS="${IG_STEPS:-50}"
 IG_MAX_TOKENS="${IG_MAX_TOKENS:-0}"      # 0 = khong gioi han; >0 = mau dai hon thi gan diem 0
 IG_GRAD_CKPT="${IG_GRAD_CKPT:-1}"        # 1 = bat gradient checkpointing (it VRAM hon nhieu)
-IG_BATCH_SIZE="${IG_BATCH_SIZE:-8}"      # so buoc IG chay chung mot forward; OOM thi tu chia doi
-IG_TOKEN_BUDGET="${IG_TOKEN_BUDGET:-131072}" # batch x so_token <= budget (mau dai tu giam batch)
-IG_DATA_PARALLEL="${IG_DATA_PARALLEL:-1}"    # 1 = moi GPU trong GPU_ATTR mot process, chia deu mau
+IG_BATCH_SIZE="${IG_BATCH_SIZE:-4}"      # so buoc IG tinh chung mot forward; tang de dung them VRAM
 EPOCHS="${EPOCHS:-3}"
 LR="${LR:-5e-5}"
 MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
@@ -116,8 +112,6 @@ while [[ $# -gt 0 ]]; do
     --ig-max-tokens)   IG_MAX_TOKENS="$2"; shift 2 ;;
     --ig-no-grad-checkpoint) IG_GRAD_CKPT=0; shift ;;
     --ig-batch-size)   IG_BATCH_SIZE="$2"; shift 2 ;;
-    --ig-token-budget) IG_TOKEN_BUDGET="$2"; shift 2 ;;
-    --ig-no-data-parallel) IG_DATA_PARALLEL=0; shift ;;
     --epochs)          EPOCHS="$2"; shift 2 ;;
     --lr)              LR="$2"; shift 2 ;;
     --max-seq-length)  MAX_SEQ_LENGTH="$2"; shift 2 ;;
@@ -287,73 +281,23 @@ stage_ig() {
   # grad_analyze.py gio ghi de nen chay lai la an toan, khong can --force nua.
   [[ -s "${ROOT_DIR}/${IG_RAW_FILE}" ]] && log "Ghi de file attribution cu: ${IG_RAW_FILE}"
 
-  IG_ARGS=(--ig_batch_size "$IG_BATCH_SIZE" --ig_token_budget "$IG_TOKEN_BUDGET")
-  [[ "$FORCE" == "1" ]]         && IG_ARGS+=(--overwrite)   # tinh lai tu dau thay vi resume
+  export CUDA_VISIBLE_DEVICES="$GPU_ATTR"
+
+  IG_ARGS=()
   [[ "$IG_MAX_TOKENS" != "0" ]] && IG_ARGS+=(--max_input_tokens "$IG_MAX_TOKENS")
   [[ "$IG_GRAD_CKPT" == "0" ]]  && IG_ARGS+=(--no_gradient_checkpointing)
 
-  IFS=',' read -r -a gpus <<< "$GPU_ATTR"
-  local n_gpu=${#gpus[@]}
+  ( cd "${ROOT_DIR}/Attribution" && run python -u grad_analyze.py \
+      --model_name "${ATTR_MODEL}" \
+      --input_data "${ROOT_DIR}/${SEGMENT_FILE}" \
+      --output_data_file "${ROOT_DIR}/${IG_RAW_FILE}" \
+      --output_ig_file "${ROOT_DIR}/${IG_FILE}" \
+      --output_compact_file "${ROOT_DIR}/${IG_COMPACT_FILE}" \
+      --ig_steps "${IG_STEPS}" \
+      --ig_batch_size "${IG_BATCH_SIZE}" \
+      ${IG_ARGS[@]+"${IG_ARGS[@]}"} )
 
-  if [[ "$IG_DATA_PARALLEL" != "1" || "$n_gpu" -le 1 ]]; then
-    # Mot process; nhieu GPU thi device_map=auto chia LOP model qua cac GPU
-    # (chi mot GPU ban rong tai moi thoi diem - chi can khi model khong vua
-    # mot GPU).
-    export CUDA_VISIBLE_DEVICES="$GPU_ATTR"
-    ( cd "${ROOT_DIR}/Attribution" && run python -u grad_analyze.py \
-        --model_name "${ATTR_MODEL}" \
-        --input_data "${ROOT_DIR}/${SEGMENT_FILE}" \
-        --output_data_file "${ROOT_DIR}/${IG_RAW_FILE}" \
-        --output_ig_file "${ROOT_DIR}/${IG_FILE}" \
-        --output_compact_file "${ROOT_DIR}/${IG_COMPACT_FILE}" \
-        --ig_steps "${IG_STEPS}" \
-        "${IG_ARGS[@]}" )
-    log "Da tao ${IG_FILE}"
-    return 0
-  fi
-
-  # Data parallel: moi GPU mot process, moi process mot khoang mau lien tiep
-  # (shard). Model 7B bf16 vua mot GPU nen day la cach dung het cac GPU.
-  # Moi shard tu resume rieng; xong thi noi file theo thu tu shard.
-  log "ig chay song song tren ${n_gpu} GPU (${GPU_ATTR}), moi GPU ~1/${n_gpu} so mau"
-  local pids=() k shard_log
-  for k in "${!gpus[@]}"; do
-    shard_log="${LOG_DIR}/ig_shard${k}.log"
-    [[ "$DRY_RUN" == "1" ]] && shard_log=/dev/stdout   # dry run: in lenh ra man hinh
-    ( export CUDA_VISIBLE_DEVICES="${gpus[$k]}"
-      cd "${ROOT_DIR}/Attribution" && run python -u grad_analyze.py \
-        --model_name "${ATTR_MODEL}" \
-        --input_data "${ROOT_DIR}/${SEGMENT_FILE}" \
-        --output_data_file "${ROOT_DIR}/${IG_RAW_FILE}.shard${k}" \
-        --output_ig_file "${ROOT_DIR}/${IG_FILE}.shard${k}" \
-        --output_compact_file "${ROOT_DIR}/${IG_COMPACT_FILE}.shard${k}" \
-        --ig_steps "${IG_STEPS}" \
-        --shard_id "$k" --num_shards "$n_gpu" \
-        "${IG_ARGS[@]}" ) > "$shard_log" 2>&1 &
-    pids+=($!)
-    log "  shard ${k} -> GPU ${gpus[$k]}, pid $!, log ${LOG_DIR}/ig_shard${k}.log"
-  done
-
-  local failed=0
-  for k in "${!pids[@]}"; do
-    wait "${pids[$k]}" || { warn "shard ${k} loi (xem ${LOG_DIR}/ig_shard${k}.log)"; failed=1; }
-  done
-  [[ "$failed" == "0" ]] || die "ig: co shard loi. Chay lai cung lenh de resume shard do."
-  [[ "$DRY_RUN" == "1" ]] && return 0
-
-  # Noi shard theo thu tu -> dung thu tu input (chia lien tiep, khong xen ke).
-  local f
-  for f in "$IG_RAW_FILE" "$IG_FILE" "$IG_COMPACT_FILE"; do
-    : > "${ROOT_DIR}/${f}"
-    for k in "${!gpus[@]}"; do
-      cat "${ROOT_DIR}/${f}.shard${k}" >> "${ROOT_DIR}/${f}"
-    done
-  done
-  local n_in n_out
-  n_in=$(wc -l < "${ROOT_DIR}/${SEGMENT_FILE}")
-  n_out=$(wc -l < "${ROOT_DIR}/${IG_COMPACT_FILE}")
-  [[ "$n_in" == "$n_out" ]] || die "ig: noi shard ra ${n_out} dong, input co ${n_in} dong"
-  log "Da noi ${n_gpu} shard -> ${IG_FILE} (${n_out} mau)"
+  log "Da tao ${IG_FILE}"
 }
 
 # =============================================================================
@@ -437,7 +381,7 @@ cat <<EOF
   Dataset      : ${HF_DATASET}  (segment mode: ${SEGMENT_MODE})
   Attr model   : ${ATTR_MODEL}   (GPU ${GPU_ATTR})
   Train model  : ${TRAIN_MODEL}  (GPU ${GPU_TRAIN})
-  IG steps     : ${IG_STEPS}  (batch ${IG_BATCH_SIZE}, token budget ${IG_TOKEN_BUDGET}, data parallel ${IG_DATA_PARALLEL})
+  IG steps     : ${IG_STEPS}  (batch ${IG_BATCH_SIZE})
   Epochs / LR  : ${EPOCHS} / ${LR}
   Training file: ${TRAINING_FILE}
   Tracking     : ${REPORT_TO}
