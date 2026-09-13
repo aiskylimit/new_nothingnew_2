@@ -68,7 +68,7 @@ TRAINING_FILE="${TRAINING_FILE:-data/s1k/solutions_selected.jsonl}"
 SEGMENT_MODE="${SEGMENT_MODE:-paragraph}"
 
 # --- Sieu tham so ---
-IG_STEPS="${IG_STEPS:-50}"
+IG_STEPS="${IG_STEPS:-20}"      # so buoc noi suy J; paper dung 50, 20 du (~5% sai so, Sundararajan 2017)
 IG_MAX_TOKENS="${IG_MAX_TOKENS:-0}"      # 0 = khong gioi han; >0 = mau dai hon thi gan diem 0
 IG_GRAD_CKPT="${IG_GRAD_CKPT:-1}"        # 1 = bat gradient checkpointing (it VRAM hon nhieu)
 IG_BATCH_SIZE="${IG_BATCH_SIZE:-4}"      # so buoc IG tinh chung mot forward; tang de dung them VRAM

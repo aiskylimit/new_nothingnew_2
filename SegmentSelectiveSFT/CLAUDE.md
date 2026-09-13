@@ -127,7 +127,7 @@ data/s1k/train.jsonl                 (question, solution, answer)
   ▼
 data/s1k/solution_segments.jsonl     (+ segments[])
   │  Attribution/grad_analyze.py — Integrated Gradients from each segment's tokens
-  │                                to the \boxed{answer} tokens (ig_steps=50)
+  │                                to the \boxed{answer} tokens (ig_steps=20; paper used 50)
   ▼
 Attribution/processed_data/s1k/IG.jsonl  +  IG_compact.jsonl
   │  Attribution/get_important_segments.py — per-segment score = sum|IG| / sqrt(len);
@@ -206,11 +206,17 @@ silently misalign every downstream span, and a zero-length segment divides by ze
 
 ## Defaults worth knowing
 
-- Attribution model = training model = `Qwen/Qwen2.5-7B-Instruct` (the paper instead attributed with a
-  7B model and trained a 1.5B one; `run_pipeline.sh --attr-model` still separates them).
-- IG attribution is the expensive stage: `ig_steps=50` forward+backward passes over the full sequence
-  per sample, on a 7B model. Paragraph splitting also produces far more segments per trace (~100-500)
-  than the paper's cue splitting (~10-30), which changes how many segments clear the 70% mass threshold.
+- Attribution model = training model = `Qwen/Qwen2.5-7B-Instruct` — the only model in `downloads.txt`.
+  The paper always attributes with `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (the model that generated
+  its CoTs), even when the trained model is Qwen2.5-7B-Instruct; `run_pipeline.sh --attr-model` still
+  separates the two if that checkpoint becomes available offline.
+- IG attribution is the expensive stage: `ig_steps=20` (paper: 50) forward+backward passes over the full
+  sequence per sample, on a 7B model. Model weights are frozen in `grad_analyze.py` — IG only needs
+  gradients w.r.t. `inputs_embeds`, and freezing stops every `Linear` from saving its input activation.
+  Paragraph splitting also produces far more segments per trace (~100-500) than the paper's cue
+  splitting (~10-30), which changes how many segments clear the 70% mass threshold.
+- **`--resume` does not check `ig_steps`.** It only compares each record's `question`, so resuming a
+  file produced with J=50 under J=20 silently mixes the two. Start a fresh `ig` run after changing J.
 - Eval benchmarks and samples/question: `aime24:32 amc23:32 math500:6 minerva:6 gpqa:6 olympiad:6`,
   temperature 0.6, top_p 1, max 32768 tokens, prompt type `deepseek-longcot` (the prompt string matches
   what `train_mask.py` builds, so training and eval stay aligned).

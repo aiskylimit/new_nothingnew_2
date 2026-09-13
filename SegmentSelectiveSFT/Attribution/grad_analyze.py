@@ -39,6 +39,14 @@ class IntegratedGradientsAttribution:
             trust_remote_code=True
         )
         self.model.eval()
+        # IG chi can gradient theo inputs_embeds, khong can dW. Neu de weight
+        # requires_grad=True thi moi Linear van luu input activation o forward
+        # de phong tinh dW (autograd.grad ve sau khong dung toi) - day la phan
+        # activation ton VRAM nhat, buoc phai bat gradient checkpointing (+1
+        # forward moi buoc). Freeze weight -> Linear khong luu input, VRAM giam
+        # manh, va co the chay --no_gradient_checkpointing. Ket qua IG khong doi.
+        for p in self.model.parameters():
+            p.requires_grad_(False)
 
         if gradient_checkpointing:
             # IG can backward qua toan bo chuoi ma khong dung optimizer, nen
