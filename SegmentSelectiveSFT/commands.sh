@@ -5,4 +5,4 @@ ls "$DATA_DIR" "$MODEL_DIR"
 
 mkdir -p data/s1k && ln -sf "$DATA_DIR/train.jsonl" data/s1k/train.jsonl
 
-bash run_pipeline.sh --offline --attr-model "$MODEL_DIR" --gpu-attr 0 --ig-batch-size 4 --stages split,ig,segments
+bash run_pipeline.sh --offline --attr-model "$MODEL_DIR" --gpu-attr 0 --ig-batch-size 8 --stages split,ig,segments
