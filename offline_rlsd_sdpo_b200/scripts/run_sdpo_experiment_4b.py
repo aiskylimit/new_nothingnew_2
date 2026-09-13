@@ -144,7 +144,7 @@ CONFIG = dict(
     student_thinking=False,
     max_length=20000,
     lora=LORA_CONFIG,
-    # temperature=1.0/top_p=1.0/top_k=-1 (unrestricted) and questions_per_step=8 (vs. the online
+    # temperature=1.0/top_p=1.0/top_k=-1 (unrestricted) and questions_per_step=4 (vs. the online
     # cluster's 1.1/0.95/20 and questions_per_step=4) are this offline B200 deployment's own
     # deliberate choices (see offline_rlsd_sdpo_b200's project_commands.sh) - NOT copied from the
     # online run_sdpo_experiment_4b.py, which keeps OPSD's real recipe unchanged.
@@ -152,9 +152,11 @@ CONFIG = dict(
                max_new_tokens=1024, temperature=1.0, top_p=1.0, top_k=-1, seed=args.seed,
                gradient_checkpointing=True),
     sdpo=dict(
-        group_size=8,           # matches RLSD's group size / this project's rollout budget
-        questions_per_step=8,   # 8*8=64 rollouts/step (this deployment's own choice for the 4B model;
-                                 # the 8B script keeps questions_per_step=4 -> 32, unchanged)
+        group_size=4,           # REDUCED from the paper-matching G=8 for safety margin on this
+                                 # untested-on-B200 pipeline (the 8B script uses G=2) - note this
+                                 # changes the self-teacher's group statistics, not just a
+                                 # memory/throughput knob
+        questions_per_step=4,   # 4*4=16 rollouts/step; the 8B script uses 2*2=4
         top_k=100,              # verified live against the REAL reference script's
                                  # `distillation_topk=100` (run_local_sdpo.sh, github.com/lasgroup/SDPO)
         default_mass=1e-5,      # numerical-stability tail floor (reused from TROPIC-P's Remark 4
