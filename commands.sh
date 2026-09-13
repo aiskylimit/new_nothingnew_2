@@ -1,6 +1,6 @@
-#1 +3
+#1 +10
 #ssft
-#v1
+#v2
 # kill -9 114651
 nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
