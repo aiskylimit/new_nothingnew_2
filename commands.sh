@@ -1,6 +1,6 @@
 #2 -0
 #ssft
-#v3
+#v1
 # nvidia-smi
 # # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT
