@@ -1,5 +1,5 @@
-#1 +10
-#offline_rlsd_sdpo_b200
+#3
+#ssft
 #v1
 
 # nvidia-smi
@@ -57,7 +57,7 @@ export NCCL_DEBUG=WARN
 # cd ./SegmentSelectiveSFT
 # CUDA_VISIBLE_DEVICES=0,1 bash commands.sh
 
-find / \( -type d -name "vllm" -o -type d -name "vllm-*.dist-info" -o -type d -name "vllm-*.egg-info" \) 2>/dev/null
-cd ./offline_rlsd_sdpo_b200
+# find / \( -type d -name "vllm" -o -type d -name "vllm-*.dist-info" -o -type d -name "vllm-*.egg-info" \) 2>/dev/null
+# cd ./offline_rlsd_sdpo_b200
 # tail -n 30 results_rlsd_4b_dryrun_train.log
 # bash ./project_commands.sh
