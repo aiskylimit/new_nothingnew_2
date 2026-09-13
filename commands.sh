@@ -1,4 +1,4 @@
-#1 +10
+#3
 #test
 #v1
 
@@ -57,6 +57,6 @@ export NCCL_DEBUG=WARN
 # cd ./SegmentSelectiveSFT
 # CUDA_VISIBLE_DEVICES=0,1 bash commands.sh
 
-cd ./offline_rlsd_sdpo_b200
-tail -n 30 results_rlsd_4b_dryrun_train.log
+# cd ./offline_rlsd_sdpo_b200
+# tail -n 30 results_rlsd_4b_dryrun_train.log
 # bash ./project_commands.sh
