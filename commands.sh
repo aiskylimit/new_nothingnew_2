@@ -1,10 +1,10 @@
-#1 +10
+#2 -1
 #ssft
 #v3
-nvidia-smi
-# cd ./SpectralGuidedLearning && bash ./project_commands.sh
-cd ./SegmentSelectiveSFT
-bash ./commands.sh
+# nvidia-smi
+# # cd ./SpectralGuidedLearning && bash ./project_commands.sh
+# cd ./SegmentSelectiveSFT
+# bash ./commands.sh
 #download_sdxl_q3_offline_assets
 
 # The 10 spectral_guided_learning items above are kept intact and first in the
