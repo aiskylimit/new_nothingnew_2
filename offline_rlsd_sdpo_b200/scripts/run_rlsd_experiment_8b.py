@@ -183,9 +183,11 @@ CONFIG = dict(
                max_new_tokens=1024, temperature=1.0, top_p=1.0, top_k=-1, seed=args.seed,
                gradient_checkpointing=True),
     rlsd=dict(
-        group_size=8,           # paper's own G (Implementation Details)
-        questions_per_step=4,   # 4*8=32 rollouts/step (unchanged; the 4B script instead uses
-                                 # questions_per_step=8 -> 64, this deployment's own choice for 4B)
+        group_size=2,           # REDUCED from the paper's own G=8 for safety margin on this
+                                 # untested-on-B200 pipeline (the 4B script uses G=4) - note this
+                                 # changes GRPO-style advantage normalization (noisier with a
+                                 # smaller group), not just a memory/throughput knob
+        questions_per_step=2,   # 2*2=4 rollouts/step; the 4B script uses 4*4=16
         epsilon_w=0.2,          # paper's own value; verified == real repo's rlsd_reweight_clip_range=0.2
         lambda_init=0.5,        # paper's own value; verified == real repo's rlsd_lambda=0.5
         lambda_decay_steps=50,  # paper's own value ("linearly decayed to 0 over the first 50 steps");
