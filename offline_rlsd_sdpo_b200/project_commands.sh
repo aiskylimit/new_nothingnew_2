@@ -1,17 +1,9 @@
-#!/usr/bin/env bash
-# Full pipeline: RLSD + SDPO baselines on Qwen3-4B and Qwen3-8B, evaluated on
-# AIME25/AIME26/HMMT25. This is the ONLY file meant to be run directly - it
-# assumes download.txt has already been processed (models/datasets staged
-# locally) and tropic.txt's env is already installed and active.
-#
-# Run this under something that survives a disconnect, e.g.:
-#   nohup bash project_commands.sh > full_run.log 2>&1 &
-# or inside `tmux`/`screen`. Every command below runs in the FOREGROUND
-# (sequentially) - the outer nohup/tmux is what protects the whole run, not
-# anything inside this script.
+
 set -euo pipefail
 cd "$(dirname "$0")"
 export PYTHONPATH=.
+
+source /mnt/local/uvenvs/tropic/bin/activate
 
 # ============================================================
 # 1. Paths - MUST match how download.txt's @PROJECT@ was actually resolved.
@@ -25,12 +17,12 @@ export TROPIC_TRAIN_DATA_PATH="${BASE_DIR}/data/train"
 export TROPIC_EVAL_DATA_DIR="${BASE_DIR}/data/eval"
 
 # ============================================================
-# 2. GPU topology - 2 GPU/job (1 main + 1 vLLM replica), per the agreed
-#    default. Change MAIN_GPU/VLLM_GPU_IDS if the real server has a
-#    different number/layout of free GPUs.
+# 2. GPU topology - fixed to GPU 2 (main/training) + GPU 3 (vLLM replica),
+#    confirmed with the server owner. Change MAIN_GPU/VLLM_GPU_IDS below if
+#    that ever changes.
 # ============================================================
-MAIN_GPU=0
-VLLM_GPU_IDS="1"
+MAIN_GPU=2
+VLLM_GPU_IDS="3"
 VLLM_BASE_PORT=8100
 # Same conda env as everything else by default. On the old A100 cluster,
 # vLLM needed a SEPARATE env (torch/CUDA wheel conflict) - if the same
