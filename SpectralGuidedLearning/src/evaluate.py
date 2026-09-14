@@ -89,7 +89,7 @@ def generate(model_path: str, records: list[dict], config: dict):
     batch_size = config.get("batch_size") or len(records)
     for start in range(0, len(records), batch_size):
         stop = start + batch_size
-        outputs = llm.generate(prompts[start:stop], sampling, lora_request=lora_request)
+        outputs = llm.generate(prompts[start:stop], sampling, lora_request=lora_request, use_tqdm=False)
         yield records[start:stop], [
             [
                 {
@@ -242,18 +242,19 @@ def main() -> None:
         print(f"[{name}] generating for {len(records)} problems x {config['n_samples']}")
         generations = generate(args.model, records, config)
         with raw_path.open("w") as handle:
-            for record, completions in zip(records, generations):
-                handle.write(
-                    json.dumps(
-                        {
-                            "id": record["id"],
-                            "gold": record["gold"],
-                            "task_type": record["task_type"],
-                            "generations": completions,
-                        }
+            for batch_records, batch_completions in generations:
+                for record, completions in zip(batch_records, batch_completions):
+                    handle.write(
+                        json.dumps(
+                            {
+                                "id": record["id"],
+                                "gold": record["gold"],
+                                "task_type": record["task_type"],
+                                "generations": completions,
+                            }
+                        )
+                        + "\n"
                     )
-                    + "\n"
-                )
 
         summary = score_file(raw_path, args.grader)
         summary["model"] = tag
