@@ -240,18 +240,19 @@ def main() -> None:
         print(f"[{name}] generating for {len(records)} problems x {config['n_samples']}")
         generations = generate(args.model, records, config)
         with raw_path.open("w") as handle:
-            for record, completions in zip(records, generations):
-                handle.write(
-                    json.dumps(
-                        {
-                            "id": record["id"],
-                            "gold": record["gold"],
-                            "task_type": record["task_type"],
-                            "generations": completions,
-                        }
+            for batch_records, batch_completions in generations:
+                for record, completions in zip(batch_records, batch_completions):
+                    handle.write(
+                        json.dumps(
+                            {
+                                "id": record["id"],
+                                "gold": record["gold"],
+                                "task_type": record["task_type"],
+                                "generations": completions,
+                            }
+                        )
+                        + "\n"
                     )
-                    + "\n"
-                )
 
         summary = score_file(raw_path, args.grader)
         summary["model"] = tag
