@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SegmentSelectiveSFT/bundle/solutions_selected.jsonl.part02
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SegmentSelectiveSFT/bundle/GHEP_LAI.txt
 #ssft
 #v2
 
