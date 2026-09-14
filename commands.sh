@@ -1,4 +1,3 @@
-#i ssft_eval.txt
 #1 +60
 #ssft
 #v2
