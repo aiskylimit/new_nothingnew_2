@@ -1,7 +1,8 @@
-#2 -8
+#1 +5
 #ssft
 #v1
 
+du -h --max-depth=1 SegmentSelectiveSFT/Attribution/processed_data/s1k
 # nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT && bash ./commands.sh
