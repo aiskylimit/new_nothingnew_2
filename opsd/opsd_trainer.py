@@ -128,6 +128,11 @@ class OPSDTrainer(SFTTrainer):
             args.model_init_kwargs = args.model_init_kwargs or {}
             args.model_init_kwargs.setdefault("revision", self.model_revision)
 
+        # The custom collator consumes raw problem/solution rows and handles
+        # prompt construction and tokenization at batch time.
+        args.dataset_kwargs = dict(args.dataset_kwargs or {})
+        args.dataset_kwargs["skip_prepare_dataset"] = True
+
         # Custom data collator for self-distillation
         if data_collator is None:
             data_collator = SelfDistillationDataCollator(
