@@ -27,17 +27,17 @@ python "${PROJECT_ROOT}/data/prepare_data.py" \
     --output_root "${PREPARED_DATA_ROOT}" \
     --overwrite
 
-bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 4b
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b sft
-
-bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 8b
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b sft
-
 bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 4b
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b opsd
 
 bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 8b
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b opsd
+
+bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 4b
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b sft
+
+bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 8b
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b sft
 
 bash "${PROJECT_ROOT}/scripts/run_training.sh" grpo 4b
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b grpo
