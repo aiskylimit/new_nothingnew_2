@@ -1,6 +1,6 @@
 #2 -0
 #ssft
-#v2
+#v1
 
 # cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
 nvidia-smi
