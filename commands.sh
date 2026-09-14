@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SegmentSelectiveSFT/bundle/GHEP_LAI.txt
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SegmentSelectiveSFT/bundle/SHA256SUMS
 #ssft
 #v2
 
