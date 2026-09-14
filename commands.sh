@@ -1,8 +1,8 @@
-#1 +5
+#2 -2-3
 #ssft
 #v1
 
-du -h --max-depth=1 SegmentSelectiveSFT/Attribution/processed_data/s1k
+cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
 # nvidia-smi
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT && bash ./commands.sh
