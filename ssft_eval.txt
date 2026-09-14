@@ -1,12 +1,12 @@
 # manager: uv
 # python: 3.11
-# From SegmentSelectiveSFT/requirements.txt: env eval (bash eval.sh, vLLM sinh dap an + cham diem) VA cac stage split/ig/segments cua run_pipeline.sh. vllm 0.10.0 ghim torch 2.7.1 nen KHONG cai chung voi ssft_train (torch 2.9 + unsloth). Sau khi cai, con phai: pip install --no-deps -e SegmentSelectiveSFT/Eval/latex2sympy (vendored, khong co tren mirror; can antlr4-python3-runtime==4.11.1 da ghim duoi).
-vllm==0.10.0
-torch==2.7.1
-torchvision==0.22.1
-torchaudio==2.7.1
-xformers==0.0.31
-triton==3.3.1
+# From SegmentSelectiveSFT/requirements.txt: env eval (bash eval.sh, vLLM sinh dap an + cham diem) VA cac stage split/ig/segments cua run_pipeline.sh. vllm 0.10.2 ghim torch 2.8.0 nen KHONG cai chung voi ssft_train (torch 2.9 + unsloth). Truoc day ghim vllm 0.10.0 + torch 2.7.1 nhung wheel torch 2.7.1 tren PyPI build cu126, KHONG co kernel sm_100 (B200/Blackwell) -> 'no kernel image is available'; torch 2.8.0 tren PyPI build cu128 co sm_100, vllm 0.10.2 la ban dau tien ghim torch 2.8.0. Sau khi cai, con phai: pip install --no-deps -e SegmentSelectiveSFT/Eval/latex2sympy (vendored, khong co tren mirror; can antlr4-python3-runtime==4.11.1 da ghim duoi).
+vllm==0.10.2
+torch==2.8.0
+torchvision==0.23.0
+torchaudio==2.8.0
+xformers==0.0.32.post1
+triton==3.4.0
 transformers==4.56.0
 tokenizers==0.22.1
 numpy==2.2.6

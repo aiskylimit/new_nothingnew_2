@@ -1,4 +1,4 @@
-#2 -0-20
+#i ssft_eval.txt
 #ssft
 #v2
 
