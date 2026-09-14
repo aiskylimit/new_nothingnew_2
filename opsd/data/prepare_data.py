@@ -3,7 +3,9 @@ import argparse
 import shutil
 from pathlib import Path
 
-from datasets import Dataset, load_dataset
+import pyarrow as pa
+import pyarrow.parquet as pq
+from datasets import Dataset
 
 
 TRAIN_COLUMNS = ("problem", "solution", "Question", "Answer")
@@ -15,6 +17,12 @@ def parquet_files(path: Path) -> list[str]:
     if not files:
         raise FileNotFoundError(f"No parquet files found in {path}")
     return files
+
+
+def load_parquet_dataset(path: Path) -> Dataset:
+    tables = [pq.read_table(file) for file in parquet_files(path)]
+    table = pa.concat_tables(tables).replace_schema_metadata(None)
+    return Dataset(table)
 
 
 def save_dataset(dataset: Dataset, destination: Path, overwrite: bool):
@@ -29,7 +37,7 @@ def save_dataset(dataset: Dataset, destination: Path, overwrite: bool):
 
 def prepare_training_dataset(raw_root: Path, output_root: Path, overwrite: bool):
     source = raw_root / "train"
-    dataset = load_dataset("parquet", data_files=parquet_files(source), split="train")
+    dataset = load_parquet_dataset(source)
     missing = [column for column in TRAIN_COLUMNS if column not in dataset.column_names]
     if missing:
         raise ValueError(f"Training data is missing required columns: {missing}")
@@ -44,7 +52,7 @@ def prepare_training_dataset(raw_root: Path, output_root: Path, overwrite: bool)
 
 def prepare_eval_dataset(name: str, raw_root: Path, output_root: Path, overwrite: bool):
     source = raw_root / "eval" / name
-    dataset = load_dataset("parquet", data_files=parquet_files(source), split="train")
+    dataset = load_parquet_dataset(source)
     if "problem" not in dataset.column_names or "answer" not in dataset.column_names:
         raise ValueError(f"{name} must contain problem and answer columns: {dataset.column_names}")
 
