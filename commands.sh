@@ -1,9 +1,18 @@
-#1 +20
-#spectral_guided_learning
+#d
+#datasets
+--hf-dataset siyanzhao/Openthoughts_math_30k_opsd /mnt/local/@PROJECT@/OPSD/data/raw/train
+--hf-dataset yentinglin/aime_2025 /mnt/local/@PROJECT@/OPSD/data/raw/eval/aime25
+--hf-dataset MathArena/aime_2026 /mnt/local/@PROJECT@/OPSD/data/raw/eval/aime26
+--hf-dataset MathArena/hmmt_feb_2025 /mnt/local/@PROJECT@/OPSD/data/raw/eval/hmmt25
+#models
+--hf Qwen/Qwen3-4B /mnt/local/@PROJECT@/OPSD/models/Qwen3-4B
+--hf Qwen/Qwen3-8B /mnt/local/@PROJECT@/OPSD/models/Qwen3-8B
+
+#opsd
 #v1
 
 # nvidia-smi
-cd ./SpectralGuidedLearning && bash ./project_commands.sh
+# cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT && bash ./commands.sh
 # cd SegmentSelectiveSFT && ls Attribution/processed_data/s1k
 #download_sdxl_q3_offline_assets
