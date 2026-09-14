@@ -15,7 +15,7 @@ export RESULTS_ROOT="${BASE_DIR}/results"
 export HF_HOME="${BASE_DIR}/.cache/huggingface"
 
 # Two-GPU training and evaluation allocation.
-export CUDA_VISIBLE_DEVICES="2,3"
+export CUDA_VISIBLE_DEVICES="4,5"
 export NUM_PROCESSES=2
 export EVAL_TENSOR_PARALLEL_SIZE=2
 export VLLM_GPU_MEMORY_UTILIZATION=0.6
