@@ -27,6 +27,7 @@
 #   bash eval.sh --gpu 0,1,2,3 --data-parallel   # 1 task/GPU chay song song
 #   bash eval.sh --gpu 0,1                 # tensor parallel tren 2 GPU
 #   bash eval.sh --max-tokens 16384        # cat ngan sinh cho nhanh
+#   bash eval.sh --top-p 0.9 --repetition-penalty 1.05
 #   bash eval.sh --overwrite               # cham lai tu dau
 #   bash eval.sh --skip-setup / --reinstall / --dry-run
 # -----------------------------------------------------------------------------
@@ -66,6 +67,7 @@ SEED="${SEED:-0}"
 MAX_TOKENS="${MAX_TOKENS:-32768}"
 TEMPERATURE="${TEMPERATURE:-0.6}"
 TOP_P="${TOP_P:-1}"
+REPETITION_PENALTY="${REPETITION_PENALTY:-1.0}"   # 1.0 = khong phat lap
 PROMPT_TYPE="${PROMPT_TYPE:-deepseek-longcot}"
 
 DATA_PARALLEL=0                          # 1 = chia task ra tung GPU chay song song
@@ -114,6 +116,8 @@ while [[ $# -gt 0 ]]; do
     --seed)            SEED="$2"; shift 2 ;;
     --max-tokens)      MAX_TOKENS="$2"; shift 2 ;;
     --temperature)     TEMPERATURE="$2"; shift 2 ;;
+    --top-p)           TOP_P="$2"; shift 2 ;;
+    --repetition-penalty) REPETITION_PENALTY="$2"; shift 2 ;;
     --output-root)     OUTPUT_ROOT="$2"; shift 2 ;;
     --overwrite)       OVERWRITE=1; shift ;;
     --skip-setup)      SKIP_SETUP=1; shift ;;
@@ -346,7 +350,7 @@ if [[ "$DATA_PARALLEL" == "1" ]]; then
 else
   echo "    gpu        : ${GPU} (tensor_parallel_size=${NGPU})"
 fi
-echo "    sampling   : t=${TEMPERATURE} top_p=${TOP_P} seed=${SEED} max_tokens=${MAX_TOKENS}"
+echo "    sampling   : t=${TEMPERATURE} top_p=${TOP_P} rep=${REPETITION_PENALTY} seed=${SEED} max_tokens=${MAX_TOKENS}"
 echo "    so cau     : $([[ "$NUM_TEST_SAMPLE" == "-1" ]] && echo "ca test set" || echo "${NUM_TEST_SAMPLE} cau dau")"
 echo "    vllm       : gpu_mem=${GPU_MEM_UTIL} prefix_cache=$([[ "$PREFIX_CACHING" == 1 ]] && echo on || echo off) logprobs=$([[ "$LOGPROBS" == 1 ]] && echo on || echo off) max_model_len=${MAX_MODEL_LEN:-auto}"
 echo "    output     : Eval/${OUTPUT_ROOT}/<task>/${RUN_TAG}"
@@ -373,6 +377,7 @@ run_tasks() {
       --temperature "${TEMPERATURE}" \
       --n_sampling "${n}" \
       --top_p "${TOP_P}" \
+      --repetition_penalty "${REPETITION_PENALTY}" \
       --start 0 \
       --end -1 \
       --use_vllm \
@@ -441,9 +446,9 @@ SUMMARY_JSON="${ROOT_DIR}/Eval/${OUTPUT_ROOT}/summary.json"
 
 if [[ "$DRY_RUN" != "1" ]]; then
   log "Ket qua"
-  META="$(printf '{"tag":"%s","model":"%s","decoding":"%s","temperature":%s,"top_p":%s,"seed":%s,"max_tokens":%s,"num_test_sample":%s,"prompt_type":"%s"}' \
+  META="$(printf '{"tag":"%s","model":"%s","decoding":"%s","temperature":%s,"top_p":%s,"repetition_penalty":%s,"seed":%s,"max_tokens":%s,"num_test_sample":%s,"prompt_type":"%s"}' \
     "$RUN_TAG" "$MODEL" "$([[ "$TEMPERATURE" == "0" ]] && echo greedy || echo sampling)" \
-    "$TEMPERATURE" "$TOP_P" "$SEED" "$MAX_TOKENS" "$NUM_TEST_SAMPLE" "$PROMPT_TYPE")"
+    "$TEMPERATURE" "$TOP_P" "$REPETITION_PENALTY" "$SEED" "$MAX_TOKENS" "$NUM_TEST_SAMPLE" "$PROMPT_TYPE")"
 
   python3 - "$ROOT_DIR/Eval/$OUTPUT_ROOT" "$SUMMARY_JSON" "$META" <<'PYSUM'
 import json, sys, glob, os, re, datetime

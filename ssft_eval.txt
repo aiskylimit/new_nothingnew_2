@@ -1,9 +1,24 @@
 # manager: uv
 # python: 3.11
-# From SegmentSelectiveSFT (chi cho stage split, ig, segments cua run_pipeline.sh; khong can vllm). Version lay theo cac env khac trong repo de mirror offline co san.
-torch==2.9.0
-transformers==4.56.1
+# From SegmentSelectiveSFT/requirements.txt: env eval (bash eval.sh, vLLM sinh dap an + cham diem) VA cac stage split/ig/segments cua run_pipeline.sh. vllm 0.10.0 ghim torch 2.7.1 nen KHONG cai chung voi ssft_train (torch 2.9 + unsloth). Sau khi cai, con phai: pip install --no-deps -e SegmentSelectiveSFT/Eval/latex2sympy (vendored, khong co tren mirror; can antlr4-python3-runtime==4.11.1 da ghim duoi).
+vllm==0.10.0
+torch==2.7.1
+torchvision==0.22.1
+torchaudio==2.7.1
+xformers==0.0.31
+triton==3.3.1
+transformers==4.56.0
+tokenizers==0.22.1
 numpy==2.2.6
-datasets==4.1.1
-accelerate==1.10.1
-tqdm
+datasets==3.6.0
+accelerate==1.9.0
+sympy==1.14.0
+mpmath==1.3.0
+antlr4-python3-runtime==4.11.1
+pandas==2.3.1
+regex==2024.11.6
+Pebble==5.1.1
+multiprocess==0.70.16
+timeout-decorator==0.5.0
+word2number==1.1
+tqdm==4.67.1

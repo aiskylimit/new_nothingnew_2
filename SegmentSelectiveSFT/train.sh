@@ -148,6 +148,8 @@ echo "=============================================================="
 # 1. Kiem tra so bo
 # =============================================================================
 [[ -f "$DATA" ]] || die "Khong thay training file: ${DATA}"
+# Lat nua cd sang SelectiveSFT/ nen phai la duong dan tuyet doi; --data /abs/... giu nguyen.
+[[ "$DATA" == /* ]] || DATA="${ROOT_DIR}/${DATA}"
 log "Training data: ${DATA} ($(wc -l < "$DATA" | tr -d ' ') dong)"
 
 if command -v nvidia-smi >/dev/null 2>&1; then
@@ -267,7 +269,10 @@ if [[ "$USE_LORA" == "1" ]]; then
     --target_modules "${TARGET_MODULES}"
   )
   [[ "$LOAD_4BIT" == "1" ]] && TUNE_ARGS+=(--load_in_4bit)
-  TUNE_NAME="LoRA r=${LORA_R} alpha=${LORA_ALPHA} dropout=${LORA_DROPOUT}$([[ "$LOAD_4BIT" == 1 ]] && echo ' (4-bit/QLoRA)')"
+  # Khong dung $([[ ... ]] && echo) o day: khi dieu kien sai, command substitution
+  # tra ve 1 -> phep gan that bai -> set -e giet script (moi lan LoRA khong --4bit).
+  TUNE_NAME="LoRA r=${LORA_R} alpha=${LORA_ALPHA} dropout=${LORA_DROPOUT}"
+  [[ "$LOAD_4BIT" == "1" ]] && TUNE_NAME="${TUNE_NAME} (4-bit/QLoRA)"
   CKPT_SUFFIX="${CKPT_SUFFIX}_lora"
   LOG_NAME="${LOG_NAME}_lora"
 else
@@ -300,7 +305,7 @@ echo
 
 ( cd "${ROOT_DIR}/SelectiveSFT" && run python -u train_mask.py \
     --model_name_or_path "${MODEL}" \
-    --data_names "${ROOT_DIR}/${DATA}" \
+    --data_names "${DATA}" \
     --epochs "${EPOCHS}" \
     --learning_rate "${LR}" \
     --max_seq_length "${MAX_SEQ_LENGTH}" \
