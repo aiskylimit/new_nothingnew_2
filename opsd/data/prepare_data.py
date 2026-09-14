@@ -13,7 +13,10 @@ EVAL_DATASETS = ("aime25", "aime26", "hmmt25")
 
 
 def parquet_files(path: Path) -> list[str]:
-    files = sorted(str(file) for file in path.rglob("*.parquet"))
+    # Hugging Face repositories may include additional dataset configurations
+    # beside the default data directory, such as AIME25 part1 and part2.
+    search_root = path / "data" if (path / "data").is_dir() else path
+    files = sorted(str(file) for file in search_root.rglob("*.parquet"))
     if not files:
         raise FileNotFoundError(f"No parquet files found in {path}")
     return files
