@@ -1,5 +1,5 @@
-#2 -0-10
-#opsd
+#2 -11-3
+#ssft
 #v1
 
 # cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
