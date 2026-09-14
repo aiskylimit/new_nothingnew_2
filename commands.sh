@@ -1,5 +1,5 @@
-#2 -0-5
-#opsd
+#2 -8
+#ssft
 #v1
 
 # nvidia-smi
