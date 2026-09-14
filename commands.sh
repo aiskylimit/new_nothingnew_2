@@ -1,4 +1,4 @@
-#3
+#2 -12
 # #d
 # #datasets
 # --hf siyanzhao/Openthoughts_math_30k_opsd /mnt/local/@PROJECT@/OPSD/data/raw/train
