@@ -64,6 +64,7 @@ def generate(model_path: str, records: list[dict], config: dict):
             enable_lora=True,
             max_lora_rank=config.get("lora_r", 16),
             enforce_eager=config.get("enforce_eager", True),
+            disable_log_stats=True,
         )
         lora_request = LoRARequest("adapter", 1, model_path)
     else:
@@ -73,6 +74,7 @@ def generate(model_path: str, records: list[dict], config: dict):
             gpu_memory_utilization=config.get("gpu_memory_utilization", 0.9),
             dtype="bfloat16",
             enforce_eager=config.get("enforce_eager", True),
+            disable_log_stats=True,
         )
         lora_request = None
 
@@ -240,19 +242,18 @@ def main() -> None:
         print(f"[{name}] generating for {len(records)} problems x {config['n_samples']}")
         generations = generate(args.model, records, config)
         with raw_path.open("w") as handle:
-            for batch_records, batch_completions in generations:
-                for record, completions in zip(batch_records, batch_completions):
-                    handle.write(
-                        json.dumps(
-                            {
-                                "id": record["id"],
-                                "gold": record["gold"],
-                                "task_type": record["task_type"],
-                                "generations": completions,
-                            }
-                        )
-                        + "\n"
+            for record, completions in zip(records, generations):
+                handle.write(
+                    json.dumps(
+                        {
+                            "id": record["id"],
+                            "gold": record["gold"],
+                            "task_type": record["task_type"],
+                            "generations": completions,
+                        }
                     )
+                    + "\n"
+                )
 
         summary = score_file(raw_path, args.grader)
         summary["model"] = tag

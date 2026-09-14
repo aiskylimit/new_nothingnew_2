@@ -9,6 +9,8 @@ read -ra GPUS <<< "${GPUS:-0 1}"
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 export TOKENIZERS_PARALLELISM=false
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
+# Quiet vLLM: only WARNING+ from its own loggers, no per-request logs, no stats spam.
+export VLLM_LOGGING_LEVEL="${VLLM_LOGGING_LEVEL:-WARNING}"
 # Offline server: benchmarks.py resolves aime24/aime25/math500/amc12 from here (see download.txt).
 export BENCH_DATA_ROOT="${BENCH_DATA_ROOT-/mnt/local/_data/aiskylimit_new_nothingnew_2}"
 
