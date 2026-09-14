@@ -138,6 +138,30 @@ import transformers.models.qwen2.modeling_qwen2
     missing=$((missing + 1))
   fi
 
+  # 'import vllm' cung chua du: vLLM chi nap model class luc tao LLM(), keo theo
+  # compressed_tensors -> frozendict (ban 1.x chet vi collections.Mapping). Va
+  # torch wheel co the thieu kernel cho GPU (B200 = sm_100 can wheel cu128).
+  # Hai loi nay chi lo ra sau vai phut nap model, nen thu truoc o day.
+  if [[ "$which" != "train" ]]; then
+    log "Thu chuoi import that cua vLLM + kernel CUDA cho GPU"
+    local vllm_chk='
+from vllm.model_executor.models.qwen2 import Qwen2ForCausalLM   # -> compressed_tensors -> frozendict
+import torch
+if torch.cuda.is_available():
+    cap = "sm_%d%d" % torch.cuda.get_device_capability(0)
+    arch = torch.cuda.get_arch_list()
+    torch.zeros(1, device="cuda")                                # "no kernel image" neu thieu arch
+    assert cap in arch, "GPU %s khong co trong kernel cua torch %s" % (cap, arch)
+'
+    if python -c "$vllm_chk" >/dev/null 2>&1; then
+      ok "vllm nap duoc Qwen2ForCausalLM, torch co kernel cho GPU"
+    else
+      miss "vllm / CUDA KHONG san sang - loi that:"
+      python -c "$vllm_chk" 2>&1 | tail -3 | sed 's/^/        /'
+      missing=$((missing + 1))
+    fi
+  fi
+
   log "Phien ban"
   python - <<'PY' 2>/dev/null || true
 mods = ["torch", "transformers", "numpy", "datasets", "trl", "unsloth", "vllm", "peft", "torchao"]

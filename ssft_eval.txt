@@ -7,6 +7,8 @@ torchvision==0.23.0
 torchaudio==2.8.0
 xformers==0.0.32.post1
 triton==3.4.0
+# compressed-tensors (dep cua vllm) import frozendict; ban 1.x dung collections.Mapping (bo tu py3.10) -> AttributeError. Phai la 2.x.
+frozendict==2.4.6
 transformers==4.56.0
 tokenizers==0.22.1
 numpy==2.2.6
