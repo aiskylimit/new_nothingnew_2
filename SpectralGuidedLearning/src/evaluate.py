@@ -64,6 +64,7 @@ def generate(model_path: str, records: list[dict], config: dict):
             enable_lora=True,
             max_lora_rank=config.get("lora_r", 16),
             enforce_eager=config.get("enforce_eager", True),
+            disable_log_stats=True,
         )
         lora_request = LoRARequest("adapter", 1, model_path)
     else:
@@ -73,6 +74,7 @@ def generate(model_path: str, records: list[dict], config: dict):
             gpu_memory_utilization=config.get("gpu_memory_utilization", 0.9),
             dtype="bfloat16",
             enforce_eager=config.get("enforce_eager", True),
+            disable_log_stats=True,
         )
         lora_request = None
 
@@ -87,7 +89,7 @@ def generate(model_path: str, records: list[dict], config: dict):
     batch_size = config.get("batch_size") or len(records)
     for start in range(0, len(records), batch_size):
         stop = start + batch_size
-        outputs = llm.generate(prompts[start:stop], sampling, lora_request=lora_request)
+        outputs = llm.generate(prompts[start:stop], sampling, lora_request=lora_request, use_tqdm=False)
         yield records[start:stop], [
             [
                 {
