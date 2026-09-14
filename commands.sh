@@ -1,13 +1,4 @@
-#d
-#datasets
---hf-dataset siyanzhao/Openthoughts_math_30k_opsd /mnt/local/@PROJECT@/OPSD/data/raw/train
---hf-dataset yentinglin/aime_2025 /mnt/local/@PROJECT@/OPSD/data/raw/eval/aime25
---hf-dataset MathArena/aime_2026 /mnt/local/@PROJECT@/OPSD/data/raw/eval/aime26
---hf-dataset MathArena/hmmt_feb_2025 /mnt/local/@PROJECT@/OPSD/data/raw/eval/hmmt25
-#models
---hf Qwen/Qwen3-4B /mnt/local/@PROJECT@/OPSD/models/Qwen3-4B
---hf Qwen/Qwen3-8B /mnt/local/@PROJECT@/OPSD/models/Qwen3-8B
-
+#1 +50
 #opsd
 #v1
 
@@ -70,5 +61,5 @@ export NCCL_DEBUG=WARN
 # tail -n 30 results_rlsd_4b_dryrun_train.log
 # bash ./project_commands.sh
 
-# cd ./opsd
-# bash ./project_commands.sh
+cd ./opsd
+bash ./project_commands.sh
