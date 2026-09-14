@@ -1,10 +1,10 @@
-#2 -11
+#1 +50
 #ssft
 #v1
 
 # cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
 # nvidia-smi
-# cd ./SpectralGuidedLearning && bash ./project_commands.sh
+cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT && bash ./commands.sh
 # cd SegmentSelectiveSFT && ls Attribution/processed_data/s1k
 #download_sdxl_q3_offline_assets
