@@ -1,9 +1,9 @@
-#1 +50
-#opsd
+#1 +20
+#spectral_guided_learning
 #v1
 
 # nvidia-smi
-# cd ./SpectralGuidedLearning && bash ./project_commands.sh
+cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT && bash ./commands.sh
 # cd SegmentSelectiveSFT && ls Attribution/processed_data/s1k
 #download_sdxl_q3_offline_assets
@@ -61,5 +61,5 @@ export NCCL_DEBUG=WARN
 # tail -n 30 results_rlsd_4b_dryrun_train.log
 # bash ./project_commands.sh
 
-cd ./opsd
-bash ./project_commands.sh
+# cd ./opsd
+# bash ./project_commands.sh
