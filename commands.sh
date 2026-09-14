@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SegmentSelectiveSFT/bundle/IG_compact.jsonl 
+#2 -0-20
 #ssft
 #v2
 
