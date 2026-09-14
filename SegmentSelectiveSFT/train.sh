@@ -10,7 +10,7 @@
 #   3. Train (wandb da tat, log ra logs/train.log)
 #
 # Mac dinh (LoRA tren Qwen2.5-7B-Instruct, du lieu s1K-1.1):
-#   r=16 alpha=16 dropout=0.05 tren q/k/v/o/gate/up/down_proj
+#   r=64 alpha=64 dropout=0.05 tren q/k/v/o/gate/up/down_proj
 #   lr 5e-5, 3 epoch, seq 32768, batch 1 x accum 32 = 32 mau/step
 #   AdamW betas (0.9, 0.999) eps 1e-8 wd 0.0, cosine + warmup_ratio 0.1
 #
@@ -18,7 +18,7 @@
 #   bash train.sh --epochs 5 --lr 1e-5
 #   bash train.sh --gpu 1                  # dung GPU khac
 #   bash train.sh --batch-size 2 --grad-accum 16   # van la 32 mau/step
-#   bash train.sh --lora-r 32 --lora-alpha 64 --lora-dropout 0
+#   bash train.sh --lora-r 16 --lora-alpha 16 --lora-dropout 0   # thu muc checkpoint co hau to _lora_r<R>
 #   bash train.sh --4bit                   # QLoRA: it VRAM hon, cham hon mot chut
 #   bash train.sh --target-modules "q_proj,v_proj"
 #   bash train.sh --full-finetune          # bo LoRA, finetune toan bo (rat ton VRAM)
@@ -64,8 +64,8 @@ NO_GRAD_CKPT="${NO_GRAD_CKPT:-0}"         # 1 = tat (ton VRAM, nhanh hon)
 
 # --- LoRA ---
 USE_LORA="${USE_LORA:-1}"                 # 0 = full finetuning
-LORA_R="${LORA_R:-16}"
-LORA_ALPHA="${LORA_ALPHA:-16}"
+LORA_R="${LORA_R:-64}"
+LORA_ALPHA="${LORA_ALPHA:-64}"
 LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
 LOAD_4BIT="${LOAD_4BIT:-0}"               # 1 = QLoRA, weight goc nap o 4-bit (it VRAM hon nhieu)
 TARGET_MODULES="${TARGET_MODULES:-q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj}"
@@ -273,8 +273,9 @@ if [[ "$USE_LORA" == "1" ]]; then
   # tra ve 1 -> phep gan that bai -> set -e giet script (moi lan LoRA khong --4bit).
   TUNE_NAME="LoRA r=${LORA_R} alpha=${LORA_ALPHA} dropout=${LORA_DROPOUT}"
   [[ "$LOAD_4BIT" == "1" ]] && TUNE_NAME="${TUNE_NAME} (4-bit/QLoRA)"
-  CKPT_SUFFIX="${CKPT_SUFFIX}_lora"
-  LOG_NAME="${LOG_NAME}_lora"
+  # Ghi r vao ten de doi r khong de len checkpoint cu (eval.sh --lora-r phai khop).
+  CKPT_SUFFIX="${CKPT_SUFFIX}_lora_r${LORA_R}"
+  LOG_NAME="${LOG_NAME}_lora_r${LORA_R}"
 else
   TUNE_ARGS=(--full_finetune)
   TUNE_NAME="full finetuning"

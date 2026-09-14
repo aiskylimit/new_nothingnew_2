@@ -17,6 +17,7 @@
 # Tuy chon:
 #   bash eval.sh --base                    # eval model goc, chua finetune
 #   bash eval.sh --full-finetune           # checkpoint train khong dung LoRA
+#   bash eval.sh --lora-r 16               # checkpoint train voi r khac mac dinh (64)
 #   bash eval.sh --full-sft                # eval checkpoint baseline full-CoT
 #   bash eval.sh --model /duong/dan/checkpoint-250
 #   bash eval.sh --model /duong/dan/checkpoint-250 --tag sel_ep5
@@ -54,7 +55,8 @@ LOG_DIR="${LOG_DIR:-logs}"
 EPOCHS="${EPOCHS:-3}"
 LR="${LR:-5e-5}"
 MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
-USE_LORA="${USE_LORA:-1}"   # train.sh mac dinh LoRA -> ten thu muc co hau to _lora
+USE_LORA="${USE_LORA:-1}"   # train.sh mac dinh LoRA -> ten thu muc co hau to _lora_r<R>
+LORA_R="${LORA_R:-64}"      # phai khop --lora-r luc train
 
 # "task so_mau_moi_cau" - lay tu Eval/run_eval.sh goc cua paper.
 TASKS_DEFAULT="aime24:32 amc23:32 math500:6 minerva:6 gpqa:6 olympiad:6"
@@ -99,6 +101,7 @@ while [[ $# -gt 0 ]]; do
     --full-sft)        WHICH="fullsft"; shift ;;
     --selective)       WHICH="selective"; shift ;;
     --lora)            USE_LORA=1; shift ;;
+    --lora-r)          LORA_R="$2"; shift 2 ;;
     --full-finetune)   USE_LORA=0; shift ;;
     --epochs)          EPOCHS="$2"; shift 2 ;;
     --lr)              LR="$2"; shift 2 ;;
@@ -157,9 +160,9 @@ latest_checkpoint() {
   return 0
 }
 
-# train.sh ghep hau to theo thu tu: [_fullsft][_lora]
+# train.sh ghep hau to theo thu tu: [_fullsft][_lora_r<R>]
 LORA_SUFFIX=""
-[[ "$USE_LORA" == "1" ]] && LORA_SUFFIX="_lora"
+[[ "$USE_LORA" == "1" ]] && LORA_SUFFIX="_lora_r${LORA_R}"
 CKPT_BASE="${ROOT_DIR}/SelectiveSFT/checkpoints/$(basename "$BASE_MODEL")_epoch${EPOCHS}_lr${LR}_len${MAX_SEQ_LENGTH}"
 
 case "$WHICH" in

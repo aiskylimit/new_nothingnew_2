@@ -75,7 +75,7 @@ bash train.sh                       # selective SFT, LoRA — see config table b
 bash train.sh --full-sft            # baseline: supervise the whole CoT
 bash train.sh --full-finetune       # no LoRA (very heavy at seq 32768 on 7B)
 bash train.sh --epochs 5 --lr 1e-5 --gpu 1
-bash train.sh --lora-r 32 --lora-alpha 64 --target-modules "q_proj,v_proj"
+bash train.sh --lora-r 16 --lora-alpha 16 --target-modules "q_proj,v_proj"   # checkpoint dir gets _lora_r16; pass the same --lora-r to eval.sh
 bash train.sh --no-grad-checkpoint  # faster, more VRAM
 bash train.sh --dry-run             # print commands only
 
@@ -104,7 +104,7 @@ All three wrappers take `--dry-run` and `-h`.
 |---|---|
 | Model | `Qwen/Qwen2.5-7B-Instruct` |
 | Data | `data/s1k/solutions_selected.jsonl` (from `simplescaling/s1K-1.1`) |
-| Tuning | LoRA r=16, alpha=16, dropout=0.05, bias=none |
+| Tuning | LoRA r=64, alpha=64, dropout=0.05, bias=none |
 | `target_modules` | `q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj` |
 | LR / epochs | 5e-5 / 3 |
 | Effective batch | 32 (`per_device 1` x `grad_accum 32` x 1 GPU) |
@@ -137,7 +137,7 @@ Attribution/processed_data/s1k/IG.jsonl  +  IG_compact.jsonl
 data/s1k/solutions_selected.jsonl    (+ selected_spans_ids[])
   │  SelectiveSFT/train_mask.py — labels = -100 except the selected segments
   ▼
-SelectiveSFT/checkpoints/<model>_epoch<E>_lr<LR>_len<L>[_fullsft][_lora]/checkpoint-<step>
+SelectiveSFT/checkpoints/<model>_epoch<E>_lr<LR>_len<L>[_fullsft][_lora_r<R>]/checkpoint-<step>
   │  SelectiveSFT/merge_lora.py (LoRA only) -> checkpoint-<step>-merged
   │  Eval/math_eval.py via eval.sh
   ▼

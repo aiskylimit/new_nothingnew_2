@@ -74,8 +74,8 @@ def parse_args():
     # --- LoRA ---
     parser.add_argument("--full_finetune", action="store_true",
                         help="Full finetuning thay vi LoRA (mac dinh la LoRA)")
-    parser.add_argument("--lora_r", type=int, default=16)
-    parser.add_argument("--lora_alpha", type=int, default=16)
+    parser.add_argument("--lora_r", type=int, default=64)
+    parser.add_argument("--lora_alpha", type=int, default=64)
     parser.add_argument("--lora_dropout", type=float, default=0.05)
     parser.add_argument("--target_modules", default=",".join(DEFAULT_TARGET_MODULES), type=str)
 
@@ -166,7 +166,7 @@ if not args.output_dir:
         # thu muc de checkpoint baseline khong de len ban selective.
         suffix += "_fullsft"
     if args.use_lora:
-        suffix += "_lora"
+        suffix += f"_lora_r{args.lora_r}"
     args.output_dir = f"./checkpoints/{args.model_name_or_path.split('/')[-1]}_epoch{args.epochs}_lr{args.learning_rate}_len{args.max_seq_length}{suffix}"
     args.run_name += suffix
 
