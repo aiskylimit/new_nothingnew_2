@@ -1,6 +1,6 @@
-#2
-#offline_rlsd_sdpo_b200
-#v2
+#2 -0-10
+#opsd
+#v1
 
 # cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
 # nvidia-smi
@@ -58,9 +58,9 @@ export NCCL_DEBUG=WARN
 # CUDA_VISIBLE_DEVICES=0,1 bash commands.sh
 
 
-cd ./offline_rlsd_sdpo_b200
+# cd ./offline_rlsd_sdpo_b200
 # tail -n 30 results_rlsd_4b_dryrun_train.log
-bash ./project_commands.sh
+# bash ./project_commands.sh
 
 # cd ./opsd
 # bash ./project_commands.sh
