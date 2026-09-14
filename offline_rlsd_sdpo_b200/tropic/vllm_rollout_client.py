@@ -122,10 +122,22 @@ def launch_vllm_replicas(
             vllm_executable, "serve", model_name,
             "--enable-lora", "--max-lora-rank", str(lora_rank),
             "--port", str(port),
-            "--disable-log-requests",  # v0.8.3's flag name (renamed to --disable-uvicorn-access-log
-                                        # in newer vllm - NOT used here: v0.28.0 needs torch/CUDA 13.x,
-                                        # incompatible with this cluster's driver (found 12.6) - reverted
-                                        # to v0.8.3, the last version confirmed working on this hardware).
+            # NO --disable-log-requests / --disable-uvicorn-access-log here on
+            # purpose: that flag was renamed between vLLM versions, and this
+            # server's offline install tool has already twice substituted a
+            # DIFFERENT vllm version than the one requested in tropic.txt
+            # (v0.2.5, then v0.18.0, for requests of v0.28.0 then v0.11.0) -
+            # see tropic.txt's own comment for that history. This server can
+            # only be debugged by submitting project_commands.sh and waiting
+            # (no interactive shell to check `vllm serve --help` first), so a
+            # flag whose exact name depends on which version actually lands
+            # is worth avoiding entirely rather than re-guessing each time.
+            # The flag is a pure logging-verbosity nicety (silences
+            # per-request access logs), not required for correctness. The
+            # ONLINE A100 cluster's copy of this same file
+            # (tropic/vllm_rollout_client.py, no offline_ prefix) still
+            # passes "--disable-log-requests" for its real, confirmed v0.8.3
+            # install - do not copy that back into this file.
         ]
         if gpu_memory_utilization is not None:
             cmd += ["--gpu-memory-utilization", str(gpu_memory_utilization)]
