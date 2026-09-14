@@ -40,7 +40,7 @@ LR=5.0e-5
 MIN_LR=1.0e-5
 WARMUP_RATIO=0.1
 BATCH_SIZE=1
-GRAD_ACC=16           # bs1 x ga16 x 2 GPU = effective batch 32
+GRAD_ACC=32           # bs1 x ga32 x 1 GPU = effective batch 32
 ATTN=sdpa
 LOG_INTERVAL=5
 SEED=42
@@ -48,7 +48,7 @@ SAVE_STRATEGY=epoch
 SAVE_STEPS=500
 SAVE_TOTAL_LIMIT=6
 LORA_R=16
-LORA_ALPHA=32
+LORA_ALPHA=16
 LORA_DROPOUT=0.05
 LORA_TARGET_MODULES="q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj"
 # ZeRO-2 offload for long-sequence headroom on VRAM-limited GPUs.

@@ -17,14 +17,14 @@ export GPUS="${GPUS:-1}"
 # IWC and IWC-Stable share exactly the spectral-selected token set; only weights differ.
 source /mnt/local/uvenvs/spectral_guided_learning/bin/activate
 # qwen25-7b train đã xong (2 checkpoint iwc + iwc-stable có sẵn) -- tạm tắt để chỉ chạy eval.
-# bash scripts/data/data_qwen25-7b.sh
-# bash scripts/capture/capture_qwen25-7b.sh
-# bash scripts/masks/masks_qwen25-7b.sh
-# bash scripts/masks/iwc_qwen25-7b.sh
+bash scripts/data/data_qwen25-7b.sh
+bash scripts/capture/capture_qwen25-7b.sh
+bash scripts/masks/masks_qwen25-7b.sh
+bash scripts/masks/iwc_qwen25-7b.sh
 # bash scripts/spectral/spectral_qwen25-7b.sh
 # bash scripts/sft/sft_qwen25-7b.sh
-# bash scripts/iwc/train_iwc.sh qwen25-7b iwc
-# bash scripts/iwc/train_iwc.sh qwen25-7b iwc-stable
+bash scripts/iwc/train_iwc.sh qwen25-7b iwc
+bash scripts/iwc/train_iwc.sh qwen25-7b iwc-stable
 
 # 8B tạm tắt để thử qwen25-7b trước.
 # bash scripts/data/data_qwen3-8b.sh
