@@ -1,4 +1,4 @@
-#2 -12
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/results/ +a
 # #d
 # #datasets
 # --hf siyanzhao/Openthoughts_math_30k_opsd /mnt/local/@PROJECT@/OPSD/data/raw/train
