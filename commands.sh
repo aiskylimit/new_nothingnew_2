@@ -1,5 +1,5 @@
-#2 +150
-#opsd
+#2 +10
+#test
 #v1
 
 # nvidia-smi
@@ -59,7 +59,8 @@ export NCCL_DEBUG=WARN
 
 # cd ./offline_rlsd_sdpo_b200
 # tail -n 30 results_rlsd_4b_dryrun_train.log
+cat /mnt/local/aiskylimit_new_nothingnew_2/offline_rlsd_sdpo_b200/results_rlsd_4b_dryrun/vllm_replica_gpu3.log
 # bash ./project_commands.sh
 
-cd ./opsd
-bash ./project_commands.sh
+# cd ./opsd
+# bash ./project_commands.sh
