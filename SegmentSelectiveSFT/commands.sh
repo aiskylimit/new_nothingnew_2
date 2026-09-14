@@ -1,16 +1,23 @@
 # commands.sh - cac lenh chay tren server offline, theo tung giai doan.
+# Chay:  cd SegmentSelectiveSFT && bash commands.sh
+# Moi duong dan tuong doi ben duoi (data/, SelectiveSFT/, Eval/) tinh tu repo
+# root; dong cd duoi day bao dam dieu do ke ca khi goi tu thu muc khac.
 # Moi giai doan dung MOT env rieng (source dung dong roi chay tiep), khong tron:
 #   ssft_eval   : split / ig / segments + eval.sh (vllm 0.10 + torch 2.7.1)  <- ../ssft_eval.txt
 #   ssft_train  : train.sh + merge_lora.py (torch 2.9 + unsloth + peft)      <- ../ssft_train.txt
 
-MODEL_DIR=/mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen2.5-7B-Instruct
+cd "$(dirname "${BASH_SOURCE[0]}")"
+
+PROJECT=aiskylimit_new_nothingnew_2          # = @PROJECT@ trong downloads.txt
+MODEL_DIR=/mnt/local/_models/$PROJECT/Qwen2.5-7B-Instruct
 # Model tinh IG: paper (App C.3) luon dung R1-Distill-Qwen-7B (model sinh CoT),
 # ke ca khi train Qwen2.5-7B-Instruct. MODEL_DIR o tren chi dung cho stage train/eval.
-ATTR_MODEL_DIR=/mnt/local/_models/aiskylimit_new_nothingnew_2/DeepSeek-R1-Distill-Qwen-7B
-DATA_DIR=/mnt/local/_data/aiskylimit_new_nothingnew_2/s1k
-# Test set cua eval (<task>/test.jsonl, truong question + answer). Repo khong
-# ship nua; tro vao ban da tai ve, hoac copy thang vao data/<task>/test.jsonl.
-EVAL_DATA_DIR=/mnt/local/_data/aiskylimit_new_nothingnew_2/eval_bench
+ATTR_MODEL_DIR=/mnt/local/_models/$PROJECT/DeepSeek-R1-Distill-Qwen-7B
+DATA_DIR=/mnt/local/_data/$PROJECT/s1k
+# Benchmark eval tai ve dang HF dataset (downloads.txt):
+#   $EVAL_DATA_ROOT/aime24  aime25  MATH-500  aimo-validation-amc
+# prepare_eval_data.py chuyen thanh data/<task>/test.jsonl (question + answer).
+EVAL_DATA_ROOT=/mnt/local/_data/$PROJECT
 
 # =============================================================================
 # [1] ATTRIBUTION (da chay xong, giu lai de tham khao) - env ssft_eval
@@ -64,20 +71,18 @@ deactivate
 # [3] EVAL - env ssft_eval (KHONG dung ssft_train)
 # =============================================================================
 # Thiet lap: t=0.6, top_p=0.9, repetition_penalty=1.05, max_tokens=4096,
-# k=3 mau/cau cho MOI benchmark (aime24 aime25 amc23 math500).
-# AMC23 = AMC12 nam 2023 (40 cau); repo dat ten task la amc23.
+# k=3 mau/cau cho MOI benchmark (aime24 aime25 amc12 math500).
+# amc12 = AI-MO/aimo-validation-amc (83 cau AMC12 2022-2023).
 # Pass@1 = trung binh acc tren 3 mau; Pass@3 = 1 neu bat ky mau nao dung;
 # AVG = trung binh cong don gian qua 4 bo (pass_at_k.py tinh, xem cuoi file).
 source /mnt/local/uvenvs/ssft_eval/bin/activate
 bash setup.sh check --for eval           # phai thay vllm 0.10 / torch 2.7.1 / latex2sympy
-for t in aime24 aime25 amc23 math500; do
-  [[ -f data/$t/test.jsonl ]] || { mkdir -p data/$t && ln -sf "$EVAL_DATA_DIR/$t/test.jsonl" data/$t/test.jsonl; }
-done
-ls -l data/aime24 data/aime25 data/amc23 data/math500
+python prepare_eval_data.py --data-root "$EVAL_DATA_ROOT"   # bo qua task da co test.jsonl
+wc -l data/aime24/test.jsonl data/aime25/test.jsonl data/amc12/test.jsonl data/math500/test.jsonl
 
 EVAL_ARGS=(
   --offline --gpu 0
-  --tasks "aime24 aime25 amc23 math500" --n-sampling 3
+  --tasks "aime24 aime25 amc12 math500" --n-sampling 3
   --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --max-tokens 4096
 )
 # Selective SFT (tu tim checkpoint-<step>-merged trong CKPT_DIR)
