@@ -81,6 +81,6 @@ wait
 # 9. Copy JSON eval outputs
 # =========================
 
-JSON_FILTER_DESTINATION="${JSON_FILTER_DESTINATION:-./MMEB-evaloutputs-json-v3}"
+JSON_FILTER_DESTINATION="${JSON_FILTER_DESTINATION:-./MMEB-evaloutputs-json-v1}"
 
-python json_filter.py ./MMEB-eval_outputs_v3 "${JSON_FILTER_DESTINATION}" --overwrite
+python json_filter.py ./MMEB-eval_outputs_v1 "${JSON_FILTER_DESTINATION}" --overwrite
