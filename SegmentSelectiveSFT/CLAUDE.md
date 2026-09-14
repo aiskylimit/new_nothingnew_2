@@ -181,6 +181,9 @@ silently misalign every downstream span, and a zero-length segment divides by ze
 - **Eval scripts must run with cwd = `Eval/`**: `parser.py`/`grader.py` do
   `from latex2sympy.latex2sympy2 import ...` (resolved via the local package dir), and `--data_dir`
   defaults to `../data`. All wrappers `cd` there.
+- **`acc` in `*_metrics.json` scores only the first sample of each question** (`evaluate.py`:
+  `mean_score[0]`), not the mean over `n_sampling`. `Eval/pass_at_k.py outputs_<tag> --k 1 3` recomputes
+  unbiased pass@k from the per-question `score` lists and macro-averages across tasks.
 - **`math_eval.py` skips a task whose `*_metrics.json` already exists** — that is what makes `eval.sh`
   resumable after a crash. The output filename encodes
   `num_test_sample/seed/temperature/n_sampling/max_tokens`, so a `--quick` run and a full run coexist
@@ -198,12 +201,15 @@ silently misalign every downstream span, and a zero-length segment divides by ze
 - **`data/` ships no datasets anymore.** The eval test sets (`data/<task>/test.jsonl` for aime24, amc23,
   gpqa, math500, minerva, olympiad) and the paper's LIMO files (`data/limo/*.jsonl`) were removed from
   the repo; `Eval/data_loader.py` has no HF fallback for those tasks, so `eval.sh` fails on a missing
-  `test.jsonl`. Restore them from `upstream/main` (`git checkout upstream/main -- data/<task>`) or
-  point `--data_dir` at a copy.
+  `test.jsonl`. `prepare_eval_data.py --data-root <dir>` builds `data/{aime24,aime25,math500,amc12}/test.jsonl`
+  from the HF snapshots listed in `downloads.txt` (`amc12` = `AI-MO/aimo-validation-amc`, 83 problems;
+  registered in `Eval/parser.py`'s answer-field list). For the other tasks restore from `upstream/main`
+  or point `--data_dir` at a copy.
 - **`downloads.txt` lists what an offline server must fetch beforehand** (one `--hf-dataset` /
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
-  (`baesad/s1K-1.1-deepseek-cot`), `Qwen/Qwen2.5-7B-Instruct` (train) and
+  (`baesad/s1K-1.1-deepseek-cot`), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
   `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
+  `commands.sh` is the per-stage command sheet for that server (one uv env per stage).
 
 ## Defaults worth knowing
 
