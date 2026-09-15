@@ -11,5 +11,8 @@
 --hf deepseek-ai/DeepSeek-R1-Distill-Qwen-7B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-7B
 --hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/@PROJECT@/Qwen2.5-7B-Instruct
 --hf Qwen/Qwen3-8B /mnt/local/_models/@PROJECT@/Qwen3-8B
+#pip
+--pip unsloth
+--pip bitsandbytes>=0.44
 
 (this line and below are ignored)

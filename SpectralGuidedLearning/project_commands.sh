@@ -23,8 +23,11 @@ bash scripts/masks/masks_qwen25-7b.sh
 bash scripts/masks/iwc_qwen25-7b.sh
 # bash scripts/spectral/spectral_qwen25-7b.sh
 # bash scripts/sft/sft_qwen25-7b.sh
-bash scripts/iwc/train_iwc.sh qwen25-7b iwc
-bash scripts/iwc/train_iwc.sh qwen25-7b iwc-stable
+# bash scripts/iwc/train_iwc.sh qwen25-7b iwc
+# bash scripts/iwc/train_iwc.sh qwen25-7b iwc-stable
+# bash scripts/spectral/spectral_unsloth_qwen25-7b.sh
+bash scripts/iwc/train_iwc_unsloth.sh qwen25-7b iwc
+bash scripts/iwc/train_iwc_unsloth.sh qwen25-7b iwc-stable
 
 # 8B tạm tắt để thử qwen25-7b trước.
 # bash scripts/data/data_qwen3-8b.sh
@@ -35,14 +38,19 @@ bash scripts/iwc/train_iwc.sh qwen25-7b iwc-stable
 # bash scripts/sft/sft_qwen3-8b.sh
 # bash scripts/iwc/train_iwc.sh qwen3-8b iwc
 # bash scripts/iwc/train_iwc.sh qwen3-8b iwc-stable
+# bash scripts/spectral/spectral_unsloth_qwen3-8b.sh
+# bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc
+# bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc-stable
 
 # ============================ EVAL =============================
 # only the iwc / iwc-stable checkpoints (vanilla/spectral training is commented out above)
 
 # bash scripts/eval/eval_qwen25-7b.sh
 # bash scripts/eval/eval_qwen25-7b.sh checkpoints/vanilla-qwen25-7b vanilla-qwen25-7b
-bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-qwen25-7b iwc-qwen25-7b
-bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-stable-qwen25-7b iwc-stable-qwen25-7b
+# bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-qwen25-7b iwc-qwen25-7b
+# bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-stable-qwen25-7b iwc-stable-qwen25-7b
+bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-unsloth-qwen25-7b iwc-unsloth-qwen25-7b
+bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-stable-unsloth-qwen25-7b iwc-stable-unsloth-qwen25-7b
 
 # bash scripts/eval/eval_qwen3-8b.sh
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-qwen3-8b vanilla-qwen3-8b
