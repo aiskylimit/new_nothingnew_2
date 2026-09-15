@@ -92,9 +92,11 @@ activate() {
 # Cap "module_import:ten_hien_thi". Chi liet ke goi that su duoc import o
 # top-level luc chay, khong ke goi chi dung trong nhanh tuy chon.
 PKGS_COMMON="numpy:numpy tqdm:tqdm transformers:transformers torch:torch datasets:datasets"
+# Ten hien thi (sau dau :) KHONG duoc co dau cach: vong "for pair in $list" tach theo
+# khoang trang, mot ten nhu "latex2sympy(cai -e X)" se thanh 3 goi gia "-e", "X)" luon MISS.
 PKGS_EVAL="vllm:vllm sympy:sympy mpmath:mpmath pandas:pandas regex:regex pebble:pebble
            multiprocess:multiprocess timeout_decorator:timeout-decorator word2number:word2number
-           latex2sympy.latex2sympy2:latex2sympy(cai -e Eval/latex2sympy)"
+           latex2sympy.latex2sympy2:latex2sympy(vendored-Eval/)"
 PKGS_TRAIN="unsloth:unsloth trl:trl peft:peft bitsandbytes:bitsandbytes torchao:torchao"
 
 do_check() {
