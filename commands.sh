@@ -1,9 +1,9 @@
-#2 -0
-#opsd
+#1 +60
+#palign
 #v1
 
-# cd ./P-ALIGN
-# CUDA_VISIBLE_DEVICES=1 bash ./project_commands.sh
+cd ./P-ALIGN
+CUDA_VISIBLE_DEVICES=1 bash ./project_commands.sh
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT && bash ./commands.sh
 
