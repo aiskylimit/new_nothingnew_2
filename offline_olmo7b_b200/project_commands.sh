@@ -100,13 +100,15 @@ train_dry_run run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
 train run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
 train run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b
 train run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b
+train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b
 
 # ============================================================
-# 5. Eval every saved checkpoint for all 3 methods.
+# 5. Eval every saved checkpoint for all 4 method/config combinations.
 # ============================================================
 for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b rlsd "$step"; done
 for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b sdpo "$step"; done
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b tropic_g_olmo "$step"; done
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo "$step"; done
 
 # ============================================================
 # 6. Aggregate every avg@12/pass@12 line into one final table + JSON.
