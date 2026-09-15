@@ -1,20 +1,12 @@
-#d
-#datasets
---hf-dataset Maxwell-Jia/AIME_2024 /mnt/local/aiskylimit_new_nothing/P-ALIGN/datasets/AIME_2024
---hf-dataset yentinglin/aime_2025 /mnt/local/aiskylimit_new_nothing/P-ALIGN/datasets/aime_2025
---hf-dataset AI-MO/aimo-validation-amc /mnt/local/aiskylimit_new_nothing/P-ALIGN/datasets/aimo-validation-amc
---hf-dataset HuggingFaceH4/MATH-500 /mnt/local/aiskylimit_new_nothing/P-ALIGN/datasets/MATH-500
-#models
---hf Qwen/Qwen2.5-7B-Instruct /mnt/local/aiskylimit_new_nothing/P-ALIGN/models/Qwen2.5-7B-Instruct
-
+#1 +60
 #palign
 #v1
 
-# cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
-
+cd ./P-ALIGN
+CUDA_VISIBLE_DEVICES=1 bash ./project_commands.sh
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT && bash ./commands.sh
-# cd SegmentSelectiveSFT && ls Attribution/processed_data/s1k
+
 #download_sdxl_q3_offline_assets
 
 # cd ./sdxl_q3_offline_b200_2gpu
