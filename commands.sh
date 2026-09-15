@@ -1,3 +1,6 @@
+#1 +10
+#sdxl-q3-b200-autotune-pilot
+#v1
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
