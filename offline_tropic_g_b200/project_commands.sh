@@ -33,7 +33,10 @@ VLLM_EXECUTABLE="vllm"
 # originally tuned on gives real headroom here.
 GPU_MEM_UTIL=0.9
 
-CHECKPOINTS="20 25 40 50 60 75 80 100"
+# Checkpoints are still SAVED at all 8 steps below by each script's own
+# CHECKPOINT_STEPS - this only controls which get EVALUATED (TROPIC-G is the
+# proposal, evaluated more densely than the RLSD/SDPO baselines).
+CHECKPOINTS_TROPIC="20 25 40 50 60 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {
@@ -86,16 +89,21 @@ train_dry_run run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b
 # ============================================================
 # 4. Train both model sizes. Only TROPIC-G here - RLSD/SDPO already ran
 #    separately (offline_rlsd_sdpo_b200/), this package is a standalone
-#    addition, not a re-run of those.
+#    addition, not a re-run of those. run_tropic_g_topk64_4b.py is the
+#    sparsified top_k=64 sibling of run_tropic_g_experiment_4b.py's
+#    full-vocab ablation - same model/settings, added to also cover the
+#    ONLINE cluster's own tropic_g default on this offline deployment.
 # ============================================================
 train run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b
 train run_tropic_g_experiment_8b.py "${MODEL_8B}" results_tropic_g_8b
+train run_tropic_g_topk64_4b.py "${MODEL_4B}" results_tropic_g_topk64_4b
 
 # ============================================================
 # 5. Eval every saved checkpoint for both model sizes.
 # ============================================================
-for step in $CHECKPOINTS; do eval_checkpoint run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b tropic_g "$step"; done
-for step in $CHECKPOINTS; do eval_checkpoint run_tropic_g_experiment_8b.py "${MODEL_8B}" results_tropic_g_8b tropic_g "$step"; done
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b tropic_g "$step"; done
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_8b.py "${MODEL_8B}" results_tropic_g_8b tropic_g "$step"; done
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_4b.py "${MODEL_4B}" results_tropic_g_topk64_4b tropic_g_topk64 "$step"; done
 
 # ============================================================
 # 6. Aggregate every avg@12/pass@12 line into one final table + JSON.
