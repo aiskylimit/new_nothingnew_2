@@ -1,5 +1,5 @@
-#2 -0-15
-#opsd
+#2 -f-/mnt/local/new_nothingnew_2/SpectralGuidedLearning/results/spectral-qwen25-7b/
+#ssft
 #v1
 
 # cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
