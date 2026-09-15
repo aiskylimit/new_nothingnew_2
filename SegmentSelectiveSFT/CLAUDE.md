@@ -76,6 +76,7 @@ bash train.sh --full-sft            # baseline: supervise the whole CoT
 bash train.sh --full-finetune       # no LoRA (very heavy at seq 32768 on 7B)
 bash train.sh --epochs 5 --lr 1e-5 --gpu 1
 bash train.sh --lora-r 16 --lora-alpha 16 --target-modules "q_proj,v_proj"   # checkpoint dir gets _lora_r16; pass the same --lora-r to eval.sh
+bash train.sh --grad-accum 16 --ckpt-suffix _bs16   # batch isn't in the dir name; suffix keeps a new run from rotating out the old checkpoints (pass the same --ckpt-suffix to eval.sh)
 bash train.sh --no-grad-checkpoint  # faster, more VRAM
 bash train.sh --dry-run             # print commands only
 
@@ -137,7 +138,7 @@ Attribution/processed_data/s1k/IG.jsonl  +  IG_compact.jsonl
 data/s1k/solutions_selected.jsonl    (+ selected_spans_ids[])
   │  SelectiveSFT/train_mask.py — labels = -100 except the selected segments
   ▼
-SelectiveSFT/checkpoints/<model>_epoch<E>_lr<LR>_len<L>[_fullsft][_lora_r<R>]/checkpoint-<step>
+SelectiveSFT/checkpoints/<model>_epoch<E>_lr<LR>_len<L>[_fullsft][_lora_r<R>][<--ckpt-suffix>]/checkpoint-<step>
   │  SelectiveSFT/merge_lora.py (LoRA only) -> checkpoint-<step>-merged
   │  Eval/math_eval.py via eval.sh
   ▼

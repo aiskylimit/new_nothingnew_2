@@ -18,6 +18,7 @@
 #   bash eval.sh --base                    # eval model goc, chua finetune
 #   bash eval.sh --full-finetune           # checkpoint train khong dung LoRA
 #   bash eval.sh --lora-r 16               # checkpoint train voi r khac mac dinh (64)
+#   bash eval.sh --ckpt-suffix _bs16       # checkpoint train voi --ckpt-suffix _bs16
 #   bash eval.sh --full-sft                # eval checkpoint baseline full-CoT
 #   bash eval.sh --model /duong/dan/checkpoint-250
 #   bash eval.sh --model /duong/dan/checkpoint-250 --tag sel_ep5
@@ -57,6 +58,7 @@ LR="${LR:-5e-5}"
 MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
 USE_LORA="${USE_LORA:-1}"   # train.sh mac dinh LoRA -> ten thu muc co hau to _lora_r<R>
 LORA_R="${LORA_R:-64}"      # phai khop --lora-r luc train
+CKPT_SUFFIX="${CKPT_SUFFIX:-}"   # phai khop --ckpt-suffix luc train (vd _bs16)
 
 # "task so_mau_moi_cau" - lay tu Eval/run_eval.sh goc cua paper.
 TASKS_DEFAULT="aime24:32 amc23:32 math500:6 minerva:6 gpqa:6 olympiad:6"
@@ -102,6 +104,7 @@ while [[ $# -gt 0 ]]; do
     --selective)       WHICH="selective"; shift ;;
     --lora)            USE_LORA=1; shift ;;
     --lora-r)          LORA_R="$2"; shift 2 ;;
+    --ckpt-suffix)     CKPT_SUFFIX="$2"; shift 2 ;;
     --full-finetune)   USE_LORA=0; shift ;;
     --epochs)          EPOCHS="$2"; shift 2 ;;
     --lr)              LR="$2"; shift 2 ;;
@@ -127,7 +130,7 @@ while [[ $# -gt 0 ]]; do
     --reinstall)       REINSTALL=1; shift ;;
     --offline)         HF_OFFLINE=1; shift ;;
     --dry-run)         DRY_RUN=1; shift ;;
-    -h|--help)         sed -n '2,31p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help)         sed -n '2,32p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "Tham so khong hop le: $1 (xem --help)" >&2; exit 2 ;;
   esac
 done
@@ -160,9 +163,10 @@ latest_checkpoint() {
   return 0
 }
 
-# train.sh ghep hau to theo thu tu: [_fullsft][_lora_r<R>]
+# train.sh ghep hau to theo thu tu: [_fullsft][_lora_r<R>][--ckpt-suffix]
 LORA_SUFFIX=""
 [[ "$USE_LORA" == "1" ]] && LORA_SUFFIX="_lora_r${LORA_R}"
+LORA_SUFFIX="${LORA_SUFFIX}${CKPT_SUFFIX}"
 CKPT_BASE="${ROOT_DIR}/SelectiveSFT/checkpoints/$(basename "$BASE_MODEL")_epoch${EPOCHS}_lr${LR}_len${MAX_SEQ_LENGTH}"
 
 case "$WHICH" in

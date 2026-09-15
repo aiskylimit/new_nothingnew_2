@@ -18,6 +18,7 @@
 #   bash train.sh --epochs 5 --lr 1e-5
 #   bash train.sh --gpu 1                  # dung GPU khac
 #   bash train.sh --batch-size 2 --grad-accum 16   # van la 32 mau/step
+#   bash train.sh --grad-accum 16 --ckpt-suffix _bs16   # doi batch: them hau to de khong de len checkpoint cu
 #   bash train.sh --lora-r 16 --lora-alpha 16 --lora-dropout 0   # thu muc checkpoint co hau to _lora_r<R>
 #   bash train.sh --4bit                   # QLoRA: it VRAM hon, cham hon mot chut
 #   bash train.sh --target-modules "q_proj,v_proj"
@@ -59,6 +60,10 @@ MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
 BATCH_SIZE="${BATCH_SIZE:-1}"
 GRAD_ACCUM="${GRAD_ACCUM:-32}"
 GROUP_BY_LENGTH="${GROUP_BY_LENGTH:-0}"   # 1 = gom mau cung do dai, bo padding thua
+# Ten thu muc checkpoint khong chua batch/optim/... -> doi cac thu do ma khong
+# doi ten thi HF Trainer (save_total_limit=3) xoa dan checkpoint cua lan truoc.
+# Hau to nay ghep vao cuoi ten thu muc + ten log; eval.sh --ckpt-suffix phai khop.
+CKPT_SUFFIX_EXTRA="${CKPT_SUFFIX_EXTRA:-}"
 # Seq 32768 tren 7B thi gradient checkpointing la bat buoc -> mac dinh BAT.
 NO_GRAD_CKPT="${NO_GRAD_CKPT:-0}"         # 1 = tat (ton VRAM, nhanh hon)
 
@@ -106,6 +111,7 @@ while [[ $# -gt 0 ]]; do
     --max-seq-length)  MAX_SEQ_LENGTH="$2"; shift 2 ;;
     --batch-size)      BATCH_SIZE="$2"; shift 2 ;;
     --grad-accum)      GRAD_ACCUM="$2"; shift 2 ;;
+    --ckpt-suffix)     CKPT_SUFFIX_EXTRA="$2"; shift 2 ;;
     --group-by-length) GROUP_BY_LENGTH=1; shift ;;
     --no-grad-checkpoint) NO_GRAD_CKPT=1; shift ;;
     --grad-checkpoint) NO_GRAD_CKPT=0; shift ;;
@@ -128,7 +134,7 @@ while [[ $# -gt 0 ]]; do
     --reinstall)       REINSTALL=1; shift ;;
     --offline)         HF_OFFLINE=1; shift ;;
     --dry-run)         DRY_RUN=1; shift ;;
-    -h|--help)         sed -n '2,32p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help)         sed -n '2,33p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "Tham so khong hop le: $1 (xem --help)" >&2; exit 2 ;;
   esac
 done
@@ -280,6 +286,9 @@ else
   TUNE_ARGS=(--full_finetune)
   TUNE_NAME="full finetuning"
 fi
+# Hau to nguoi dung dat (--ckpt-suffix) di sau cung: [_fullsft][_lora_r<R>][<suffix>]
+CKPT_SUFFIX="${CKPT_SUFFIX}${CKPT_SUFFIX_EXTRA}"
+LOG_NAME="${LOG_NAME}${CKPT_SUFFIX_EXTRA}"
 LOG_FILE="${LOG_DIR}/${LOG_NAME}.log"
 
 # Ten thu muc do bash quyet dinh roi truyen thang bang --output_dir. Truoc day
