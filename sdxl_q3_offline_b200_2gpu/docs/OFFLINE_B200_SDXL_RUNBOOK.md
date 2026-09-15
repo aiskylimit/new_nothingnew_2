@@ -1,9 +1,18 @@
 # Offline SDXL Q3/DSPO on 2xB200
 
-The production entrypoint is:
+The platform entrypoint is:
 
 ```bash
 bash project_command.sh
+```
+
+The repository-level `commands.sh` first measures real peak memory across
+10-step candidates on physical GPUs 2 and 3, selects the largest micro-batch
+at or below 95% VRAM, and runs a short end-to-end pilot. After that pilot
+passes, start the full 851,293-pair train/infer/eval pipeline with:
+
+```bash
+bash hessian/run_b200_full.sh
 ```
 
 It sources `env.sh`, activates the uv environment created by the platform from
@@ -25,12 +34,12 @@ dependency, so uv never needs to contact GitHub.
 
 Default production semantics:
 
-- GPUs: `0,1` (the two GPUs visible inside the allocation)
-- micro-batch: 2 pairs per GPU
-- gradient accumulation: 16
-- effective batch: 64 pairs
-- full dataset: 851,293 binary preference pairs
-- optimizer steps: 13,302
+- GPUs: physical `2,3` by default
+- micro-batch: selected on the B200 node by the 95%-VRAM autotuner
+- gradient accumulation: 1 after tuning
+- effective batch: `2 * selected micro-batch`
+- full dataset: 851,293 binary preference pairs, exactly one pass
+- optimizer steps: `ceil(851293 / effective_batch)`
 - precision: BF16
 - model: SDXL 1.0 at 1024x1024
 - method: Q3 (TBPO + reference-MSE policy weighting + DSPO winner anchor)
