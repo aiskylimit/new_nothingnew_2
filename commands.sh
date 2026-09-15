@@ -1,11 +1,11 @@
-#1 +60
-#ssft_full
+#i p-align.txt
+#palign
 #v1
 
 # cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
 
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
-cd ./SegmentSelectiveSFT && bash ./commands.sh
+# cd ./SegmentSelectiveSFT && bash ./commands.sh
 # cd SegmentSelectiveSFT && ls Attribution/processed_data/s1k
 #download_sdxl_q3_offline_assets
 
