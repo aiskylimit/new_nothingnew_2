@@ -8,6 +8,7 @@ source "$PROJECT_ROOT/env.sh"
 TARGET_VRAM_PERCENT="${TARGET_VRAM_PERCENT:-95}"
 AUTOTUNE_STEPS="${AUTOTUNE_STEPS:-10}"
 BATCH_CANDIDATES="${B200_BATCH_CANDIDATES:-32 40 48 56 60 64 68 72 80}"
+MAX_PREEXISTING_MEMORY_MIB="${B200_MAX_PREEXISTING_MEMORY_MIB:-2048}"
 STATUS_LOG="$RUNTIME_ROOT/B200_AUTOTUNE_STATUS.log"
 SELECTED_ENV="$RUNTIME_ROOT/b200-autotune.env"
 mkdir -p "$RUNTIME_ROOT/logs" "$RUNS_DIR"
@@ -30,8 +31,8 @@ for gpu in "${gpu_array[@]}"; do
   name="$(printf '%s' "$row" | cut -d, -f2)"
   used="$(printf '%s' "$row" | cut -d, -f3 | tr -d ' ')"
   [[ "$name" == *B200* ]] || { status "failed gpu=$gpu is_not_B200 name=$name"; exit 12; }
-  if (( used > 2048 )) && [[ "${AUTOTUNE_ALLOW_BUSY:-0}" != 1 ]]; then
-    status "failed gpu=$gpu already_uses_${used}MiB"
+  if (( used > MAX_PREEXISTING_MEMORY_MIB )) && [[ "${AUTOTUNE_ALLOW_BUSY:-0}" != 1 ]]; then
+    status "failed gpu=$gpu already_uses_${used}MiB limit=${MAX_PREEXISTING_MEMORY_MIB}MiB"
     exit 13
   fi
 done
