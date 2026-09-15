@@ -30,7 +30,8 @@ EVAL_DATA_ROOT=/mnt/local/_data/$PROJECT
 # bash make_bundle.sh          # -> bundle/ de tai ve may khac
 
 # =============================================================================
-# [2] SELECTIVE SFT - env ssft_train  (lan 2: LoRA r=64 alpha=64; ban r=16 da train o ..._lora)
+# [2] SELECTIVE SFT - env ssft_train  (lan 3: FULL FINETUNING, khong LoRA;
+#     cac ban LoRA r=16 / r=64 nam o ..._lora / ..._lora_r64, eval bang --model)
 # =============================================================================
 source /mnt/local/uvenvs/ssft_train/bin/activate
 bash setup.sh check --for train          # phai thay torch 2.9 / unsloth / peft / torchao<0.18
@@ -41,32 +42,34 @@ mkdir -p data/s1k
 [[ -f data/s1k/solutions_selected.jsonl ]] || ln -sf "$DATA_DIR/solutions_selected.jsonl" data/s1k/solutions_selected.jsonl
 wc -l data/s1k/solutions_selected.jsonl
 
-# Cau hinh train (ghi tuong minh, trung voi mac dinh cua train.sh):
-#   LoRA r=64 alpha=64 dropout=0.05 tren q/k/v/o/gate/up/down_proj
+# Cau hinh train (ghi tuong minh):
+#   full finetuning toan bo 7B (unsloth full_finetuning=True), khong adapter
 #   effective batch = 1 x 32 accum x 1 GPU = 32 mau/step
 #   AdamW betas (0.9, 0.999) eps 1e-8 (mac dinh) weight_decay 0.0
 #   cosine + warmup, warmup_ratio 0.1 (HF dung LambdaLR)
 #   max_seq_length 32768; segment = paragraph: moi doan "\n\n" = 1 reasoning step
+#   gradient checkpointing: bat (mac dinh) - bat buoc o 32k tren 7B
+# VRAM: 7B full FT + adamw_torch (state fp32) ~ 7.6B x 16 byte ~ 120 GB CHUA ke
+# activation -> khong vua 1 GPU 80 GB. Neu OOM, doi --optim adamw_8bit
+# (state 8-bit, ~ -45 GB) hoac chay DDP nhieu GPU va chia --grad-accum cho du 32.
 TRAIN_ARGS=(
   --offline --model "$MODEL_DIR" --gpu 0
-  --lora --lora-r 64 --lora-alpha 64 --lora-dropout 0.05
-  --target-modules "q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj"
+  --full-finetune
   --epochs 3 --lr 5e-5 --max-seq-length 32768
   --batch-size 1 --grad-accum 32
   --optim adamw_torch --weight-decay 0.0 --lr-scheduler cosine --warmup-ratio 0.1
   --segment-mode paragraph
 )
 bash train.sh "${TRAIN_ARGS[@]}" --dry-run     # in lenh truoc, chua chay
-bash train.sh "${TRAIN_ARGS[@]}"               # log: logs/train_lora_r64.log
+bash train.sh "${TRAIN_ARGS[@]}"               # log: logs/train.log
 # Baseline de so sanh: SFT tren toan bo CoT (khong mask)
 # bash train.sh "${TRAIN_ARGS[@]}" --full-sft
 
-# Merge adapter LoRA -> checkpoint-<step>-merged (PHAI o env train vi can peft; CPU la du)
-# train.sh ghi r vao ten thu muc: ..._lora_r64 (ban cu r=16 nam o ..._lora, eval bang --model)
-CKPT_DIR=SelectiveSFT/checkpoints/$(basename "$MODEL_DIR")_epoch3_lr5e-5_len32768_lora_r64
-CKPT=$(ls -1d "$CKPT_DIR"/checkpoint-* 2>/dev/null | grep -v merged | sed 's#.*/checkpoint-##' | sort -n | tail -1)
+# Full finetuning luu thang weight day du -> KHONG can merge_lora.py.
+CKPT_DIR=SelectiveSFT/checkpoints/$(basename "$MODEL_DIR")_epoch3_lr5e-5_len32768
+CKPT=$(ls -1d "$CKPT_DIR"/checkpoint-* 2>/dev/null | sed 's#.*/checkpoint-##' | sort -n | tail -1)
 echo "checkpoint moi nhat: $CKPT_DIR/checkpoint-$CKPT"
-(cd SelectiveSFT && python merge_lora.py --adapter "../$CKPT_DIR/checkpoint-$CKPT" --base_model "$MODEL_DIR")
+ls "$CKPT_DIR/checkpoint-$CKPT"                  # phai co config.json + model*.safetensors
 deactivate
 
 # =============================================================================
@@ -87,20 +90,23 @@ EVAL_ARGS=(
   --tasks "aime24 aime25 amc12 math500" --n-sampling 3
   --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --max-tokens 4096
 )
-# Selective SFT r=64 (tu tim checkpoint-<step>-merged trong ..._lora_r64; --lora-r mac dinh 64).
-# Tag moi de khong trung outputs_sel_ep3 cua ban r=16 (math_eval bo qua task da co metrics).
-BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --tag sel_r64_ep3 --dry-run
-BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --tag sel_r64_ep3
+# Selective SFT full-finetune: --full-finetune de eval.sh tim ..._len32768 (khong hau to _lora_r<R>);
+# checkpoint la weight day du nen khong can merge. Tag moi de khong trung outputs cu.
+BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --full-finetune --tag sel_ft_ep3 --dry-run
+BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --full-finetune --tag sel_ft_ep3
+# Ban LoRA r=64 (da merge, --lora-r mac dinh 64):
+# BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --tag sel_r64_ep3
 # Ban r=16 cu (thu muc ten cu, khong co _r16):
 # BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --model SelectiveSFT/checkpoints/Qwen2.5-7B-Instruct_epoch3_lr5e-5_len32768_lora/checkpoint-90-merged --tag sel_ep3
 # Base chua finetune
 # BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --base --tag base
 # Baseline full-CoT SFT
-# BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --full-sft --tag fullsft_ep3
+# BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --full-sft --full-finetune --tag fullsft_ft_ep3
 # Nhieu GPU: them --gpu 0,1,2,3 --data-parallel (1 task / GPU)
 
 # "acc" trong summary.json chi tinh MAU DAU TIEN moi cau (evaluate.py: mean_score[0]).
 # Pass@1 / Pass@3 unbiased tren du 3 mau + AVG macro qua 4 bo:
-(cd Eval && python pass_at_k.py outputs_sel_r64_ep3 --k 1 3)
+(cd Eval && python pass_at_k.py outputs_sel_ft_ep3 --k 1 3)
+# (cd Eval && python pass_at_k.py outputs_sel_r64_ep3 --k 1 3)  # ban LoRA r=64
 # (cd Eval && python pass_at_k.py outputs_sel_ep3 --k 1 3)     # ban r=16
 # (cd Eval && python pass_at_k.py outputs_base --k 1 3)

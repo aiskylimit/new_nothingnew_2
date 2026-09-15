@@ -1,9 +1,11 @@
-#2 -f-/mnt/local/new_nothingnew_2/SpectralGuidedLearning/results/spectral-qwen25-7b/
+#1 + 3
 #ssft
 #v1
 
 # cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
+ls /mnt/local/new_nothingnew_2/SpectralGuidedLearning/results/spectral-qwen25-7b/
 nvidia-smi
+
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
 # cd ./SegmentSelectiveSFT && bash ./commands.sh
 # cd SegmentSelectiveSFT && ls Attribution/processed_data/s1k
