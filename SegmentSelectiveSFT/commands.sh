@@ -8,6 +8,9 @@
 #   ssft_train  : train.sh + merge_lora.py (torch 2.9 + unsloth + peft)      <- ../ssft_train.txt
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
+# Dung ngay khi mot buoc loi (setup check thieu goi, train OOM, khong co checkpoint...)
+# thay vi chay tiep sang eval voi checkpoint cu.
+set -eo pipefail
 
 PROJECT=aiskylimit_new_nothingnew_2          # = @PROJECT@ trong downloads.txt
 MODEL_DIR=/mnt/local/_models/$PROJECT/Qwen2.5-7B-Instruct
@@ -49,9 +52,11 @@ wc -l data/s1k/solutions_selected.jsonl
 #   cosine + warmup, warmup_ratio 0.1 (HF dung LambdaLR)
 #   max_seq_length 32768; segment = paragraph: moi doan "\n\n" = 1 reasoning step
 #   gradient checkpointing: bat (mac dinh) - bat buoc o 32k tren 7B
-# VRAM: 7B full FT + adamw_torch (state fp32) ~ 7.6B x 16 byte ~ 120 GB CHUA ke
-# activation -> khong vua 1 GPU 80 GB. Neu OOM, doi --optim adamw_8bit
-# (state 8-bit, ~ -45 GB) hoac chay DDP nhieu GPU va chia --grad-accum cho du 32.
+# VRAM (GPU 0, 180 GB): 7.6B x 16 byte (weight bf16 + grad + 2 state AdamW fp32
+# + master) ~ 120 GB; activation o 32k voi grad checkpointing ~ 10 GB; logits
+# 32768 x 152k vocab fp32 ~ 20 GB (+ grad) -> tong ~ 150-165 GB, vua 180 GB nhung
+# sat. Neu OOM: doi --optim adamw_8bit (van AdamW cung betas/eps/wd, state 8-bit,
+# giam ~45 GB) - KHONG giam --max-seq-length vi se cat mat response cua mau dai.
 TRAIN_ARGS=(
   --offline --model "$MODEL_DIR" --gpu 0
   --full-finetune

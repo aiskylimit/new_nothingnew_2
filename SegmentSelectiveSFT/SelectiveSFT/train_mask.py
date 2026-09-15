@@ -42,6 +42,40 @@ class EarlyStopAtEpochCallback(TrainerCallback):
         return control
 
 
+class PeakVramCallback(TrainerCallback):
+    """Ghi peak VRAM vao moi dong log cua Trainer va in tong ket cuoi run.
+
+    max_memory_allocated = dinh cua tensor thuc su cap phat; max_memory_reserved
+    = dinh cua bo nho cache CUDA giu (gan voi so nvidia-smi bao). Dinh thuong
+    xuat hien o step gap mau dai nhat, nen theo doi tu dau la du biet co OOM khong.
+    Reset sau moi lan log de cot 'peak_step' cho biet dinh cua RIENG khoang do,
+    con 'peak_run' la dinh tu dau run.
+    """
+    def __init__(self):
+        self.peak_run = 0.0
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if not torch.cuda.is_available() or logs is None:
+            return control
+        gb = 1024 ** 3
+        alloc = torch.cuda.max_memory_allocated() / gb
+        reserved = torch.cuda.max_memory_reserved() / gb
+        self.peak_run = max(self.peak_run, reserved)
+        logs["vram_peak_step_gb"] = round(alloc, 1)
+        logs["vram_reserved_gb"] = round(reserved, 1)
+        logs["vram_peak_run_gb"] = round(self.peak_run, 1)
+        torch.cuda.reset_peak_memory_stats()
+        return control
+
+    def on_train_end(self, args, state, control, **kwargs):
+        if torch.cuda.is_available():
+            gb = 1024 ** 3
+            total = torch.cuda.get_device_properties(0).total_memory / gb
+            print("Peak VRAM ca run: %.1f GB reserved / %.1f GB tren GPU (%.0f%%)" % (
+                self.peak_run, total, 100.0 * self.peak_run / total))
+        return control
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_names", default="GAIR/LIMO", type=str)
@@ -372,6 +406,10 @@ trainer = SFTTrainer(
         group_by_length = args.group_by_length,
         max_grad_norm=args.max_grad_norm,
     ),
-    callbacks=[EarlyStopAtEpochCallback(args.stop_at_epoch)],
+    callbacks=[EarlyStopAtEpochCallback(args.stop_at_epoch), PeakVramCallback()],
 )
+if torch.cuda.is_available():
+    # Model da nap xong: so nay la VRAM tinh (weight) truoc khi co grad/optimizer state.
+    print("VRAM sau khi nap model: %.1f GB allocated" % (torch.cuda.memory_allocated() / 1024 ** 3))
+    torch.cuda.reset_peak_memory_stats()
 trainer.train()
