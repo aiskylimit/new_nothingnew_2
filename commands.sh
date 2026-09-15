@@ -1,6 +1,6 @@
 #2 -0
 #ssft_full
-#v1
+#v2
 
 # cd ./P-ALIGN
 # CUDA_VISIBLE_DEVICES=1 bash ./project_commands.sh
