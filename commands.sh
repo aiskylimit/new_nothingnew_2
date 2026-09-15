@@ -1,4 +1,4 @@
-#1 +3
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/results/comparison-table.md
 #ssft
 #v1
 
