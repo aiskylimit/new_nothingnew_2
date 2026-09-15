@@ -1,6 +1,6 @@
-#2 -2
-#spectral_guided_learning
-#v2
+#2 -0-10
+#opsd
+#v1
 
 # cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
 nvidia-smi
