@@ -1,5 +1,5 @@
-#2 -0-20
-#ssft_full
+#3
+#opsd
 #v2
 
 # cd ./P-ALIGN
