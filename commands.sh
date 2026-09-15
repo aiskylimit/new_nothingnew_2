@@ -1,11 +1,11 @@
-#2 -24
-#opsd
+#2 -1
+#palign
 #v1
 
 # cd ./P-ALIGN
 # CUDA_VISIBLE_DEVICES=1 bash ./project_commands.sh
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
-cd ./SegmentSelectiveSFT && bash ./commands.sh
+# cd ./SegmentSelectiveSFT && bash ./commands.sh
 
 #download_sdxl_q3_offline_assets
 
