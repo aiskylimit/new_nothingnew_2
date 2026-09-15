@@ -82,7 +82,7 @@ EVAL_DATA_ROOT=/mnt/local/_data/$PROJECT
 # =============================================================================
 # [3] EVAL - env ssft_eval (KHONG dung ssft_train)
 # =============================================================================
-# Thiet lap: t=0.6, top_p=0.9, repetition_penalty=1.05, max_tokens=4096,
+# Thiet lap: t=0.6, top_p=0.9, repetition_penalty=1.05, max_tokens=8192 (truoc 4096; CoT dai bi cat mat \boxed -> tinh sai),
 # k=3 mau/cau cho MOI benchmark (aime24 aime25 amc12 math500).
 # amc12 = AI-MO/aimo-validation-amc (83 cau AMC12 2022-2023).
 # Pass@1 = trung binh acc tren 3 mau; Pass@3 = 1 neu bat ky mau nao dung;
@@ -95,12 +95,13 @@ wc -l data/aime24/test.jsonl data/aime25/test.jsonl data/amc12/test.jsonl data/m
 EVAL_ARGS=(
   --offline --gpu 0
   --tasks "aime24 aime25 amc12 math500" --n-sampling 3
-  --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --max-tokens 4096
+  --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --max-tokens 8192
 )
 # Selective SFT full-finetune: --full-finetune de eval.sh tim ..._len32768 (khong hau to _lora_r<R>);
-# checkpoint la weight day du nen khong can merge. Tag moi de khong trung outputs cu.
-BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --full-finetune --tag sel_ft_ep3 --dry-run
-BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --full-finetune --tag sel_ft_ep3
+# checkpoint la weight day du nen khong can merge. Tag _8k de tach khoi outputs_sel_ft_ep3 (ban 4096):
+# summary.json va pass_at_k.py gom MOI file duoi outputs_<tag>, de chung se tron 2 lan chay vao AVG.
+BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --full-finetune --tag sel_ft_ep3_8k --dry-run
+BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --full-finetune --tag sel_ft_ep3_8k
 # Ban LoRA r=64 (da merge, --lora-r mac dinh 64):
 # BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --tag sel_r64_ep3
 # Ban r=16 cu (thu muc ten cu, khong co _r16):
@@ -113,7 +114,7 @@ BASE_MODEL="$MODEL_DIR" bash eval.sh "${EVAL_ARGS[@]}" --selective --full-finetu
 
 # "acc" trong summary.json chi tinh MAU DAU TIEN moi cau (evaluate.py: mean_score[0]).
 # Pass@1 / Pass@3 unbiased tren du 3 mau + AVG macro qua 4 bo:
-(cd Eval && python pass_at_k.py outputs_sel_ft_ep3 --k 1 3)
+(cd Eval && python pass_at_k.py outputs_sel_ft_ep3_8k --k 1 3)
 # (cd Eval && python pass_at_k.py outputs_sel_r64_ep3 --k 1 3)  # ban LoRA r=64
 # (cd Eval && python pass_at_k.py outputs_sel_ep3 --k 1 3)     # ban r=16
 # (cd Eval && python pass_at_k.py outputs_base --k 1 3)
