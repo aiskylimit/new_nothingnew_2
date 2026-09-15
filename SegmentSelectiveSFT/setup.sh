@@ -98,7 +98,7 @@ PKGS_EVAL="vllm:vllm sympy:sympy mpmath:mpmath pandas:pandas regex:regex pebble:
 PKGS_TRAIN="unsloth:unsloth trl:trl peft:peft bitsandbytes:bitsandbytes torchao:torchao"
 
 do_check() {
-  local which="${CHECK_FOR:-all}" list="$PKGS_COMMON" missing=0
+  local which="${CHECK_FOR:-all}" list="$PKGS_COMMON" missing=0 missing_names=""
   case "$which" in
     eval)  list="$PKGS_COMMON $PKGS_EVAL" ;;
     train) list="$PKGS_COMMON $PKGS_TRAIN" ;;
@@ -114,7 +114,7 @@ do_check() {
       ok "$name"
     else
       miss "$name"
-      missing=$((missing + 1))
+      missing=$((missing + 1)); missing_names="${missing_names} ${name}"
     fi
   done
 
@@ -135,7 +135,7 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import transformers.modeling_utils
 import transformers.models.qwen2.modeling_qwen2
 " 2>&1 | tail -3 | sed 's/^/        /'
-    missing=$((missing + 1))
+    missing=$((missing + 1)); missing_names="${missing_names} transformers(chuoi-import)"
   fi
 
   # 'import vllm' cung chua du: vLLM chi nap model class luc tao LLM(), keo theo
@@ -158,7 +158,7 @@ if torch.cuda.is_available():
     else
       miss "vllm / CUDA KHONG san sang - loi that:"
       python -c "$vllm_chk" 2>&1 | tail -3 | sed 's/^/        /'
-      missing=$((missing + 1))
+      missing=$((missing + 1)); missing_names="${missing_names} vllm(chuoi-import/CUDA)"
     fi
   fi
 
@@ -186,7 +186,8 @@ PY
   if [[ "$missing" -eq 0 ]]; then
     log "Day du cho '${which}'."
   else
-    die "Thieu ${missing} goi cho '${which}'. Cai bang: bash setup.sh ${which/all/eval}"
+    # Neu tren tin chi giu "Thieu N goi", dong nay ke ten de khong phai doan.
+    die "Thieu ${missing} goi cho '${which}':${missing_names}. Cai bang: bash setup.sh ${which/all/eval}"
   fi
 }
 

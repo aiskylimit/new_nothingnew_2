@@ -33,17 +33,19 @@ EVAL_DATA_ROOT=/mnt/local/_data/$PROJECT
 # bash make_bundle.sh          # -> bundle/ de tai ve may khac
 
 # =============================================================================
-# [2] SELECTIVE SFT - env ssft_train  (lan 3: FULL FINETUNING, khong LoRA;
-#     cac ban LoRA r=16 / r=64 nam o ..._lora / ..._lora_r64, eval bang --model)
+# [2] SELECTIVE SFT - env ssft_train  (DA CHAY XONG lan 3: full finetuning, khong LoRA;
+#     checkpoint o SelectiveSFT/checkpoints/Qwen2.5-7B-Instruct_epoch3_lr5e-5_len32768/.
+#     Cac ban LoRA r=16 / r=64 nam o ..._lora / ..._lora_r64, eval bang --model.
+#     Comment lai de commands.sh chi chay eval; bo comment neu can train lai.)
 # =============================================================================
-source /mnt/local/uvenvs/ssft_train/bin/activate
-bash setup.sh check --for train          # phai thay torch 2.9 / unsloth / peft / torchao<0.18
+# source /mnt/local/uvenvs/ssft_train/bin/activate
+# bash setup.sh check --for train          # phai thay torch 2.9 / unsloth / peft / torchao<0.18
 
 # Neu solutions_selected.jsonl la ban ghep tu bundle (xem bundle/GHEP_LAI.txt):
 #   cat solutions_selected.jsonl.part* > solutions_selected.jsonl
-mkdir -p data/s1k
-[[ -f data/s1k/solutions_selected.jsonl ]] || ln -sf "$DATA_DIR/solutions_selected.jsonl" data/s1k/solutions_selected.jsonl
-wc -l data/s1k/solutions_selected.jsonl
+# mkdir -p data/s1k
+# [[ -f data/s1k/solutions_selected.jsonl ]] || ln -sf "$DATA_DIR/solutions_selected.jsonl" data/s1k/solutions_selected.jsonl
+# wc -l data/s1k/solutions_selected.jsonl
 
 # Cau hinh train (ghi tuong minh):
 #   full finetuning toan bo 7B (unsloth full_finetuning=True), khong adapter
@@ -57,25 +59,25 @@ wc -l data/s1k/solutions_selected.jsonl
 # 32768 x 152k vocab fp32 ~ 20 GB (+ grad) -> tong ~ 150-165 GB, vua 180 GB nhung
 # sat. Neu OOM: doi --optim adamw_8bit (van AdamW cung betas/eps/wd, state 8-bit,
 # giam ~45 GB) - KHONG giam --max-seq-length vi se cat mat response cua mau dai.
-TRAIN_ARGS=(
-  --offline --model "$MODEL_DIR" --gpu 0
-  --full-finetune
-  --epochs 3 --lr 5e-5 --max-seq-length 32768
-  --batch-size 1 --grad-accum 8
-  --optim adamw_torch --weight-decay 0.0 --lr-scheduler cosine --warmup-ratio 0.1
-  --segment-mode paragraph
-)
-bash train.sh "${TRAIN_ARGS[@]}" --dry-run     # in lenh truoc, chua chay
-bash train.sh "${TRAIN_ARGS[@]}"               # log: logs/train.log
+# TRAIN_ARGS=(
+#   --offline --model "$MODEL_DIR" --gpu 0
+#   --full-finetune
+#   --epochs 3 --lr 5e-5 --max-seq-length 32768
+#   --batch-size 1 --grad-accum 8
+#   --optim adamw_torch --weight-decay 0.0 --lr-scheduler cosine --warmup-ratio 0.1
+#   --segment-mode paragraph
+# )
+# bash train.sh "${TRAIN_ARGS[@]}" --dry-run     # in lenh truoc, chua chay
+# bash train.sh "${TRAIN_ARGS[@]}"               # log: logs/train.log
 # Baseline de so sanh: SFT tren toan bo CoT (khong mask)
 # bash train.sh "${TRAIN_ARGS[@]}" --full-sft
 
 # Full finetuning luu thang weight day du -> KHONG can merge_lora.py.
-CKPT_DIR=SelectiveSFT/checkpoints/$(basename "$MODEL_DIR")_epoch3_lr5e-5_len32768
-CKPT=$(ls -1d "$CKPT_DIR"/checkpoint-* 2>/dev/null | sed 's#.*/checkpoint-##' | sort -n | tail -1)
-echo "checkpoint moi nhat: $CKPT_DIR/checkpoint-$CKPT"
-ls "$CKPT_DIR/checkpoint-$CKPT"                  # phai co config.json + model*.safetensors
-deactivate
+# CKPT_DIR=SelectiveSFT/checkpoints/$(basename "$MODEL_DIR")_epoch3_lr5e-5_len32768
+# CKPT=$(ls -1d "$CKPT_DIR"/checkpoint-* 2>/dev/null | sed 's#.*/checkpoint-##' | sort -n | tail -1)
+# echo "checkpoint moi nhat: $CKPT_DIR/checkpoint-$CKPT"
+# ls "$CKPT_DIR/checkpoint-$CKPT"                  # phai co config.json + model*.safetensors
+# deactivate
 
 # =============================================================================
 # [3] EVAL - env ssft_eval (KHONG dung ssft_train)
