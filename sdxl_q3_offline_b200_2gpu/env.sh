@@ -3,13 +3,13 @@
 # Every value can be overridden before invoking project_command.sh.
 
 export PROJECT_ROOT="${PROJECT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-# download.txt was originally materialized under the first repository name.
-# Prefer colocated assets when present, otherwise reuse that persistent tree.
-# ASSET_ROOT remains explicitly overridable for other platform layouts.
 if [[ -z "${ASSET_ROOT:-}" ]]; then
+  persistent_asset_root="/mnt/local/data/PROJECTVC/sdxl_q3_offline_assets"
   project_asset_root="$PROJECT_ROOT/offline_assets"
   downloaded_asset_root="/mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets"
-  if [[ -d "$project_asset_root/data/pickapic_v2_full/data" ]]; then
+  if [[ -d "$persistent_asset_root/data/pickapic_v2_full/data" ]]; then
+    ASSET_ROOT="$persistent_asset_root"
+  elif [[ -d "$project_asset_root/data/pickapic_v2_full/data" ]]; then
     ASSET_ROOT="$project_asset_root"
   elif [[ -d "$downloaded_asset_root/data/pickapic_v2_full/data" ]]; then
     ASSET_ROOT="$downloaded_asset_root"
@@ -24,11 +24,12 @@ export PIPELINE_MODE="${PIPELINE_MODE:-full851k}"
 # The scheduler may allocate any two physical GPUs, but normally remaps the
 # visible devices to logical IDs 0 and 1 inside the job. Override GPU_IDS only
 # when the allocation exposes different logical IDs.
-export GPU_IDS="${GPU_IDS:-${CUDA_VISIBLE_DEVICES:-0,1}}"
+export GPU_IDS="${GPU_IDS:-${CUDA_VISIBLE_DEVICES:-2,3}}"
 export NUM_GPUS="${NUM_GPUS:-2}"
 export TARGET_GPU_FAMILY="${TARGET_GPU_FAMILY:-B200}"
 export TRAIN_BATCH_SIZE="${TRAIN_BATCH_SIZE:-2}"
 export EFFECTIVE_BATCH="${EFFECTIVE_BATCH:-64}"
+export DISABLE_CPU_OFFLOAD="${DISABLE_CPU_OFFLOAD:-1}"
 export SEED="${SEED:-42}"
 
 export MODEL_DIR="${MODEL_DIR:-$ASSET_ROOT/models/stable-diffusion-xl-base-1.0}"
