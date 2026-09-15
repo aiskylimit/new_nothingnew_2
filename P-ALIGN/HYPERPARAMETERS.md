@@ -23,7 +23,7 @@ Values marked **paper** are stated in the paper. Values marked **assumed** are n
 | `repetition_penalty` | not stated | `1.05` | eval default |
 | Samples / problem | AIME/AMC 32, MATH500 8 | `k=3` all benchmarks | eval uses k=3 |
 | Max response | 32768 | `--max_tokens 4096` | eval uses 4096 |
-| LoRA rank | 16 | `lora_rank: 16` | yes |
+| LoRA rank | 16 | `lora_rank: 8` | repo uses 8 |
 | LoRA alpha | 16 | `lora_alpha: 16` | yes |
 | LoRA dropout | 0.05 | `lora_dropout: 0.05` | yes |
 | LoRA targets | q/k/v/o + gate/up/down | `q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj` | yes |

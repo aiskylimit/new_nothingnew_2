@@ -9,7 +9,7 @@ stage: sft
 do_train: true
 finetuning_type: lora
 lora_target: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
-lora_rank: 16
+lora_rank: 8
 lora_alpha: 16
 lora_dropout: 0.05
 
