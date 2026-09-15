@@ -1,13 +1,11 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/results/comparison-table.md
-#ssft
+#1 +60
+#ssft_full
 #v1
 
 # cd SegmentSelectiveSFT/Attribution/processed_data/s1k && find s1k -type f -exec du -h {} + | sort -hr
-tree SpectralGuidedLearning/
-nvidia-smi
 
 # cd ./SpectralGuidedLearning && bash ./project_commands.sh
-# cd ./SegmentSelectiveSFT && bash ./commands.sh
+cd ./SegmentSelectiveSFT && bash ./commands.sh
 # cd SegmentSelectiveSFT && ls Attribution/processed_data/s1k
 #download_sdxl_q3_offline_assets
 
