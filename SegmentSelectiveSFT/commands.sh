@@ -47,7 +47,7 @@ wc -l data/s1k/solutions_selected.jsonl
 
 # Cau hinh train (ghi tuong minh):
 #   full finetuning toan bo 7B (unsloth full_finetuning=True), khong adapter
-#   effective batch = 1 x 32 accum x 1 GPU = 32 mau/step
+#   effective batch = 1 x 8 accum x 1 GPU = 8 mau/step (per-device van 1 vi seq 32k)
 #   AdamW betas (0.9, 0.999) eps 1e-8 (mac dinh) weight_decay 0.0
 #   cosine + warmup, warmup_ratio 0.1 (HF dung LambdaLR)
 #   max_seq_length 32768; segment = paragraph: moi doan "\n\n" = 1 reasoning step
@@ -61,7 +61,7 @@ TRAIN_ARGS=(
   --offline --model "$MODEL_DIR" --gpu 0
   --full-finetune
   --epochs 3 --lr 5e-5 --max-seq-length 32768
-  --batch-size 1 --grad-accum 32
+  --batch-size 1 --grad-accum 8
   --optim adamw_torch --weight-decay 0.0 --lr-scheduler cosine --warmup-ratio 0.1
   --segment-mode paragraph
 )
