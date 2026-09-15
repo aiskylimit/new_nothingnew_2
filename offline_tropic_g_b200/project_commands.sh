@@ -36,7 +36,7 @@ GPU_MEM_UTIL=0.9
 # Checkpoints are still SAVED at all 8 steps below by each script's own
 # CHECKPOINT_STEPS - this only controls which get EVALUATED (TROPIC-G is the
 # proposal, evaluated more densely than the RLSD/SDPO baselines).
-CHECKPOINTS_TROPIC="20 25 40 50 60 75 100"
+CHECKPOINTS_TROPIC="20 25 40 50 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {

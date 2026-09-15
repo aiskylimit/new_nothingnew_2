@@ -36,7 +36,7 @@ GPU_MEM_UTIL=0.9
 # as RLSD (not separately specified) - flag if that's wrong.
 CHECKPOINTS_RLSD="25 50 75 100"
 CHECKPOINTS_SDPO="25 50 75 100"
-CHECKPOINTS_TROPIC="20 25 40 50 60 75 100"
+CHECKPOINTS_TROPIC="20 25 40 50 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {
