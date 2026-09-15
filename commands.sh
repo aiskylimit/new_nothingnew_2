@@ -1,6 +1,6 @@
 #2 -0
 #opsd
-#v2
+#v1
 
 # cd ./P-ALIGN
 # CUDA_VISIBLE_DEVICES=1 bash ./project_commands.sh
