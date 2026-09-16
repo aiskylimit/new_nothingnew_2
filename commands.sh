@@ -1,9 +1,9 @@
-#i ssft_eval.txt
-#palign
+#1 +5
+#test
 #v1
 
 # cd P-ALIGN
-# nvidia-smi
+nvidia-smi
 # # cd ./OPSD
 # # tar -czvf opsd_4b_results.tar.gz results/raw/qwen3-4b/opsd
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh

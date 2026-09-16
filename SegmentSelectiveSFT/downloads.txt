@@ -1,6 +1,6 @@
 #d
 #datasets
---hf-dataset simplescaling/s1K-1.1 /mnt/local/_data/@PROJECT@/s1K-1.1
+--hf-dataset baesad/s1K-1.1-deepseek-cot /mnt/local/_data/@PROJECT@/s1k
 --hf-dataset math-ai/aime24 /mnt/local/_data/@PROJECT@/aime24
 --hf-dataset math-ai/aime25 /mnt/local/_data/@PROJECT@/aime25
 --hf-dataset HuggingFaceH4/MATH-500 /mnt/local/_data/@PROJECT@/MATH-500

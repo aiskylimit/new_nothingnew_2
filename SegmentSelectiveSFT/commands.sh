@@ -14,9 +14,9 @@ set -eo pipefail
 
 PROJECT=aiskylimit_new_nothingnew_2          # = @PROJECT@ trong downloads.txt
 MODEL_DIR=/mnt/local/_models/$PROJECT/Qwen2.5-7B-Instruct
-# Snapshot HF cua simplescaling/s1K-1.1 (downloads.txt): parquet nam o $DATA_DIR/data/train-*.parquet.
-# prepare_s1k.py doc thang thu muc nay, lay truong deepseek_thinking_trajectory lam CoT.
-DATA_DIR=/mnt/local/_data/$PROJECT/s1K-1.1
+# Snapshot baesad/s1K-1.1-deepseek-cot (downloads.txt): da co san $DATA_DIR/train.jsonl dung format
+# pipeline (question / solution=deepseek_thinking_trajectory / answer) -> chi can symlink.
+DATA_DIR=/mnt/local/_data/$PROJECT/s1k
 # Benchmark eval tai ve dang HF dataset (downloads.txt):
 #   $EVAL_DATA_ROOT/aime24  aime25  MATH-500  aimo-validation-amc
 # prepare_eval_data.py chuyen thanh data/<task>/test.jsonl (question + answer).
@@ -26,7 +26,7 @@ EVAL_DATA_ROOT=/mnt/local/_data/$PROJECT
 TAG=fullsft_r16_ep3
 
 # =============================================================================
-# [1] PREP - env ssft_train: s1K-1.1 snapshot -> data/s1k/train.jsonl (question / solution / answer)
+# [1] PREP - env ssft_train: $DATA_DIR/train.jsonl -> data/s1k/train.jsonl
 # =============================================================================
 source /mnt/local/uvenvs/ssft_train/bin/activate
 bash setup.sh check --for train          # phai thay torch 2.9 / unsloth / peft / torchao<0.18
@@ -34,11 +34,17 @@ ls "$DATA_DIR" "$MODEL_DIR"
 
 mkdir -p data/s1k
 if [[ ! -s data/s1k/train.jsonl ]]; then
-  # solution <- deepseek_thinking_trajectory (trace R1), answer <- \boxed{} cuoi trace.
-  HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 python prepare_s1k.py \
-    --dataset "$DATA_DIR" --output_data_file data/s1k/train.jsonl
+  if [[ -s "$DATA_DIR/train.jsonl" ]]; then
+    ln -sf "$DATA_DIR/train.jsonl" data/s1k/train.jsonl
+  else
+    # Snapshot goc simplescaling/s1K-1.1 (parquet) thi phai doi format:
+    # solution <- deepseek_thinking_trajectory (trace R1), answer <- \boxed{} cuoi trace.
+    HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 python prepare_s1k.py \
+      --dataset "$DATA_DIR" --output_data_file data/s1k/train.jsonl
+  fi
 fi
 wc -l data/s1k/train.jsonl               # ~1000 dong
+head -c 300 data/s1k/train.jsonl; echo   # phai thay "question" / "solution" / "answer"
 
 # =============================================================================
 # [2] TRAIN - full-CoT SFT (supervise TOAN BO trace, khong mask), LoRA r=16 - env ssft_train
