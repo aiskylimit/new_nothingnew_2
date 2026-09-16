@@ -1,8 +1,5 @@
-#d
-#models
---hf Qwen/Qwen3-8B /mnt/local/aiskylimit_new_nothing/P-ALIGN/models/Qwen3-8B
-
-#vlm-distill
+#1 +60
+#palign
 #v1
 
 cd P-ALIGN
