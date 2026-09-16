@@ -1,11 +1,20 @@
-#i sdxl-q3-offline-b200-2gpu.txt
-#setup-sdxl-q3-new-node
-#v3
+#1 +10
+#sdxl-q3-new-node-gpu-check
+#v1
 
 # cd P-ALIGN
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 nvidia-smi
+SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
+if [[ ! -x "$SDXL_ENV/bin/python" ]]; then
+  echo "SDXL_ENV_MISSING=$SDXL_ENV"
+  exit 1
+fi
+echo "SDXL_ENV_READY=$SDXL_ENV"
+"$SDXL_ENV/bin/python" --version
+nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu,power.draw --format=csv,noheader
+nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_memory --format=csv,noheader || true
 export PATH=/usr/local/cuda/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
 export HF_HUB_OFFLINE=1
