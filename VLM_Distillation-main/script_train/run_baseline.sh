@@ -8,8 +8,8 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd -- "${SCRIPT_DIR}/.." && pwd)"
 
 RUNNERS=(
-   "run_qwen3_teacher_4b_fastvlm_student_05b.sh"
-  #"run_qwen3_teacher_8b_qwen25_student_3b.sh"
+  # "run_qwen3_teacher_4b_fastvlm_student_05b.sh"
+  "run_qwen3_teacher_8b_qwen25_student_3b.sh"
 )
 
 for runner in "${RUNNERS[@]}"; do
