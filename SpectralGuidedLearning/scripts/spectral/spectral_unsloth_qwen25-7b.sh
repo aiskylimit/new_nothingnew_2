@@ -28,14 +28,18 @@ LR=5.0e-5
 MIN_LR=1.0e-5
 WARMUP_RATIO=0.1
 BATCH_SIZE=1
-GRAD_ACC=8
+GRAD_ACC=16
 LOG_INTERVAL=5
 SEED=42
 SAVE_STRATEGY=epoch
 SAVE_STEPS=500
 SAVE_TOTAL_LIMIT=6
-OPTIM=adamw_8bit
+OPTIM=adamw_torch
 MAX_SEQ_LEN=32768
+LORA_R=8
+LORA_ALPHA=16
+LORA_DROPOUT=0.05
+LORA_TARGET_MODULES="q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj"
 
 OPTS=""
 OPTS+=" --model-name ${MODEL_NAME}"
@@ -54,7 +58,11 @@ OPTS+=" --save-total-limit ${SAVE_TOTAL_LIMIT}"
 OPTS+=" --seed ${SEED}"
 OPTS+=" --optim ${OPTIM}"
 OPTS+=" --max-seq-len ${MAX_SEQ_LEN}"
-OPTS+=" --no-use-lora"
+OPTS+=" --use-lora"
+OPTS+=" --lora-r ${LORA_R}"
+OPTS+=" --lora-alpha ${LORA_ALPHA}"
+OPTS+=" --lora-dropout ${LORA_DROPOUT}"
+OPTS+=" --lora-target-modules ${LORA_TARGET_MODULES}"
 
 CMD="python ${BASE_PATH}/src/train_sft_unsloth.py ${OPTS}"
 echo "${CMD}"
