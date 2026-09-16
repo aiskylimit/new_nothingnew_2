@@ -1,4 +1,4 @@
-#2 -0-7
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/P-ALIGN/output/eval_results.txt
 #opsd
 #v1
 
