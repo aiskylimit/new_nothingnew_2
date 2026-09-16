@@ -52,7 +52,7 @@ NNODES="${NNODES:-1}"
 RANK="${RANK:-0}"
 MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 MASTER_PORT="${MASTER_PORT:-29330}"
-EFFECTIVE_BATCH=2
+EFFECTIVE_BATCH=16
 PER_DEVICE_BS=1
 # Cosine schedule spans num_train_epochs (5) but training stops after this epoch.
 export PALIGN_STOP_EPOCH="${PALIGN_STOP_EPOCH:-3}"
