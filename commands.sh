@@ -1,16 +1,9 @@
-#d
-#datasets
---hf-dataset Maxwell-Jia/AIME_2024 /mnt/local/aiskylimit_new_nothing/P-ALIGN/datasets/AIME_2024
---hf-dataset yentinglin/aime_2025 /mnt/local/aiskylimit_new_nothing/P-ALIGN/datasets/aime_2025
---hf-dataset AI-MO/aimo-validation-amc /mnt/local/aiskylimit_new_nothing/P-ALIGN/datasets/aimo-validation-amc
---hf-dataset HuggingFaceH4/MATH-500 /mnt/local/aiskylimit_new_nothing/P-ALIGN/datasets/MATH-500
-#models
---hf Qwen/Qwen2.5-7B-Instruct /mnt/local/aiskylimit_new_nothing/P-ALIGN/models/Qwen2.5-7B-Instruct
-
+#1 +60
 #palign
 #v2
 
-
+cd P-ALIGN
+CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 nvidia-smi
 export PATH=/usr/local/cuda/bin:$PATH
