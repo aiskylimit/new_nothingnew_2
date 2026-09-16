@@ -247,7 +247,9 @@ def segment_char_bounds(segments, offset):
 def formatting_prompts_func(examples):
     questions = examples["question"]
     outputs = examples["solution"] 
-    segments_ids = examples["selected_spans_ids"]
+    # Full-CoT SFT (khong --mask) khong can cot selected_spans_ids -> cho phep
+    # train thang tren data/s1k/train.jsonl ma khong phai chay IG truoc.
+    segments_ids = examples.get("selected_spans_ids") or [[]] * len(questions)
 
     input_ids_list = []
     labels_list = []
@@ -334,10 +336,14 @@ if "json" in args.data_names or args.data_names.endswith(".jsonl"):
 else:
     dataset = load_dataset(args.data_names, split = args.split)
 
+if args.mask and "selected_spans_ids" not in dataset.column_names:
+    raise SystemExit("--mask can cot selected_spans_ids (file solutions_selected.jsonl tu stage segments); "
+                     "file %s khong co." % args.data_names)
+
 dataset = dataset.map(
     formatting_prompts_func,
     batched=True,
-    remove_columns=["question", "solution", "answer", "selected_spans_ids", "segments"],  
+    remove_columns=dataset.column_names,
     load_from_cache_file=False,
 )
 gc.collect()

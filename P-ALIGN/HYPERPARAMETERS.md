@@ -25,9 +25,9 @@ Values marked **paper** are stated in the paper. Values marked **assumed** are n
 | Max response | 32768 | `--max_tokens 4096` | eval uses 4096 |
 | LoRA rank | 16 | `lora_rank: 16` | yes |
 | LoRA alpha | 16 | `lora_alpha: 16` | yes |
-| LoRA dropout | 0.05 | `lora_dropout: 0.0` | repo uses 0.0 |
+| LoRA dropout | 0.05 | `lora_dropout: 0.05` | yes |
 | LoRA targets | q/k/v/o + gate/up/down | `q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj` | yes |
-| Effective batch | 32 samples/step | `per_device=1 × grad_accum=8` (EFFECTIVE_BATCH=8) | repo uses 8 |
+| Effective batch | 32 samples/step | `per_device=1 × grad_accum=32` (EFFECTIVE_BATCH=32) | yes |
 | Optimizer | AdamW, β=(0.9, 0.999), eps default, wd=0 | `adamw_torch`, same β/eps/wd | yes |
 | Scheduler | cosine + warmup, warmup_ratio 0.1 (LambdaLR) | `lr_scheduler_type: cosine`, `warmup_steps: 0.1` | yes |
 | Max sequence length | 32768 | `cutoff_len: 32768` | yes |
