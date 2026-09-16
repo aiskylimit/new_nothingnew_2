@@ -1,9 +1,9 @@
-#1 +60
+#2 -0
 #palign
 #v2
 
-cd P-ALIGN
-CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
+# cd P-ALIGN
+# CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 nvidia-smi
 export PATH=/usr/local/cuda/bin:$PATH
