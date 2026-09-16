@@ -1,6 +1,6 @@
-#2 -0
-#palign
-#v2
+#i sdxl-q3-offline-b200-2gpu.txt
+#setup-sdxl-q3-new-node
+#v3
 
 # cd P-ALIGN
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
