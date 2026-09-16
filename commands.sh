@@ -1,5 +1,5 @@
-#2 -0-5
-#opsd
+#2 -1
+#palign
 #v1
 
 # cd P-ALIGN
@@ -55,5 +55,5 @@ export NCCL_DEBUG=WARN
 # cd ./offline_rlsd_sdpo_b200
 # bash project_commands.sh
 
-cd ./opsd
-bash project_commands.sh
+# cd ./opsd
+# bash project_commands.sh
