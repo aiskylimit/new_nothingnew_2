@@ -54,6 +54,8 @@ MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 MASTER_PORT="${MASTER_PORT:-29330}"
 EFFECTIVE_BATCH=16
 PER_DEVICE_BS=1
+# Cosine schedule spans num_train_epochs (5) but training stops after this epoch.
+export PALIGN_STOP_EPOCH="${PALIGN_STOP_EPOCH:-3}"
 STAGE="${1:-all}"
 
 cmd_env() {
@@ -87,7 +89,7 @@ cmd_train() {
     --master_port "$MASTER_PORT" \
     src/train.py configs/qwen2.5_7b_palign_sft.yaml \
     gradient_accumulation_steps="$GRAD_ACCUM"
-  # Scheduler runs over 5 epochs; benchmark the checkpoint closest to epoch 3.
+  # Scheduler spans 5 epochs, training stops at PALIGN_STOP_EPOCH; merge the checkpoint closest to epoch 3.
   BENCH_CKPT="$(python - <<'PY'
 import glob, json, os
 best = None
