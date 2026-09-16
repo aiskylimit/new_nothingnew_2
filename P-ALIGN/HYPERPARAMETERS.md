@@ -11,7 +11,7 @@ Values marked **paper** are stated in the paper. Values marked **assumed** are n
 | Teacher (Long-CoT) | DeepSeek-R1 | data already in `data/palign_sft_qwen2.5-7b.json` | n/a (offline data) |
 | Method | SFT + LoRA | `finetuning_type: lora` | yes |
 | Framework | TRL + LLaMA-Factory | LLaMA-Factory `src/train.py` | yes |
-| Epochs | 3 | `num_train_epochs: 3.0` | yes |
+| Epochs | 3 | `num_train_epochs: 5.0` (cosine horizon), callback stops after epoch 3 (`PALIGN_STOP_EPOCH`) | trains 3, scheduler horizon 5 |
 | Learning rate | \(5 \times 10^{-5}\) | `5.0e-5` | yes |
 | Train set | 1,000 from s1K-1.1, Eq.9-filtered → 966 | local JSON, 966 rows | yes (file on disk) |
 | Loss | response only (Eq. 2) | `train_on_prompt: false` | yes |
@@ -23,11 +23,11 @@ Values marked **paper** are stated in the paper. Values marked **assumed** are n
 | `repetition_penalty` | not stated | `1.05` | eval default |
 | Samples / problem | AIME/AMC 32, MATH500 8 | `k=3` all benchmarks | eval uses k=3 |
 | Max response | 32768 | `--max_tokens 4096` | eval uses 4096 |
-| LoRA rank | 16 | `lora_rank: 64` | repo uses 64 |
-| LoRA alpha | 16 | `lora_alpha: 64` | repo uses 64 |
-| LoRA dropout | 0.05 | `lora_dropout: 0.05` | yes |
+| LoRA rank | 16 | `lora_rank: 4` | repo uses 4 |
+| LoRA alpha | 16 | `lora_alpha: 8` | repo uses 8 |
+| LoRA dropout | 0.05 | `lora_dropout: 0.0` | repo uses 0.0 |
 | LoRA targets | q/k/v/o + gate/up/down | `q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj` | yes |
-| Effective batch | 32 samples/step | `per_device=1 × grad_accum=16` (EFFECTIVE_BATCH=16) | repo uses 16 |
+| Effective batch | 32 samples/step | `per_device=1 × grad_accum=1` (EFFECTIVE_BATCH=1) | repo uses 1 |
 | Optimizer | AdamW, β=(0.9, 0.999), eps default, wd=0 | `adamw_torch`, same β/eps/wd | yes |
 | Scheduler | cosine + warmup, warmup_ratio 0.1 (LambdaLR) | `lr_scheduler_type: cosine`, `warmup_steps: 0.1` | yes |
 | Max sequence length | 32768 | `cutoff_len: 32768` | yes |

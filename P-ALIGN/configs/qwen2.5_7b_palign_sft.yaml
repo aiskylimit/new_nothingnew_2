@@ -9,9 +9,11 @@ stage: sft
 do_train: true
 finetuning_type: lora
 lora_target: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
-lora_rank: 64
-lora_alpha: 64
-lora_dropout: 0.05
+lora_rank: 4
+lora_alpha: 8
+lora_dropout: 0.0
+use_rslora: false
+use_dora: false
 
 dataset: palign_qwen25_7b_sft
 dataset_dir: data
@@ -30,8 +32,9 @@ report_to: none
 disable_tqdm: false
 
 per_device_train_batch_size: 1
-gradient_accumulation_steps: 16
-num_train_epochs: 3.0
+gradient_accumulation_steps: 1
+# cosine horizon = 5 epochs; training stops after epoch PALIGN_STOP_EPOCH (3) via src/train.py callback
+num_train_epochs: 5.0
 learning_rate: 5.0e-5
 lr_scheduler_type: cosine
 warmup_ratio: 0.1
