@@ -1,4 +1,7 @@
-#1 +60
+#d
+#models
+--hf Qwen/Qwen3-8B /mnt/local/aiskylimit_new_nothing/P-ALIGN/models/Qwen3-8B
+
 #vlm-distill
 #v1
 
