@@ -1,5 +1,5 @@
-#2 
-#tropic
+#i opsd.txt
+#opsd
 #v1
 
 # cd P-ALIGN2
@@ -52,5 +52,5 @@ export NCCL_DEBUG=WARN
 # export RUN_NAME="q3_dspo_sdxl_b200x4_tuned_mb${TRAIN_BATCH_SIZE}_pilot"
 # bash project_command.sh
 
-cd ./offline_rlsd_sdpo_b200
-bash project_commands.sh
+# cd ./offline_rlsd_sdpo_b200
+# bash project_commands.sh
