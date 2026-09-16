@@ -56,6 +56,9 @@ fi
 python -c "import torch, transformers, llamafactory, vllm; print('env ok')"
 
 mkdir -p "$DATA_DIR/raw" output/log output/result "$SMOKE_RAW" output/smoke
+if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ] && [ -f "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" ]; then
+  gunzip -kc "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" > "$DATA_DIR/palign_sft_qwen2.5-7b.json"
+fi
 if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ]; then
   echo "missing local train file $DATA_DIR/palign_sft_qwen2.5-7b.json" >&2
   exit 1

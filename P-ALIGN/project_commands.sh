@@ -1,6 +1,6 @@
 #!/bin/bash
 # All run commands for P-ALIGN on Qwen3-8B.
-# No Hub upload, no git push. Train JSON is local: data/palign_sft_qwen2.5-7b.json
+# No Hub upload, no git push. Train JSON is tracked as data/palign_sft_qwen2.5-7b.json.gz (unpacked by cmd_data)
 #
 # Usage:
 #   bash project_commands.sh            # data check + train + merge + eval
@@ -64,6 +64,9 @@ cmd_env() {
 
 cmd_data() {
   mkdir -p "$DATA_DIR/raw" output/log output/result
+  if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ] && [ -f "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" ]; then
+    gunzip -kc "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" > "$DATA_DIR/palign_sft_qwen2.5-7b.json"
+  fi
   if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ]; then
     echo "missing local train file $DATA_DIR/palign_sft_qwen2.5-7b.json" >&2
     exit 1
