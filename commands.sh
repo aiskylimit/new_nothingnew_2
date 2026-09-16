@@ -1,11 +1,11 @@
-#1 +10
-#palign
+#1 +2
+#test
 #v1
 
-cd P-ALIGN2
-CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
+# cd P-ALIGN2
+# CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
 
-# nvidia-smi
+nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
 # if [[ ! -x "$SDXL_ENV/bin/python" ]]; then
 #   echo "SDXL_ENV_MISSING=$SDXL_ENV"
