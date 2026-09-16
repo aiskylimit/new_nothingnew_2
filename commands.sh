@@ -1,15 +1,6 @@
-#d
-#datasets
---hf-dataset siyanzhao/Openthoughts_math_30k_opsd /mnt/local/@PROJECT@/tropic_baselines/data/train
---hf-dataset yentinglin/aime_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime25
---hf-dataset MathArena/aime_2026 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime26
---hf-dataset MathArena/hmmt_feb_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/hmmt25
-#models
---hf Qwen/Qwen3-4B /mnt/local/@PROJECT@/tropic_baselines/models/Qwen3-4B
---hf Qwen/Qwen3-8B /mnt/local/@PROJECT@/tropic_baselines/models/Qwen3-8B
-
+#1 +70 
 #tropic
-#v2
+#v1
 
 # cd P-ALIGN2
 # CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
@@ -60,3 +51,6 @@ export NCCL_DEBUG=WARN
 # export OFFLINE_EVAL_LIMIT=2
 # export RUN_NAME="q3_dspo_sdxl_b200x4_tuned_mb${TRAIN_BATCH_SIZE}_pilot"
 # bash project_command.sh
+
+cd ./offlline_rlsd_sdpo_b200
+bash project_commands.sh
