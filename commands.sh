@@ -1,5 +1,5 @@
-#2 -1
-#sdxl-q3-new-node-gpu-check
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/P-ALIGN/output/eval_results.txt
+#palign
 #v1
 
 # cd P-ALIGN
