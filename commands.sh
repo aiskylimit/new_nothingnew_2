@@ -1,11 +1,10 @@
-#1 +5
-#test
+#1 +60
+#sft_longcot
 #v1
 
 # cd P-ALIGN
 nvidia-smi
-# # cd ./OPSD
-# # tar -czvf opsd_4b_results.tar.gz results/raw/qwen3-4b/opsd
+cd SpectralGuidedLearning && bash project_commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 # nvidia-smi
