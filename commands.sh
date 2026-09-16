@@ -1,12 +1,23 @@
-#1 +60
+#d
+#datasets
+--hf-dataset simplescaling/s1K-1.1 /mnt/local/_data/@PROJECT@/s1K-1.1
+--hf-dataset GAIR/LIMO /mnt/local/_data/@PROJECT@/LIMO
+--hf-dataset math-ai/aime24 /mnt/local/_data/@PROJECT@/aime24
+--hf-dataset math-ai/aime25 /mnt/local/_data/@PROJECT@/aime25
+--hf-dataset HuggingFaceH4/MATH-500 /mnt/local/_data/@PROJECT@/MATH-500
+--hf-dataset AI-MO/aimo-validation-amc /mnt/local/_data/@PROJECT@/aimo-validation-amc
+#models
+--hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/@PROJECT@/Qwen2.5-7B-Instruct
+--hf Qwen/Qwen3-8B /mnt/local/_models/@PROJECT@/Qwen3-8B
+
 #palign
 #v1
 
-cd P-ALIGN
-nvidia-smi
-# cd ./OPSD
-# tar -czvf opsd_4b_results.tar.gz results/raw/qwen3-4b/opsd
-CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
+# cd P-ALIGN
+# nvidia-smi
+# # cd ./OPSD
+# # tar -czvf opsd_4b_results.tar.gz results/raw/qwen3-4b/opsd
+# CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 # nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu

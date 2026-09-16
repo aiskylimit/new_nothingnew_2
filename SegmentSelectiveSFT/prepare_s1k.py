@@ -19,7 +19,8 @@ import re
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument("--dataset", default="simplescaling/s1K-1.1", type=str)
+    p.add_argument("--dataset", default="simplescaling/s1K-1.1", type=str,
+                   help="Ten repo HF hoac thu muc snapshot da tai san (offline): doc *.parquet / *.jsonl ben trong")
     p.add_argument("--split", default="train", type=str)
     p.add_argument("--trace_field", default="deepseek_thinking_trajectory", type=str,
                    help="Truong chua long-CoT trace (doi sang gemini_thinking_trajectory neu muon)")
@@ -55,7 +56,21 @@ def main():
     args = parse_args()
     from datasets import load_dataset
 
-    ds = load_dataset(args.dataset, split=args.split)
+    if os.path.isdir(args.dataset):
+        # Snapshot HF tai ve (downloads.txt): parquet nam o <dir>/data/train-*.parquet.
+        # Tim theo split de khong nham file cua split khac; khong co thi lay het.
+        import glob
+        files = sorted(glob.glob(os.path.join(args.dataset, "**", "*.parquet"), recursive=True))
+        fmt = "parquet"
+        if not files:
+            files = sorted(glob.glob(os.path.join(args.dataset, "**", "*.jsonl"), recursive=True))
+            fmt = "json"
+        if not files:
+            raise SystemExit("Khong thay *.parquet / *.jsonl trong %s" % args.dataset)
+        by_split = [f for f in files if os.path.basename(f).startswith(args.split)]
+        ds = load_dataset(fmt, data_files=by_split or files, split="train")
+    else:
+        ds = load_dataset(args.dataset, split=args.split)
     print("Tai xong %s: %d mau, cot = %s" % (args.dataset, len(ds), ds.column_names))
 
     rows, skipped, disagree = [], {"no_trace": 0, "no_answer": 0, "answer_too_long": 0}, 0
