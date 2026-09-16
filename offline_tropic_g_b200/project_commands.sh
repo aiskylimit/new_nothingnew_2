@@ -7,9 +7,12 @@ source /mnt/local/uvenvs/tropic/bin/activate
 
 # ============================================================
 # 1. Paths - MUST match how download.txt's @PROJECT@ was actually resolved.
-#    Fill in PROJECT_NAME before running.
+#    Fill in PROJECT_NAME before running. If RLSD/SDPO (offline_rlsd_sdpo_b200/)
+#    already ran on this same server under the same @PROJECT@, the model/
+#    dataset files below are ALREADY on disk - this download.txt targets the
+#    exact same paths on purpose, so nothing needs to be re-fetched.
 # ============================================================
-PROJECT_NAME="aiskylimit_new_nothingnew_2"
+PROJECT_NAME="CHANGE_ME"
 BASE_DIR="/mnt/local/${PROJECT_NAME}/tropic_baselines"
 MODEL_4B="${BASE_DIR}/models/Qwen3-4B"
 MODEL_8B="${BASE_DIR}/models/Qwen3-8B"
@@ -17,29 +20,23 @@ export TROPIC_TRAIN_DATA_PATH="${BASE_DIR}/data/train"
 export TROPIC_EVAL_DATA_DIR="${BASE_DIR}/data/eval"
 
 # ============================================================
-# 2. GPU topology - fixed to GPU 2 (main/training) + GPU 3 (vLLM replica),
-#    confirmed with the server owner. Change MAIN_GPU/VLLM_GPU_IDS below if
-#    that ever changes.
+# 2. GPU topology - same as offline_rlsd_sdpo_b200/project_commands.sh,
+#    confirmed with the server owner: GPU 2 (main/training) + GPU 3 (vLLM
+#    replica). Change MAIN_GPU/VLLM_GPU_IDS below if that ever changes.
 # ============================================================
 MAIN_GPU=2
 VLLM_GPU_IDS="3"
 VLLM_BASE_PORT=8100
-# Same conda env as everything else by default. On the old A100 cluster,
-# vLLM needed a SEPARATE env (torch/CUDA wheel conflict) - if the same
-# happens here, point this at that env's absolute vllm binary instead.
 VLLM_EXECUTABLE="vllm"
 # vLLM's own default is 0.9. Raise toward 0.95 if eval throughput is the
 # bottleneck; B200's much larger VRAM than the A100s this project was
 # originally tuned on gives real headroom here.
 GPU_MEM_UTIL=0.9
 
-# Per-method eval cadence (checkpoints are still SAVED at all 8 steps below
-# by each script's own CHECKPOINT_STEPS - this only controls which of those
-# get EVALUATED, per the user's explicit choice: RLSD/SDPO eval less densely
-# than TROPIC-G. SDPO's cadence is ASSUMED same as RLSD (not separately
-# specified) - flag if that's wrong.
-CHECKPOINTS_RLSD="25 50 75 100"
-CHECKPOINTS_SDPO="25 50 75 100"
+# Checkpoints are still SAVED at all 8 steps below by each script's own
+# CHECKPOINT_STEPS - this only controls which get EVALUATED (TROPIC-G is the
+# proposal, evaluated more densely than the RLSD/SDPO baselines).
+CHECKPOINTS_TROPIC="20 25 40 50 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {
@@ -83,27 +80,30 @@ eval_checkpoint() {
 }
 
 # ============================================================
-# 3. Dry run first - a few training steps on the 4B/RLSD combo, to surface
+# 3. Dry run first - a few training steps on the 4B combo, to surface
 #    path/GPU/env mistakes cheaply before committing to the full run below.
-#    Inspect results_rlsd_4b_dryrun_train.log; only proceed once it's clean.
+#    Inspect results_tropic_g_4b_dryrun_train.log; only proceed once it's clean.
 # ============================================================
-train_dry_run run_rlsd_experiment_4b.py "${MODEL_4B}" results_rlsd_4b
+train_dry_run run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b
 
 # ============================================================
-# 4. Train all 4 method/model combinations.
+# 4. Train both model sizes. Only TROPIC-G here - RLSD/SDPO already ran
+#    separately (offline_rlsd_sdpo_b200/), this package is a standalone
+#    addition, not a re-run of those. run_tropic_g_topk64_4b.py is the
+#    sparsified top_k=64 sibling of run_tropic_g_experiment_4b.py's
+#    full-vocab ablation - same model/settings, added to also cover the
+#    ONLINE cluster's own tropic_g default on this offline deployment.
 # ============================================================
-train run_rlsd_experiment_4b.py "${MODEL_4B}" results_rlsd_4b
-train run_sdpo_experiment_4b.py "${MODEL_4B}" results_sdpo_4b
-train run_rlsd_experiment_8b.py "${MODEL_8B}" results_rlsd_8b
-train run_sdpo_experiment_8b.py "${MODEL_8B}" results_sdpo_8b
+train run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b
+train run_tropic_g_experiment_8b.py "${MODEL_8B}" results_tropic_g_8b
+train run_tropic_g_topk64_4b.py "${MODEL_4B}" results_tropic_g_topk64_4b
 
 # ============================================================
-# 5. Eval every saved checkpoint for every combination.
+# 5. Eval every saved checkpoint for both model sizes.
 # ============================================================
-for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_4b.py "${MODEL_4B}" results_rlsd_4b rlsd "$step"; done
-for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_4b.py "${MODEL_4B}" results_sdpo_4b sdpo "$step"; done
-for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_8b.py "${MODEL_8B}" results_rlsd_8b rlsd "$step"; done
-for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_8b.py "${MODEL_8B}" results_sdpo_8b sdpo "$step"; done
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b tropic_g "$step"; done
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_8b.py "${MODEL_8B}" results_tropic_g_8b tropic_g "$step"; done
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_4b.py "${MODEL_4B}" results_tropic_g_topk64_4b tropic_g_topk64 "$step"; done
 
 # ============================================================
 # 6. Aggregate every avg@12/pass@12 line into one final table + JSON.
