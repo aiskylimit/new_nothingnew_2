@@ -1,4 +1,4 @@
-#i ssft_train.txt
+#i ssft_eval.txt
 #palign
 #v1
 
