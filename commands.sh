@@ -9,7 +9,7 @@
 --hf Qwen/Qwen3-8B /mnt/local/@PROJECT@/tropic_baselines/models/Qwen3-8B
 
 #tropic
-#v1
+#v2
 
 # cd P-ALIGN2
 # CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
