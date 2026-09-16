@@ -8,8 +8,8 @@
 #palign
 #v1
 
-# cd P-ALIGN
-# CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
+cd VLM_Distillation-main
+CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
 
 nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
