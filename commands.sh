@@ -1,5 +1,5 @@
-#i tropic.txt
-#tropic
+#i spectral_guided_learning.txt
+#iwc
 #v1
 
 # cd P-ALIGN
