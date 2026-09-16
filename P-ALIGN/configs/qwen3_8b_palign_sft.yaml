@@ -1,7 +1,7 @@
-### Qwen2.5-7B-Instruct P-ALIGN SFT (LLaMA-Factory)
+### Qwen3-8B P-ALIGN SFT (LLaMA-Factory)
 ### See HYPERPARAMETERS.md for paper vs assumed values.
 
-model_name_or_path: /mnt/local/aiskylimit_new_nothing/P-ALIGN/models/Qwen2.5-7B-Instruct
+model_name_or_path: /mnt/local/aiskylimit_new_nothing/P-ALIGN/models/Qwen3-8B
 trust_remote_code: true
 flash_attn: auto
 
@@ -9,21 +9,23 @@ stage: sft
 do_train: true
 finetuning_type: lora
 lora_target: q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj
-lora_rank: 4
-lora_alpha: 8
+lora_rank: 16
+lora_alpha: 16
 lora_dropout: 0.0
 use_rslora: false
 use_dora: false
 
 dataset: palign_qwen25_7b_sft
 dataset_dir: data
-template: qwen
+template: qwen3
+# non-thinking mode: prepend empty <think></think> block, matching enable_thinking=False in src/test.py
+enable_thinking: false
 cutoff_len: 32768
 overwrite_cache: true
 preprocessing_num_workers: 4
 train_on_prompt: false
 
-output_dir: output/palign-qwen2.5-7b-instruct-lora
+output_dir: output/palign-qwen3-8b-lora
 logging_steps: 1
 save_strategy: epoch
 plot_loss: false
@@ -32,7 +34,7 @@ report_to: none
 disable_tqdm: false
 
 per_device_train_batch_size: 1
-gradient_accumulation_steps: 1
+gradient_accumulation_steps: 8
 # cosine horizon = 5 epochs; training stops after epoch PALIGN_STOP_EPOCH (3) via src/train.py callback
 num_train_epochs: 5.0
 learning_rate: 5.0e-5
