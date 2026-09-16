@@ -29,9 +29,9 @@
 #v1
 
 # cd P-ALIGN
-nvidia-smi
-cd ./OPSD
-tar -czvf opsd_4b_results.tar.gz results/raw/qwen3-4b/opsd
+# nvidia-smi
+# cd ./OPSD
+# tar -czvf opsd_4b_results.tar.gz results/raw/qwen3-4b/opsd
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 # nvidia-smi
