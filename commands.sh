@@ -2,7 +2,6 @@
 #opsd
 #v1
 
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/P-ALIGN/output/eval_results.txt
 # cd P-ALIGN
 nvidia-smi
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
