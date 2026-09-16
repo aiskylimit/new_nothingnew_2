@@ -1,4 +1,4 @@
-#3
+#2 -0-7
 #opsd
 #v1
 
@@ -8,8 +8,8 @@
 #palign
 #v1
 
-cd VLM_Distillation-main
-CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
+# cd VLM_Distillation-main
+# CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
 
 nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
