@@ -1,10 +1,37 @@
-#1 +60
-#sft_longcot
+#d
+#datasets
+--url https://huggingface.co/datasets/DVLe/llava_dataset/resolve/main/coco/train2017.zip /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/train_data/coco
+--url https://huggingface.co/datasets/DVLe/llava_dataset/resolve/main/gqa/images.zip /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/train_data/gqa
+--url https://huggingface.co/datasets/DVLe/llava_dataset/resolve/main/ocr_vqa/ocr_vqa_images.zip /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/train_data/ocr_vqa
+--url https://huggingface.co/datasets/DVLe/llava_dataset/resolve/main/ocr_vqa/dataset.json /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/train_data/ocr_vqa
+--url https://huggingface.co/datasets/DVLe/llava_dataset/resolve/main/vg/images.zip /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/train_data/vg
+--url https://huggingface.co/datasets/DVLe/llava_dataset/resolve/main/vg/images2.zip /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/train_data/vg
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/GQA_TestDev_Balanced.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/MME.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/RealWorldQA.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/ScienceQA_TEST.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/AI2D_TEST_NO_MASK.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/MMMU_DEV_VAL.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/MMStar.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/ChartQA_TEST.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/DocVQA_VAL.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/TextVQA_VAL.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+--url https://huggingface.co/datasets/DVLe/Eval_VLM/resolve/main/OCRBench.tsv /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/eval_data/LMUData
+#models
+--hf Qwen/Qwen2.5-VL-3B-Instruct /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/models/Qwen/Qwen2.5-VL-3B-Instruct
+--hf Qwen/Qwen3-VL-8B-Instruct /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/models/Qwen/Qwen3-VL-8B-Instruct
+--hf KamilaMila/FastVLM-0.5B /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/models/KamilaMila/FastVLM-0.5B
+--hf Qwen/Qwen2-VL-2B-Instruct /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/models/Qwen/Qwen2-VL-2B-Instruct
+--hf Qwen/Qwen2.5-VL-7B-Instruct /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/models/Qwen/Qwen2.5-VL-7B-Instruct
+--hf Qwen/Qwen3-VL-4B-Instruct /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/models/Qwen/Qwen3-VL-4B-Instruct
+
+#vlm-distill
 #v1
 
 # cd P-ALIGN
-nvidia-smi
-cd SpectralGuidedLearning && bash project_commands.sh
+# nvidia-smi
+# cd ./OPSD
+# tar -czvf opsd_4b_results.tar.gz results/raw/qwen3-4b/opsd
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 # nvidia-smi
