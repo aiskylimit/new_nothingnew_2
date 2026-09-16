@@ -1,4 +1,4 @@
-#2 -0-10
+#i vlm-distill.txt
 #opsd
 #v1
 
