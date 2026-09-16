@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/P-ALIGN/output/eval_results.txt
+#1 +60
 #palign
 #v1
 
@@ -8,8 +8,8 @@
 #palign
 #v1
 
-# cd P-ALIGN
-# CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
+cd P-ALIGN
+CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
