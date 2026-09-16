@@ -73,6 +73,7 @@ def build_sdpo_self_teacher_prefix(
     successful_previous_rollout: str | None,
     enable_thinking: bool | None = None,
     max_length: int | None = None,
+    empty_think_suffix: str | None = None,
 ) -> torch.Tensor:
     """SDPO's self-teacher reprompt (Table 2), specialized to our math/RLVR-
     without-rich-feedback setting: no `environment_output` paragraph (our
@@ -96,7 +97,7 @@ def build_sdpo_self_teacher_prefix(
         f"{solution_block}"
         f"Correctly solve the original question. {BOXED_INSTRUCTION}"
     )
-    return render_chat_prompt(tokenizer, content, enable_thinking, max_length)
+    return render_chat_prompt(tokenizer, content, enable_thinking, max_length, empty_think_suffix)
 
 
 def sdpo_loss(

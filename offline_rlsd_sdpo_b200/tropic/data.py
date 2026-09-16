@@ -28,10 +28,31 @@ CustomScriptArguments) - the teacher reasons at length over the privileged
 solution, the student is graded on its short-form answer. Qwen2.5 (used by
 the earlier CPU smoke test) has no such template branch, so `enable_thinking`
 is simply omitted there.
+
+OLMo-3-7B-Think (allenai/Olmo-3-7B-Think) is a DIFFERENT case, verified live
+against its real tokenizer on 2026-09-15: unlike Qwen3, its chat template
+has NO `enable_thinking` branch at all - passing `enable_thinking=False` is
+silently ignored (confirmed: rendered text is byte-identical with or
+without it). Its template's OWN `add_generation_prompt=True` output already
+ends with an OPENED `<think>` tag (not closed), so the model always starts
+reasoning. To get a non-thinking rollout anyway, this file uses the
+community "empty think prefill" trick already documented for DeepSeek-R1-
+style reasoning models (see e.g. huggingface.co/deepseek-ai/DeepSeek-R1-
+Distill-Qwen-14B/discussions/11): manually append a closing `</think>` (with
+blank content) right after the template's own auto-opened `<think>`, so the
+model sees an ALREADY-CLOSED, empty reasoning block and proceeds straight to
+the final answer instead of generating one. This is `empty_think_suffix`
+below - UNVERIFIED end-to-end (confirmed only that the template ignores
+`enable_thinking` and ends on an open `<think>`; NOT confirmed that OLMo-3-
+7B-Think actually skips reasoning after seeing the closed empty block the
+way DeepSeek-R1 does - that pattern is well-documented for DeepSeek-R1 but
+OLMo-3-Think is a different model/training recipe). Test on a real
+checkpoint (inspect a few actual generations) before trusting this for a
+real training run - see CONFIG's own comment in whichever script sets
+`empty_think_suffix` for OLMo.
 """
 from __future__ import annotations
 
-import os
 from dataclasses import dataclass
 
 import torch
@@ -64,6 +85,7 @@ def _apply_chat_template_ids(
     messages: list[dict],
     enable_thinking: bool | None = None,
     max_length: int | None = None,
+    empty_think_suffix: str | None = None,
 ) -> torch.Tensor:
     """Mirrors OPSD's own two-step collator process exactly: render the chat
     template to a STRING (`tokenize=False`), then tokenize that string with a
@@ -73,9 +95,28 @@ def _apply_chat_template_ids(
     character cap on the solution alone) is applied identically to how their
     `SelfDistillationDataCollator.__call__` does it. `enable_thinking` is
     forwarded only when given explicitly (Qwen3); omitted for non-thinking
-    models (Qwen2.5, used by the GSM8K CPU smoke test)."""
-    kwargs = {} if enable_thinking is None else {"enable_thinking": enable_thinking}
-    text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, **kwargs)
+    models (Qwen2.5, used by the GSM8K CPU smoke test) AND for models with no
+    native `enable_thinking` template branch at all (OLMo-3-Think - passing
+    it there is a silent no-op, verified live, so it is never forwarded as a
+    kwarg when `empty_think_suffix` is given; see this module's own
+    docstring for why).
+
+    `empty_think_suffix` (default None): for models like OLMo-3-Think whose
+    template has NO real `enable_thinking` toggle but DOES auto-open a
+    `<think>` tag at the end of `add_generation_prompt=True` output - when
+    `enable_thinking is False`, this string (e.g. `"\\n\\n</think>\\n\\n"`) is
+    appended directly to the rendered text, closing that already-open tag
+    with empty content (the community "empty think prefill" trick - see
+    module docstring). Ignored when `enable_thinking` is True/None (thinking
+    stays on, nothing appended) or when this arg itself is None (Qwen3/
+    Qwen2.5 path, unchanged from before)."""
+    if empty_think_suffix is not None:
+        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        if enable_thinking is False:
+            text += empty_think_suffix
+    else:
+        kwargs = {} if enable_thinking is None else {"enable_thinking": enable_thinking}
+        text = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True, **kwargs)
     encoded = tokenizer(text, truncation=max_length is not None, max_length=max_length, return_tensors="pt")
     return encoded["input_ids"].squeeze(0)
 
@@ -85,6 +126,7 @@ def build_student_prompt(
     question: str,
     enable_thinking: bool | None = None,
     max_length: int | None = None,
+    empty_think_suffix: str | None = None,
 ) -> torch.Tensor:
     """Verbatim wording from OPSD's data_collator.py: `f"Problem: {problem}\\n\\n{_BOXED_INSTRUCTION}"`
     as a single user message. Note this differs from OPSD's own EVAL prompt
@@ -92,7 +134,7 @@ def build_student_prompt(
     mismatch exists in OPSD's own code too, not a bug introduced here."""
     content = f"Problem: {question}\n\n{_BOXED_INSTRUCTION}"
     messages = [{"role": "user", "content": content}]
-    return _apply_chat_template_ids(tokenizer, messages, enable_thinking, max_length)
+    return _apply_chat_template_ids(tokenizer, messages, enable_thinking, max_length, empty_think_suffix)
 
 
 def build_teacher_prefix(
@@ -101,6 +143,7 @@ def build_teacher_prefix(
     reference_solution: str,
     enable_thinking: bool | None = None,
     max_length: int | None = None,
+    empty_think_suffix: str | None = None,
 ) -> torch.Tensor:
     """Verbatim wording from OPSD's data_collator.py (non-`reason_first` branch,
     the one every real run script uses): a SINGLE user message (no system
@@ -114,7 +157,7 @@ def build_teacher_prefix(
         f"{_BOXED_INSTRUCTION}"
     )
     messages = [{"role": "user", "content": content}]
-    return _apply_chat_template_ids(tokenizer, messages, enable_thinking, max_length)
+    return _apply_chat_template_ids(tokenizer, messages, enable_thinking, max_length, empty_think_suffix)
 
 
 def build_teacher_context_only_prefix(
@@ -122,6 +165,7 @@ def build_teacher_context_only_prefix(
     reference_solution: str,
     enable_thinking: bool | None = None,
     max_length: int | None = None,
+    empty_think_suffix: str | None = None,
 ) -> torch.Tensor:
     """TROPIC-**G** only (alpha>0): Eq. 11's `z_theta(.|empty,o<t,r)` - the
     SAME teacher template as `build_teacher_prefix`, with the question `x`
@@ -130,7 +174,7 @@ def build_teacher_context_only_prefix(
     context. Reuses `build_teacher_prefix` verbatim (`question=""`) rather
     than duplicating the template, so the two prompts stay byte-identical
     apart from that one substitution. TROPIC-P (alpha=0) never calls this."""
-    return build_teacher_prefix(tokenizer, "", reference_solution, enable_thinking, max_length)
+    return build_teacher_prefix(tokenizer, "", reference_solution, enable_thinking, max_length, empty_think_suffix)
 
 
 # ---------------------------------------------------------------------------
@@ -175,6 +219,7 @@ def load_opsd_math_examples(
     teacher_thinking: bool = True,
     student_thinking: bool = False,
     max_length: int | None = None,
+    empty_think_suffix: str | None = None,
 ) -> list[TropicExample]:
     """Loads OPSD's own training data. Columns verified live:
     ['source','problem','solution','messages','system','conversations',
@@ -194,13 +239,7 @@ def load_opsd_math_examples(
     Set small for a fast CPU dry run (see notebooks/TROPIC_vs_OPSD.ipynb's
     DRY_RUN flag); OPSD's own real run uses 20000.
     """
-    # Offline deployment: TROPIC_TRAIN_DATA_PATH, when set, points at a local
-    # directory holding a raw download of OPSD_DATASET_PATH's repo (e.g. via
-    # huggingface_hub.snapshot_download onto a no-internet server) - falls
-    # back to the plain repo id (normal online lookup) when unset, so this
-    # is a no-op for every other caller of this function.
-    dataset_path = os.environ.get("TROPIC_TRAIN_DATA_PATH", OPSD_DATASET_PATH)
-    ds = load_dataset(dataset_path, split=split)
+    ds = load_dataset(OPSD_DATASET_PATH, split=split)
     if only_correct and "correct" in ds.column_names:
         ds = ds.filter(lambda r: bool(r["correct"]))
     ds = ds.shuffle(seed=seed).select(range(min(num_examples, len(ds))))
@@ -210,10 +249,12 @@ def load_opsd_math_examples(
         question = row["problem"]
         reference_solution = row["solution"]
         student_ids = build_student_prompt(
-            tokenizer, question, enable_thinking=student_thinking, max_length=max_length
+            tokenizer, question, enable_thinking=student_thinking, max_length=max_length,
+            empty_think_suffix=empty_think_suffix,
         )
         teacher_ids = build_teacher_prefix(
-            tokenizer, question, reference_solution, enable_thinking=teacher_thinking, max_length=max_length
+            tokenizer, question, reference_solution, enable_thinking=teacher_thinking, max_length=max_length,
+            empty_think_suffix=empty_think_suffix,
         )
         examples.append(
             TropicExample(

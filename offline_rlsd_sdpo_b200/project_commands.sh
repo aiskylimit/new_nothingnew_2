@@ -33,7 +33,13 @@ VLLM_EXECUTABLE="vllm"
 # originally tuned on gives real headroom here.
 GPU_MEM_UTIL=0.9
 
-CHECKPOINTS="20 25 40 50 60 75 80 100"
+# Per-method eval cadence (checkpoints are still SAVED at all 8 steps below
+# by each script's own CHECKPOINT_STEPS - this only controls which of those
+# get EVALUATED, per the user's explicit choice: RLSD/SDPO eval less densely
+# than TROPIC-G. SDPO's cadence is ASSUMED same as RLSD (not separately
+# specified) - flag if that's wrong.
+CHECKPOINTS_RLSD="25 50 75 100"
+CHECKPOINTS_SDPO="25 50 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {
@@ -94,10 +100,10 @@ train run_sdpo_experiment_8b.py "${MODEL_8B}" results_sdpo_8b
 # ============================================================
 # 5. Eval every saved checkpoint for every combination.
 # ============================================================
-for step in $CHECKPOINTS; do eval_checkpoint run_rlsd_experiment_4b.py "${MODEL_4B}" results_rlsd_4b rlsd "$step"; done
-for step in $CHECKPOINTS; do eval_checkpoint run_sdpo_experiment_4b.py "${MODEL_4B}" results_sdpo_4b sdpo "$step"; done
-for step in $CHECKPOINTS; do eval_checkpoint run_rlsd_experiment_8b.py "${MODEL_8B}" results_rlsd_8b rlsd "$step"; done
-for step in $CHECKPOINTS; do eval_checkpoint run_sdpo_experiment_8b.py "${MODEL_8B}" results_sdpo_8b sdpo "$step"; done
+for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_4b.py "${MODEL_4B}" results_rlsd_4b rlsd "$step"; done
+for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_4b.py "${MODEL_4B}" results_sdpo_4b sdpo "$step"; done
+for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_8b.py "${MODEL_8B}" results_rlsd_8b rlsd "$step"; done
+for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_8b.py "${MODEL_8B}" results_sdpo_8b sdpo "$step"; done
 
 # ============================================================
 # 6. Aggregate every avg@12/pass@12 line into one final table + JSON.

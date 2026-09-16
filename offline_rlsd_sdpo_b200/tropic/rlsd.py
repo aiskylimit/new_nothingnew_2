@@ -76,6 +76,7 @@ def build_rlsd_teacher_prefix(
     gold_answer: str,
     enable_thinking: bool | None = None,
     max_length: int | None = None,
+    empty_think_suffix: str | None = None,
 ) -> torch.Tensor:
     """RLSD's teacher context r = the final ground-truth ANSWER ONLY, not a
     reasoning trace ("RLSD requires only the final ground-truth answer
@@ -94,7 +95,7 @@ def build_rlsd_teacher_prefix(
         f"Using this knowledge, work out the reasoning that leads to this answer. "
         f"{BOXED_INSTRUCTION}"
     )
-    return render_chat_prompt(tokenizer, content, enable_thinking, max_length)
+    return render_chat_prompt(tokenizer, content, enable_thinking, max_length, empty_think_suffix)
 
 
 def group_relative_advantage(rewards: Tensor, eps: float = 1e-6) -> Tensor:

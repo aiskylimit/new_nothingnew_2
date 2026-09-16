@@ -1,9 +1,8 @@
 """Data loader for the RLSD/SDPO baselines.
 
 Reuses `tropic.data.OPSD_DATASET_PATH` and `tropic.data.build_student_prompt`
-UNCHANGED (both public, read-only imports - tropic/data.py itself is never
-edited) so all four methods (TROPIC-P, OPSD, RLSD, SDPO) train on
-byte-identical (dataset row -> student prompt) pairs: same dataset, same
+(both public imports) so all four methods (TROPIC-P, OPSD, RLSD, SDPO) train
+on byte-identical (dataset row -> student prompt) pairs: same dataset, same
 `correct==True` filter, same shuffle/seed/select, same student-side prompt
 wording. The ONLY thing added here is the dataset's own `Answer` column
 (verified live to exist alongside `problem`/`solution` - see tropic/data.py's
@@ -38,6 +37,7 @@ def load_opsd_math_examples_with_answer(
     only_correct: bool = True,
     student_thinking: bool = False,
     max_length: int | None = None,
+    empty_think_suffix: str | None = None,
 ) -> list[VerifierExample]:
     """Same dataset/filtering/shuffle/select/student-prompt as
     `tropic.data.load_opsd_math_examples` - the only difference is also
@@ -53,7 +53,7 @@ def load_opsd_math_examples_with_answer(
     if only_correct and "correct" in ds.column_names:
         ds = ds.filter(lambda r: bool(r["correct"]))
     if "Answer" not in ds.column_names:
-        raise ValueError(f"{OPSD_DATASET_PATH!r} has no 'Answer' column - cannot compute a verifier reward")
+        raise ValueError(f"{dataset_path!r} has no 'Answer' column - cannot compute a verifier reward")
     ds = ds.filter(lambda r: r["Answer"] is not None and str(r["Answer"]).strip() != "")
     ds = ds.shuffle(seed=seed).select(range(min(num_examples, len(ds))))
 
@@ -61,7 +61,8 @@ def load_opsd_math_examples_with_answer(
     for row in ds:
         question = row["problem"]
         student_ids = build_student_prompt(
-            tokenizer, question, enable_thinking=student_thinking, max_length=max_length
+            tokenizer, question, enable_thinking=student_thinking, max_length=max_length,
+            empty_think_suffix=empty_think_suffix,
         )
         examples.append(
             VerifierExample(question=question, answer=str(row["Answer"]), student_prompt_ids=student_ids)
