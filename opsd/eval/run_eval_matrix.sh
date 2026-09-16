@@ -84,7 +84,9 @@ for model_size in 4b 8b; do
         exit 1
     fi
 
-    OVERWRITE_EVAL=0 evaluate_checkpoint "${model_size}" base base "${model_path}" ""
+    if [[ -z "${METHOD_FILTER}" || "${METHOD_FILTER}" == "base" ]]; then
+        OVERWRITE_EVAL=0 evaluate_checkpoint "${model_size}" base base "${model_path}" ""
+    fi
 
     for method in sft opsd grpo; do
         if [[ -n "${METHOD_FILTER}" && "${method}" != "${METHOD_FILTER}" ]]; then

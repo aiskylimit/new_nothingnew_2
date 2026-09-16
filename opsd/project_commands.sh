@@ -27,6 +27,7 @@ python "${PROJECT_ROOT}/data/prepare_data.py" \
     --output_root "${PREPARED_DATA_ROOT}" \
     --overwrite
 
+# Evaluate each base model once, independently of method training and checkpoint evaluation.
 bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 4b
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b opsd
 
@@ -44,3 +45,6 @@ bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b grpo
 
 bash "${PROJECT_ROOT}/scripts/run_training.sh" grpo 8b
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b grpo
+
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b base
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b base
