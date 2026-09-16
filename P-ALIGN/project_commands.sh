@@ -87,7 +87,25 @@ cmd_train() {
     --master_port "$MASTER_PORT" \
     src/train.py configs/qwen2.5_7b_palign_sft.yaml \
     gradient_accumulation_steps="$GRAD_ACCUM"
-  llamafactory-cli export configs/qwen2.5_7b_palign_export.yaml
+  # Scheduler runs over 5 epochs; benchmark the checkpoint closest to epoch 3.
+  BENCH_CKPT="$(python - <<'PY'
+import glob, json, os
+best = None
+for d in glob.glob("output/palign-qwen2.5-7b-instruct-lora/checkpoint-*"):
+    st = os.path.join(d, "trainer_state.json")
+    if not os.path.exists(st):
+        continue
+    ep = json.load(open(st))["epoch"]
+    if best is None or abs(ep - 3.0) < abs(best[0] - 3.0):
+        best = (ep, d)
+if best is None:
+    raise SystemExit("no checkpoint found under output/palign-qwen2.5-7b-instruct-lora")
+print(best[1])
+PY
+)"
+  echo "merging benchmark checkpoint: $BENCH_CKPT"
+  llamafactory-cli export configs/qwen2.5_7b_palign_export.yaml \
+    adapter_name_or_path="$BENCH_CKPT"
 }
 
 cmd_eval() {
