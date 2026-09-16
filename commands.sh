@@ -1,5 +1,4 @@
 #i ssft_train.txt
-
 #palign
 #v1
 
