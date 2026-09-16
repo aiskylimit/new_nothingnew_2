@@ -1,5 +1,5 @@
-#1 +150
-#opsd
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/P-ALIGN/output/eval_results.txt
+#palign
 #v1
 
 # cd P-ALIGN2
@@ -55,5 +55,5 @@ export NCCL_DEBUG=WARN
 # cd ./offline_rlsd_sdpo_b200
 # bash project_commands.sh
 
-cd ./opsd
-bash project_commands.sh
+# cd ./opsd
+# bash project_commands.sh
