@@ -9,5 +9,8 @@
 #models
 --hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/@PROJECT@/Qwen2.5-7B-Instruct
 --hf Qwen/Qwen3-8B /mnt/local/_models/@PROJECT@/Qwen3-8B
+#pip
+--pip unsloth
+--pip bitsandbytes>=0.44
 
 (this line and below are ignored)
