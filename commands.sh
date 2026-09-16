@@ -1,17 +1,12 @@
-#2 -2
+#2 -0-10
 #opsd
 #v1
 
-
-
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/P-ALIGN/output/eval_results.txt
-#palign
-#v1
-
-# cd VLM_Distillation-main
-# CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
-
+# cd P-ALIGN
 nvidia-smi
+# CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
+
+# nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
 # if [[ ! -x "$SDXL_ENV/bin/python" ]]; then
 #   echo "SDXL_ENV_MISSING=$SDXL_ENV"

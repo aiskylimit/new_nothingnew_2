@@ -1,7 +1,7 @@
 #!/bin/bash
 # Smoke test of the same env → data → train → merge → eval flow as
 # project_commands.sh, using local Qwen2.5-0.5B-Instruct and tiny splits.
-# Does not replace the 7B run. Production: bash project_commands.sh
+# Does not replace the 8B run. Production: bash project_commands.sh
 #
 #   bash project_commands_smoke.sh
 
@@ -56,6 +56,9 @@ fi
 python -c "import torch, transformers, llamafactory, vllm; print('env ok')"
 
 mkdir -p "$DATA_DIR/raw" output/log output/result "$SMOKE_RAW" output/smoke
+if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ] && [ -f "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" ]; then
+  gunzip -kc "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" > "$DATA_DIR/palign_sft_qwen2.5-7b.json"
+fi
 if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ]; then
   echo "missing local train file $DATA_DIR/palign_sft_qwen2.5-7b.json" >&2
   exit 1
@@ -87,8 +90,9 @@ torchrun \
   --node_rank "$RANK" \
   --master_addr "$MASTER_ADDR" \
   --master_port "$MASTER_PORT" \
-  src/train.py configs/qwen2.5_7b_palign_sft.yaml \
+  src/train.py configs/qwen3_8b_palign_sft.yaml \
   model_name_or_path="$SMOKE_MODEL" \
+  template=qwen \
   output_dir="$SMOKE_LORA" \
   cutoff_len=1024 \
   max_samples=4 \
@@ -101,8 +105,9 @@ torchrun \
   gradient_checkpointing=false \
   gradient_accumulation_steps="$GRAD_ACCUM"
 
-llamafactory-cli export configs/qwen2.5_7b_palign_export.yaml \
+llamafactory-cli export configs/qwen3_8b_palign_export.yaml \
   model_name_or_path="$SMOKE_MODEL" \
+  template=qwen \
   adapter_name_or_path="$SMOKE_LORA" \
   export_dir="$SMOKE_MERGED" \
   export_size=2

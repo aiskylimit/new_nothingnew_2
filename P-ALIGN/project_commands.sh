@@ -1,6 +1,6 @@
 #!/bin/bash
-# All run commands for P-ALIGN on Qwen2.5-7B-Instruct.
-# No Hub upload, no git push. Train JSON is local: data/palign_sft_qwen2.5-7b.json
+# All run commands for P-ALIGN on Qwen3-8B.
+# No Hub upload, no git push. Train JSON is tracked as data/palign_sft_qwen2.5-7b.json.gz (unpacked by cmd_data)
 #
 # Usage:
 #   bash project_commands.sh            # data check + train + merge + eval
@@ -10,9 +10,9 @@
 #   bash project_commands.sh eval       # needs merged weights (or MODEL=...)
 #
 # Eval base checkpoint only (skip train/merge):
-#   MODEL=/mnt/local/aiskylimit_new_nothing/P-ALIGN/models/Qwen2.5-7B-Instruct bash project_commands.sh eval
+#   MODEL=/mnt/local/aiskylimit_new_nothing/P-ALIGN/models/Qwen3-8B bash project_commands.sh eval
 #
-# Tiny 0.5B flow check (does not replace this 7B script):
+# Tiny 0.5B flow check (does not replace this 8B script):
 #   bash project_commands_smoke.sh
 
 set -euo pipefail
@@ -20,7 +20,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
 ASSET_ROOT="${ASSET_ROOT:-/mnt/local/aiskylimit_new_nothing/P-ALIGN}"
-MODEL_PATH="${MODEL_PATH:-$ASSET_ROOT/models/Qwen2.5-7B-Instruct}"
+MODEL_PATH="${MODEL_PATH:-$ASSET_ROOT/models/Qwen3-8B}"
 DATA_DIR="${DATA_DIR:-$ROOT/data}"
 export PALIGN_ASSET_ROOT="$ASSET_ROOT"
 export PALIGN_DATA_DIR="$DATA_DIR"
@@ -45,14 +45,14 @@ export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 
-MERGED="${MERGED:-output/palign-qwen2.5-7b-instruct-lora-merged}"
+MERGED="${MERGED:-output/palign-qwen3-8b-lora-merged}"
 MODEL="${MODEL:-$MERGED}"
 NPROC_PER_NODE="${NPROC_PER_NODE:-1}"
 NNODES="${NNODES:-1}"
 RANK="${RANK:-0}"
 MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 MASTER_PORT="${MASTER_PORT:-29330}"
-EFFECTIVE_BATCH=1
+EFFECTIVE_BATCH=8
 PER_DEVICE_BS=1
 # Cosine schedule spans num_train_epochs (5) but training stops after this epoch.
 export PALIGN_STOP_EPOCH="${PALIGN_STOP_EPOCH:-3}"
@@ -64,6 +64,9 @@ cmd_env() {
 
 cmd_data() {
   mkdir -p "$DATA_DIR/raw" output/log output/result
+  if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ] && [ -f "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" ]; then
+    gunzip -kc "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" > "$DATA_DIR/palign_sft_qwen2.5-7b.json"
+  fi
   if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ]; then
     echo "missing local train file $DATA_DIR/palign_sft_qwen2.5-7b.json" >&2
     exit 1
@@ -87,13 +90,13 @@ cmd_train() {
     --node_rank "$RANK" \
     --master_addr "$MASTER_ADDR" \
     --master_port "$MASTER_PORT" \
-    src/train.py configs/qwen2.5_7b_palign_sft.yaml \
+    src/train.py configs/qwen3_8b_palign_sft.yaml \
     gradient_accumulation_steps="$GRAD_ACCUM"
   # Scheduler spans 5 epochs, training stops at PALIGN_STOP_EPOCH; merge the checkpoint closest to epoch 3.
   BENCH_CKPT="$(python - <<'PY'
 import glob, json, os
 best = None
-for d in glob.glob("output/palign-qwen2.5-7b-instruct-lora/checkpoint-*"):
+for d in glob.glob("output/palign-qwen3-8b-lora/checkpoint-*"):
     st = os.path.join(d, "trainer_state.json")
     if not os.path.exists(st):
         continue
@@ -101,12 +104,12 @@ for d in glob.glob("output/palign-qwen2.5-7b-instruct-lora/checkpoint-*"):
     if best is None or abs(ep - 3.0) < abs(best[0] - 3.0):
         best = (ep, d)
 if best is None:
-    raise SystemExit("no checkpoint found under output/palign-qwen2.5-7b-instruct-lora")
+    raise SystemExit("no checkpoint found under output/palign-qwen3-8b-lora")
 print(best[1])
 PY
 )"
   echo "merging benchmark checkpoint: $BENCH_CKPT"
-  llamafactory-cli export configs/qwen2.5_7b_palign_export.yaml \
+  llamafactory-cli export configs/qwen3_8b_palign_export.yaml \
     adapter_name_or_path="$BENCH_CKPT"
 }
 
