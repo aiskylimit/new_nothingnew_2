@@ -1,4 +1,4 @@
-#i tropic.txt
+#i p-align.txt
 #palign
 #v2
 
