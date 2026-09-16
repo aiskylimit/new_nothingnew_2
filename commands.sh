@@ -2,7 +2,7 @@
 #palign
 #v1
 
-cd P-ALIGN
+cd VLM_Distillation-main
 CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
 
 nvidia-smi
