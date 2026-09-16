@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CE-only baseline for Qwen3-VL-8B teacher and Qwen2.5-VL-3B student.
+# CGKD-only for Qwen3-VL-8B teacher and Qwen2.5-VL-3B student.
 set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-$(pwd)}"
@@ -9,16 +9,15 @@ STUDENT_MODEL="${STUDENT_MODEL:-/mnt/local/aiskylimit_new_nothingnew_2/VLM_Disti
 TEACHER_MODEL="${TEACHER_MODEL:-/mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/models/Qwen/Qwen3-VL-8B-Instruct}"
 DATA_PATH="${DATA_PATH:-train_data/llava_v1_5_mix665k.json}"
 IMAGE_DIR="${IMAGE_DIR:-train_data}"
-RUN_NAME="${RUN_NAME:-qwen3_teacher_8b_qwen25_student_3b_ce_only}"
+RUN_NAME="${RUN_NAME:-qwen3_teacher_8b_qwen25_student_3b_cgkd}"
 OUTPUT_DIR="${PROJECT_DIR}/outputs/${RUN_NAME}"
 PERCENT_DATA="${PERCENT_DATA:-1.0}"
-PER_DEVICE_BS="${PER_DEVICE_BS:-4}"
+PER_DEVICE_BS="${PER_DEVICE_BS:-2}"
 GRAD_ACCUM="${GRAD_ACCUM:-1}"
-DATALOADER_WORKERS="${DATALOADER_WORKERS:-2}"
+DATALOADER_WORKERS="${DATALOADER_WORKERS:-4}"
 MASTER_PORT="${MASTER_PORT:-29501}"
 
 cd "${PROJECT_DIR}"
-
 
 torchrun \
   --nproc_per_node gpu \
@@ -50,5 +49,8 @@ torchrun \
   --image_resolution low \
   --resume_from none \
   --seed 1337 \
-  --kd_loss_type ce_only \
+  --kd_loss_type cgkd \
+  --cgkd_alpha 0.5 \
+  --cgkd_weight 1.0 \
+  --cgkd_temperature 1.0 \
   ${HUB_FLAGS[@]+"${HUB_FLAGS[@]}"}
