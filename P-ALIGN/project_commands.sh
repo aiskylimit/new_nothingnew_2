@@ -82,12 +82,16 @@ cmd_train() {
   WORLD_SIZE=$((NPROC_PER_NODE * NNODES))
   GRAD_ACCUM=$((EFFECTIVE_BATCH / (PER_DEVICE_BS * WORLD_SIZE)))
   echo "SFT nproc=${NPROC_PER_NODE} grad_accum=${GRAD_ACCUM} effective_batch=${EFFECTIVE_BATCH}"
-  torchrun \
-    --nproc_per_node "$NPROC_PER_NODE" \
-    --nnodes "$NNODES" \
-    --node_rank "$RANK" \
-    --master_addr "$MASTER_ADDR" \
-    --master_port "$MASTER_PORT" \
+  # Cluster pods export PET_RDZV_* (c10d rendezvous on a pod hostname) which
+  # overrides --master_addr and hangs at "Rendezvous'ing worker group" on a
+  # single node; --standalone forces a local rendezvous.
+  if [ "$NNODES" -eq 1 ]; then
+    LAUNCH_ARGS=(--standalone --nproc_per_node "$NPROC_PER_NODE")
+  else
+    LAUNCH_ARGS=(--nproc_per_node "$NPROC_PER_NODE" --nnodes "$NNODES" --node_rank "$RANK"
+                 --rdzv_backend static --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT")
+  fi
+  torchrun "${LAUNCH_ARGS[@]}" \
     src/train.py configs/qwen3_8b_palign_sft.yaml \
     gradient_accumulation_steps="$GRAD_ACCUM"
   # num_train_epochs=3 with save_strategy=epoch; merge the checkpoint closest to epoch 3 (the last one).

@@ -84,12 +84,14 @@ PY
 WORLD_SIZE=$((NPROC_PER_NODE * NNODES))
 GRAD_ACCUM=$((EFFECTIVE_BATCH / (PER_DEVICE_BS * WORLD_SIZE)))
 echo "SMOKE SFT nproc=${NPROC_PER_NODE} grad_accum=${GRAD_ACCUM} model=${SMOKE_MODEL}"
-torchrun \
-  --nproc_per_node "$NPROC_PER_NODE" \
-  --nnodes "$NNODES" \
-  --node_rank "$RANK" \
-  --master_addr "$MASTER_ADDR" \
-  --master_port "$MASTER_PORT" \
+# --standalone: cluster pods export PET_RDZV_* which otherwise hangs single-node rendezvous
+if [ "$NNODES" -eq 1 ]; then
+  LAUNCH_ARGS=(--standalone --nproc_per_node "$NPROC_PER_NODE")
+else
+  LAUNCH_ARGS=(--nproc_per_node "$NPROC_PER_NODE" --nnodes "$NNODES" --node_rank "$RANK"
+               --rdzv_backend static --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT")
+fi
+torchrun "${LAUNCH_ARGS[@]}" \
   src/train.py configs/qwen3_8b_palign_sft.yaml \
   model_name_or_path="$SMOKE_MODEL" \
   template=qwen \
