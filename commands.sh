@@ -1,13 +1,15 @@
-#2 -0-10
-#palign
-#v1
+#1
+#opsd
+#v2
 
 # cd P-ALIGN
 # # nvidia-smi
 # cd ./OPSD
 
-# zip -r opsd_4b_results_done_v3.zip results/raw/qwen3-4b/opsd
-# echo "=== ZIP DONE ==="
+cd ./OPSD
+python -c "import shutil; shutil.make_archive('opsd_4b_results_done_v3', 'zip', 'results/raw/qwen3-4b', 'opsd')" && \
+echo "=== ZIP DONE ===" && \
+ls -lh opsd_4b_results_done_v3.zip
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 nvidia-smi
