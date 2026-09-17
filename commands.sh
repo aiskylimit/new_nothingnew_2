@@ -1,11 +1,11 @@
-#1 +180
+#2 -0-10
 #sft
 #v1
 
-cd SpectralGuidedLearning
-# cd P-ALIGN
-nvidia-smi
-CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
+# cd SpectralGuidedLearning
+# # cd P-ALIGN
+# nvidia-smi
+# CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
 
 
 nvidia-smi
@@ -64,6 +64,6 @@ export NCCL_DEBUG=WARN
 # cd ./VLM_Distillation-main
 # bash project_commands.sh
 
-cd ./OPSD
-# python -c "import zipfile, os; folder='results/raw/qwen3-4b/opsd'; output='opsd_4b_results_done_v5.zip'; z=zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED); [z.write(os.path.join(root,f), os.path.relpath(os.path.join(root,f), os.path.dirname(folder))) for root,_,files in os.walk(folder) for f in files]; z.close()" && echo "=== ZIP DONE ===" && ls -lh opsd_4b_results_done_v5.zip
-split -b 24M opsd_4b_results_done_v5.zip opsd_4b_results_done_v5.zip.part- && echo "=== SPLIT DONE ===" && ls -lh opsd_4b_results_done_v5.zip.part-*
+# cd ./OPSD
+# # python -c "import zipfile, os; folder='results/raw/qwen3-4b/opsd'; output='opsd_4b_results_done_v5.zip'; z=zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED); [z.write(os.path.join(root,f), os.path.relpath(os.path.join(root,f), os.path.dirname(folder))) for root,_,files in os.walk(folder) for f in files]; z.close()" && echo "=== ZIP DONE ===" && ls -lh opsd_4b_results_done_v5.zip
+# split -b 24M opsd_4b_results_done_v5.zip opsd_4b_results_done_v5.zip.part- && echo "=== SPLIT DONE ===" && ls -lh opsd_4b_results_done_v5.zip.part-*
