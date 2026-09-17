@@ -1,11 +1,12 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OPSD/opsd_4b_results_done.tar.gz
+#1
 #opsd
 #v1
 
 # cd P-ALIGN
 # # nvidia-smi
-# cd ./OPSD
-# tar -czvf opsd_4b_results_done.tar.gz results/raw/qwen3-4b/opsd
+cd ./OPSD
+tar -czvf opsd_4b_results_done.tar.gz results/raw/qwen3-4b/opsd && echo "tar done"
+
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 nvidia-smi
