@@ -93,25 +93,28 @@ eval_checkpoint() {
 train_dry_run run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
 
 # ============================================================
-# 4. Train all 3 methods on OLMo-3-7B-Think. RLSD/SDPO/TROPIC-G already ran
-#    on Qwen3-4B/8B separately (offline_rlsd_sdpo_b200/, offline_tropic_g_b200/)
-#    - this folder is only the OLMo addition, not a re-run of those.
+# 4. Train + eval RLSD, then SDPO, then TROPIC-G (fullvocab, then top-k64) on
+#    OLMo-3-7B-Think - EACH METHOD'S TRAIN+EVAL FULLY FINISHES before the next
+#    one starts (per user's explicit request: RLSD/SDPO are the baselines and
+#    must be completely done before TROPIC, the proposal, begins). RLSD/SDPO/
+#    TROPIC-G already ran on Qwen3-4B/8B separately (offline_rlsd_sdpo_b200/,
+#    offline_tropic_g_b200/) - this folder is only the OLMo addition, not a
+#    re-run of those.
 # ============================================================
 train run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
-train run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b
-train run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b
-train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b
-
-# ============================================================
-# 5. Eval every saved checkpoint for all 4 method/config combinations.
-# ============================================================
 for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b rlsd "$step"; done
+
+train run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b
 for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b sdpo "$step"; done
+
+train run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b tropic_g_olmo "$step"; done
+
+train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo "$step"; done
 
 # ============================================================
-# 6. Aggregate every avg@12/pass@12 line into one final table + JSON.
+# 5. Aggregate every avg@12/pass@12 line into one final table + JSON.
 # ============================================================
 python - <<'PYEOF'
 import glob, json, re
