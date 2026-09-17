@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Spectral experiment driver -- TRAIN everything, then EVAL, then compare.
-# The IWC arm has its own driver (project_commands_iwc.sh) so it can run on another GPU while
+# The IWC arm has its own driver (project_commands2.sh) so it can run on another GPU while
 # this one is busy; the two touch disjoint data/, checkpoints/, logs/ and results/<tag>/ paths.
 # Models: qwen25-7b, qwen3-8b (P-ALIGN's two student models). Dataset: s1K-1.1.
 # Comment out any line you don't want to run.

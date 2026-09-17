@@ -10,7 +10,7 @@ set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 
-# Which GPU(s) every phase script runs on (space-separated ids). Override: GPUS="0" ./project_commands_iwc.sh
+# Which GPU(s) every phase script runs on (space-separated ids). Override: GPUS="0" ./project_commands2.sh
 # Must NOT be the GPU project_commands.sh is training on: eval reserves 90% of its GPU for vLLM.
 CUDA_GPUS="${CUDA_VISIBLE_DEVICES:-}"
 export GPUS="${GPUS:-${CUDA_GPUS:+${CUDA_GPUS//,/ }}}"
