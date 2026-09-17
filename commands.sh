@@ -1,12 +1,10 @@
-#2 -2
-#opsd
+#1 +60
+#palign
 #v1
 
-# cd P-ALIGN
-# # nvidia-smi
-
-
-# CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
+cd P-ALIGN
+nvidia-smi
+CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
