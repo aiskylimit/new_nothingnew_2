@@ -45,6 +45,8 @@ class VLMModel(nn.Module):
         self.encoder = encoder
         self.config = encoder.config
         self.output_attentions = output_attentions
+        self._scva_module_cache = None
+        self._scva_capture_active = False
 
     @staticmethod
     def _distributed_context():
@@ -224,6 +226,11 @@ class VLMModel(nn.Module):
         forward_kwargs["output_attentions"] = self.output_attentions
         forward_kwargs["use_cache"] = False
 
+        # Baseline criteria do not use SCVA. Skip all capture bookkeeping and
+        # module-tree walks on their hot forward path.
+        if not self._scva_capture_active:
+            return self.encoder(**forward_kwargs)
+
         self._prepare_scva_capture(model_inputs)
         try:
             outputs = self.encoder(**forward_kwargs)
@@ -236,11 +243,13 @@ class VLMModel(nn.Module):
         return outputs
 
     def _scva_attention_modules(self):
-        return [
-            module for module in self.encoder.modules()
-            if getattr(module, "supports_scva_sparse_capture", False)
-            and getattr(module, "layer_idx", None) is not None
-        ]
+        if self._scva_module_cache is None:
+            self._scva_module_cache = tuple(
+                module for module in self.encoder.modules()
+                if getattr(module, "supports_scva_sparse_capture", False)
+                and getattr(module, "layer_idx", None) is not None
+            )
+        return self._scva_module_cache
 
     def attention_layer_indices(self) -> list[int]:
         return sorted({int(module.layer_idx) for module in self._scva_attention_modules()})
@@ -253,6 +262,7 @@ class VLMModel(nn.Module):
             raise ValueError(f"SCVA requested unavailable decoder layers: {sorted(missing)}")
         for module in self._scva_attention_modules():
             module._scva_capture_enabled = int(module.layer_idx) in selected
+        self._scva_capture_active = bool(selected)
 
     def _prepare_scva_capture(self, model_inputs) -> None:
         selected = [
