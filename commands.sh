@@ -1,5 +1,5 @@
-#2 -0
-#vlm-distill-baseline
+#1 +10
+#checkgpu
 #v1
 
 # cd P-ALIGN
