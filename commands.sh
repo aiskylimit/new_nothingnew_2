@@ -8,7 +8,7 @@
 # cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh
 
 # kill -9 141196 141197
-# nvidia-smi
+nvidia-smi
 
 # cd ./offline_rlsd_sdpo_b200
 # ls
@@ -57,5 +57,5 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash project_commands.sh
 
-cd ./VLM_Distillation-main
-bash project_commands.sh
+# cd ./VLM_Distillation-main
+# bash project_commands.sh
