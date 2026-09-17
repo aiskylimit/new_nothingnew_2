@@ -1,4 +1,4 @@
-#1
+#2 -0
 #tropic
 #v1
 
@@ -10,8 +10,8 @@
 # kill -9 154023 154024
 nvidia-smi
 
-cd ./offline_rlsd_sdpo_b200
-ls
+# cd ./offline_rlsd_sdpo_b200
+# ls
 
 
 export PATH=/usr/local/cuda/bin:$PATH
