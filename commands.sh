@@ -1,5 +1,5 @@
-#2 -0-10
-#eval_sft
+#3
+#opsd
 #v1
 
 # cd P-ALIGN
