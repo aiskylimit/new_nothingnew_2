@@ -417,6 +417,101 @@ class KDPlumbingTests(unittest.TestCase):
         self.assertFalse(encoder.forward_kwargs["output_attentions"])
         self.assertTrue(encoder.forward_kwargs["output_hidden_states"])
 
+    def test_attention_backend_defaults_to_sdpa_except_fastvlm(self):
+        from src.model.model import VLMModel
+
+        def make_config():
+            return SimpleNamespace(
+                use_cache=True,
+                output_attentions=True,
+                output_hidden_states=False,
+                text_config=SimpleNamespace(
+                    model_type="text",
+                    use_cache=True,
+                    output_attentions=True,
+                    output_hidden_states=False,
+                ),
+                vision_config=SimpleNamespace(
+                    model_type="vision",
+                    use_cache=True,
+                    output_attentions=True,
+                    output_hidden_states=False,
+                ),
+            )
+
+        regular_config = VLMModel._configure_attention_backend(
+            make_config(),
+            output_attentions=False,
+            vision_output_attentions=False,
+        )
+        self.assertEqual(regular_config._attn_implementation, "sdpa")
+        self.assertEqual(regular_config.text_config._attn_implementation, "sdpa")
+        self.assertEqual(regular_config.vision_config._attn_implementation, "sdpa")
+        self.assertFalse(regular_config.output_attentions)
+
+        fastvlm_config = VLMModel._configure_attention_backend(
+            make_config(),
+            output_attentions=False,
+            vision_output_attentions=False,
+            force_eager=True,
+        )
+        self.assertEqual(fastvlm_config._attn_implementation, "eager")
+        self.assertEqual(fastvlm_config.text_config._attn_implementation, "eager")
+        self.assertEqual(fastvlm_config.vision_config._attn_implementation, "eager")
+        self.assertFalse(fastvlm_config.output_attentions)
+
+    def test_attention_output_requirement_overrides_sdpa_default(self):
+        from src.model.model import VLMModel
+
+        config = SimpleNamespace(
+            use_cache=True,
+            output_attentions=False,
+            output_hidden_states=False,
+            text_config=SimpleNamespace(
+                model_type="text",
+                use_cache=True,
+                output_attentions=False,
+                output_hidden_states=False,
+            ),
+            vision_config=SimpleNamespace(
+                model_type="vision",
+                use_cache=True,
+                output_attentions=False,
+                output_hidden_states=False,
+            ),
+        )
+        config = VLMModel._configure_attention_backend(
+            config,
+            output_attentions=True,
+            vision_output_attentions=False,
+        )
+
+        self.assertEqual(config._attn_implementation, "eager")
+        self.assertEqual(config.text_config._attn_implementation, "eager")
+        self.assertEqual(config.vision_config._attn_implementation, "sdpa")
+        self.assertTrue(config.output_attentions)
+
+    def test_attention_backend_runtime_verification_rejects_loader_override(self):
+        from src.model.model import VLMModel
+
+        valid_model = SimpleNamespace(
+            config=SimpleNamespace(
+                _attn_implementation="sdpa",
+                text_config=SimpleNamespace(_attn_implementation="sdpa"),
+                vision_config=SimpleNamespace(_attn_implementation="sdpa"),
+            )
+        )
+        VLMModel._verify_attention_backend(valid_model, "sdpa", "qwen3_vl")
+
+        overridden_model = SimpleNamespace(
+            config=SimpleNamespace(
+                _attn_implementation="sdpa",
+                text_config=SimpleNamespace(_attn_implementation="eager"),
+            )
+        )
+        with self.assertRaisesRegex(RuntimeError, "expected sdpa"):
+            VLMModel._verify_attention_backend(overridden_model, "sdpa", "qwen3_vl")
+
     def test_dskd_forward_backpropagates_through_student_and_both_projectors(self):
         from src.criterions.dskd_v2 import DSKDv2Criterion
 
