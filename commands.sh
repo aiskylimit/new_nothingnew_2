@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/P-ALIGN/output/eval_results.txt
-#palign
+#3
+#opsd
 #v1
 
 # cd P-ALIGN
