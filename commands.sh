@@ -1,5 +1,5 @@
-#3
-#tropic
+#2 -8
+#opsd
 #v1
 
 # cd P-ALIGN
