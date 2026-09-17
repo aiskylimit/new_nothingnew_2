@@ -1,4 +1,4 @@
-#1 +10
+#3
 #vlm-distill-baseline
 #v1
 
@@ -60,5 +60,5 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash project_commands.sh
 
-cd ./VLM_Distillation-main
-bash project_commands.sh
+# cd ./VLM_Distillation-main
+# bash project_commands.sh
