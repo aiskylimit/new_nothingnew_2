@@ -1,14 +1,14 @@
-#2 -0-5
-#opsd
+#1 +10
+#gpu
 #v1
 
 # cd P-ALIGN
-# nvidia-smi
-cd ./OPSD
-tar -czvf opsd_4b_results_done.tar.gz results/raw/qwen3-4b/opsd
+# # nvidia-smi
+# cd ./OPSD
+# tar -czvf opsd_4b_results_done.tar.gz results/raw/qwen3-4b/opsd
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
-# nvidia-smi
+nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
 # if [[ ! -x "$SDXL_ENV/bin/python" ]]; then
 #   echo "SDXL_ENV_MISSING=$SDXL_ENV"
