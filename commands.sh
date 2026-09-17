@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OPSD/opsd_4b_results_done_v5.zip.part-aa
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OPSD/opsd_4b_results_done_v5.zip.part-aa +a
 #opsd
 #v1
 
