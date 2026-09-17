@@ -108,6 +108,11 @@ def main() -> None:
     parser.add_argument("--strengths", default="data/spectral-strengths.parquet")
     parser.add_argument("--vanilla", action="store_true", help="also emit the all-ones baseline")
     parser.add_argument(
+        "--vanilla-only", action="store_true",
+        help="emit only the all-ones baseline; needs no strengths file (e.g. the answer-only arm, "
+        "which never goes through capture/spectral)",
+    )
+    parser.add_argument(
         "--sweep",
         help="comma-separated p values to report drop-ratio stats for, e.g. 0.7,0.8,0.9,0.95 "
         "(no dataset files written; use this to pick p before committing to a training run)",
@@ -121,11 +126,21 @@ def main() -> None:
     with open(config["output_path"]) as handle:
         records = [json.loads(line) for line in handle]
 
+    data_dir = Path(config["output_path"]).parent
+
+    if args.vanilla_only:
+        stats = emit_masked_dataset(records, {}, None, data_dir / "train-vanilla.jsonl")
+        summary = summarize(stats)
+        print(
+            f"vanilla only: {summary['samples']} samples, {summary['tokens_total']} response tokens "
+            f"supervised -> {data_dir / 'train-vanilla.jsonl'}"
+        )
+        (data_dir / "selection-stats.json").write_text(json.dumps({"vanilla": summary}, indent=2))
+        return
+
     frame = pd.read_parquet(args.strengths)
     strengths = {int(row.id): list(row.step_strengths) for row in frame.itertuples()}
     records = [record for record in records if record["id"] in strengths]
-
-    data_dir = Path(config["output_path"]).parent
 
     if args.sweep:
         thresholds = [float(value) for value in args.sweep.split(",")]

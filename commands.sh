@@ -4,11 +4,14 @@
 
 # cd P-ALIGN
 # # nvidia-smi
+# cd SpectralGuidedLearning && bash project_commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
-# cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh
+nvidia-smi
+# cd ./offline_olmo7b_b200
+# bash project_commands.sh
+# cd SpectralGuidedLearning && GPUS=1 bash project_commands2.sh
 
-# kill -9 141196 141197
-# nvidia-smi
+# kill -9 155157 155158
 
 # cd ./offline_rlsd_sdpo_b200
 # ls
@@ -57,5 +60,5 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash project_commands.sh
 
-cd ./VLM_Distillation-main
-bash project_commands.sh
+# cd ./VLM_Distillation-main
+# bash project_commands.sh

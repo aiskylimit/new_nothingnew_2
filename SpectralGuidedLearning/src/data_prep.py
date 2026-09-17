@@ -22,6 +22,10 @@ from segmentation import encode_with_offsets, step_token_spans
 # at train and eval time; the shape is P-ALIGN's (instruction first, no separator).
 PROMPT_TEMPLATE = "Please reason step by step, and put your final answer within \\boxed{{}}.{problem}"
 SHUFFLE_BUFFER = 5_000
+# What the student is supervised on. "long_cot" is the long thinking trajectory plus the final
+# write-up (the P-ALIGN / spectral setting); "answer" drops every model-generated token and trains
+# on the source's ground-truth solution only, the answer-only SFT baseline.
+RESPONSE_MODES = ("long_cot", "answer")
 
 
 def build_prompt(tokenizer, problem: str, chat_template: bool, enable_thinking: bool) -> str:
@@ -105,6 +109,39 @@ def verify_span_alignment(tokenizer, record: dict) -> bool:
     return decoded.strip() == record["response"].strip()
 
 
+# A ground-truth `solution` this short with no line break is a bare answer ("128", "\\frac{1}{2}"),
+# not a worked solution, and gets boxed so the target still ends in the \\boxed{} the grader reads.
+_BARE_ANSWER_MAX_CHARS = 64
+
+
+def answer_only_response(row: dict) -> str | None:
+    """The row's ground-truth solution as the target, with no model-generated reasoning.
+
+    s1K-1.1 carries the source dataset's own `solution` (a full reference solution for some
+    sources, just the final answer for others); LIMO-style rows carry a bare `answer`. Neither
+    the DeepSeek/Gemini trajectory nor their attempt is used. A target with no `\\boxed{}` gets
+    one appended (from `answer` when present, else from the solution itself when it is bare), so
+    the model is still trained to end with the boxed answer the grader extracts.
+
+    Wrapped in an empty thinking block so reconcile_thinking_markers renders it the same way for
+    every template: an open `<think>` prompt gets the block closed at once, a non-thinking prompt
+    gets the bare solution. Returns None when the row has no ground truth.
+    """
+    solution = str(row.get("solution") or "").strip()
+    answer = str(row.get("answer") if row.get("answer") not in (None, "") else "").strip()
+    if not solution and not answer:
+        return None
+    if "\\boxed" in solution:
+        target = solution
+    elif not solution or ("\n" not in solution and len(solution) <= _BARE_ANSWER_MAX_CHARS):
+        target = f"The final answer is \\boxed{{{answer or solution}}}."
+    elif answer:
+        target = f"{solution}\n\nThe final answer is \\boxed{{{answer}}}."
+    else:
+        target = solution
+    return f"<think>\n\n</think>\n\n{target}"
+
+
 def iter_samples(config: dict):
     """Stream the source dataset in shuffled order, yielding (problem, response) pairs.
 
@@ -114,11 +151,17 @@ def iter_samples(config: dict):
     dataset = load_dataset(config["dataset_name"], split=config["dataset_split"], streaming=True)
     dataset = dataset.shuffle(seed=config["seed"], buffer_size=SHUFFLE_BUFFER)
     wanted = config.get("category_filter")
+    answer_only = config.get("response_mode", "long_cot") == "answer"
     for row in dataset:
         category = str(row.get("category") or row.get("source") or row.get("cot_type") or "").lower()
         if wanted and wanted not in category:
             continue
         problem = row.get("problem") or row.get("question") or row.get("input")
+        if answer_only:
+            response = answer_only_response(row)
+            if problem and response:
+                yield problem, response
+            continue
         # s1K-1.1 splits the long CoT into a thinking trace + a short final write-up (its
         # own "solution" field is just the bare final answer, e.g. "128" — no steps to select).
         if row.get("deepseek_thinking_trajectory") and row.get("deepseek_attempt"):
@@ -223,6 +266,10 @@ def main() -> None:
     parser.add_argument("--output-path")
     parser.add_argument("--chat-template", action=argparse.BooleanOptionalAction)
     parser.add_argument("--enable-thinking", action=argparse.BooleanOptionalAction)
+    parser.add_argument(
+        "--response-mode", choices=RESPONSE_MODES,
+        help="long_cot = thinking trajectory + final write-up (default); answer = ground-truth solution only",
+    )
     parser.add_argument("--limit-scan", type=int, default=0, help="max source rows to scan; 0 means no scan cap")
     args = parser.parse_args()
 
@@ -238,10 +285,14 @@ def main() -> None:
         "output_path": args.output_path,
         "chat_template": args.chat_template,
         "enable_thinking": args.enable_thinking,
+        "response_mode": args.response_mode,
     }
     config.update({key: value for key, value in overrides.items() if value is not None})
     config.setdefault("dataset_split", "train")
     config.setdefault("seed", 42)
+    config.setdefault("response_mode", "long_cot")
+    if config["response_mode"] not in RESPONSE_MODES:
+        raise ValueError(f"response_mode must be one of {RESPONSE_MODES}, got {config['response_mode']!r}")
     if config.get("n_samples") is not None and config["n_samples"] <= 0:
         raise ValueError("--n-samples must be positive when set; omit it to use the full dataset")
 
