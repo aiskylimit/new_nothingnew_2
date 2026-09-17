@@ -8,7 +8,7 @@ PAIR_DIR="${SCRIPT_DIR}/qwen3_teacher_4b_fastvlm_student_05b"
 export PROJECT_DIR
 
 SCRIPTS=(
-  "train_qwen3_teacher_4b_fastvlm_student_05b_ce_only.sh"
+  # "train_qwen3_teacher_4b_fastvlm_student_05b_ce_only.sh"
   "train_qwen3_teacher_4b_fastvlm_student_05b_dskd_v2_with_eta.sh"
   "train_qwen3_teacher_4b_fastvlm_student_05b_dwa_kd.sh"
   "train_qwen3_teacher_4b_fastvlm_student_05b_emkd.sh"
