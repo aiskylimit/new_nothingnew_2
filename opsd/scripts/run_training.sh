@@ -21,7 +21,10 @@ MODEL_ROOT="${MODEL_ROOT:-${PROJECT_ROOT}/models}"
 PREPARED_DATA_ROOT="${PREPARED_DATA_ROOT:-${PROJECT_ROOT}/data/processed}"
 OUTPUT_ROOT="${OUTPUT_ROOT:-${PROJECT_ROOT}/outputs}"
 ACCELERATE_CONFIG="${ACCELERATE_CONFIG:-${PROJECT_ROOT}/accelerate.yaml}"
-MAIN_PROCESS_PORT="${MAIN_PROCESS_PORT:-19346}"
+MAIN_PROCESS_PORT="${MAIN_PROCESS_PORT:-auto}"
+if [[ "${MAIN_PROCESS_PORT}" == "auto" ]]; then
+    MAIN_PROCESS_PORT="$(python -c 'import socket; s = socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')"
+fi
 NUM_PROCESSES="${NUM_PROCESSES:-${TRAIN_NUM_PROCESSES}}"
 VLLM_GPU_MEMORY_UTILIZATION="${VLLM_GPU_MEMORY_UTILIZATION:-0.6}"
 
@@ -89,6 +92,7 @@ COMMON_ARGS=(
 echo "Method: ${METHOD}"
 echo "Model: ${MODEL_PATH}"
 echo "Batch: ${PER_DEVICE_BATCH} x ${NUM_PROCESSES} GPUs x ${GRADIENT_ACCUMULATION} accumulation = ${ACTUAL_EFFECTIVE_BATCH}"
+echo "Rendezvous port: ${MAIN_PROCESS_PORT}"
 
 case "${METHOD}" in
     sft)
