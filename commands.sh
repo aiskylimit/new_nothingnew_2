@@ -1,4 +1,4 @@
-#1 +10
+#2 -0-10
 #gpu
 #v1
 
@@ -7,8 +7,8 @@
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh
 
-kill -9 141196 141197
-nvidia-smi
+# kill -9 141196 141197
+# nvidia-smi
 
 # cd ./offline_rlsd_sdpo_b200
 # ls
