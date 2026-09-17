@@ -1,6 +1,6 @@
 #2 -0-10
 #palign
-#v1
+#v2
 
 # cd P-ALIGN
 # # nvidia-smi
