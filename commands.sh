@@ -1,5 +1,5 @@
-#1 +10
-#vlm-distill-base
+#1
+#tropic
 #v1
 
 # cd P-ALIGN
@@ -7,11 +7,11 @@
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh
 
-kill -9 154023 154024
+# kill -9 154023 154024
 nvidia-smi
 
-# cd ./offline_rlsd_sdpo_b200
-# ls
+cd ./offline_rlsd_sdpo_b200
+ls
 
 
 export PATH=/usr/local/cuda/bin:$PATH
