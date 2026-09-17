@@ -1,15 +1,5 @@
-#d
-#datasets
---hf-dataset simplescaling/s1K-1.1 /mnt/local/aiskylimit_new_nothing/palign_sft/datasets/s1K-1.1
---hf-dataset Maxwell-Jia/AIME_2024 /mnt/local/aiskylimit_new_nothing/palign_sft/datasets/AIME_2024
---hf-dataset yentinglin/aime_2025 /mnt/local/aiskylimit_new_nothing/palign_sft/datasets/aime_2025
---hf-dataset AI-MO/aimo-validation-amc /mnt/local/aiskylimit_new_nothing/palign_sft/datasets/aimo-validation-amc
---hf-dataset HuggingFaceH4/MATH-500 /mnt/local/aiskylimit_new_nothing/palign_sft/datasets/MATH-500
-#models
---hf Qwen/Qwen2.5-7B-Instruct /mnt/local/aiskylimit_new_nothing/palign_sft/models/Qwen2.5-7B-Instruct
---hf Qwen/Qwen3-8B /mnt/local/aiskylimit_new_nothing/palign_sft/models/Qwen3-8B
-
-#sft
+#1 +10
+#palign_sft
 #v1
 
 # cd P-ALIGN
@@ -69,5 +59,5 @@ export NCCL_DEBUG=WARN
 # cd ./VLM_Distillation-main
 # bash project_commands.sh
 
-# cd ./palign_sft
-# CUDA_VISIBLE_DEVICES=0,1 bash ./project_commands.sh
+cd ./palign_sft
+CUDA_VISIBLE_DEVICES=0,1 bash ./project_commands.sh
