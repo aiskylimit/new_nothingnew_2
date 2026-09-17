@@ -1,5 +1,5 @@
-#1 +10
-#kill
+#2 -0-10
+#palign
 #v1
 
 # cd P-ALIGN
@@ -7,7 +7,7 @@
 
 
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
-kill -9 97517 97518
+# kill -9 97517 97518
 
 nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
