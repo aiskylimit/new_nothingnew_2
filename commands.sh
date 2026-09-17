@@ -1,4 +1,4 @@
-#2 -0
+#1 +10
 #tropic-olm
 #v1
 
@@ -11,7 +11,7 @@ nvidia-smi
 # bash project_commands.sh
 # cd SpectralGuidedLearning && GPUS=1 bash project_commands2.sh
 
-# kill -9 154023 154024
+kill -9 155157 155158
 
 # cd ./offline_rlsd_sdpo_b200
 # ls
