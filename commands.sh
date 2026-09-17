@@ -1,11 +1,11 @@
-#1 +10
-#vlm-distill-propose
+#1 
+#opsd
 #v1
 
 # cd P-ALIGN
 # nvidia-smi
-# cd ./OPSD
-# tar -czvf opsd_4b_results.tar.gz results/raw/qwen3-4b/opsd
+cd ./OPSD
+tar -czvf opsd_4b_results_done.tar.gz results/raw/qwen3-4b/opsd
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 # nvidia-smi
@@ -61,5 +61,5 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash project_commands.sh
 
-cd ./VLM_Distillation-main
-bash project_commands.sh
+# cd ./VLM_Distillation-main
+# bash project_commands.sh
