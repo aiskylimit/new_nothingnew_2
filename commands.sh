@@ -1,5 +1,5 @@
-#1 +30
-#palign_sft
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/offline_rlsd_sdpo_b200/results_sdpo_4b_eval_step50.log +a
+#tropic
 #v1
 
 # cd P-ALIGN
@@ -59,5 +59,5 @@ export NCCL_DEBUG=WARN
 # cd ./VLM_Distillation-main
 # bash project_commands.sh
 
-cd ./palign_sft
-CUDA_VISIBLE_DEVICES=0,1 bash ./project_commands.sh
+# cd ./palign_sft
+# CUDA_VISIBLE_DEVICES=0,1 bash ./project_commands.sh
