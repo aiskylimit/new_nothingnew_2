@@ -9,13 +9,15 @@
 --hf Qwen/Qwen2.5-7B-Instruct /mnt/local/aiskylimit_new_nothing/palign_sft/models/Qwen2.5-7B-Instruct
 --hf Qwen/Qwen3-8B /mnt/local/aiskylimit_new_nothing/palign_sft/models/Qwen3-8B
 
+#1 +60
 #sft
 #v1
 
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/results/comparison-table.md
 # cd P-ALIGN
 # # nvidia-smi
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
-
+cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh.
 
 nvidia-smi
 

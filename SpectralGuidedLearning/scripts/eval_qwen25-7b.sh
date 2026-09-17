@@ -14,7 +14,8 @@ export BENCH_DATA_ROOT="${BENCH_DATA_ROOT-/mnt/local/_data/aiskylimit_new_nothin
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral-guided-learning}"
-if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+# Always switch to the eval env: the driver may have left the unsloth train env active, which has no vLLM.
+if [[ "${VIRTUAL_ENV:-}" != "${PROJECT_ENV}" ]]; then
   [[ -f "${PROJECT_ENV}/bin/activate" ]] || "${BASE_PATH}/scripts/setup.sh"
   source "${PROJECT_ENV}/bin/activate"
 fi
