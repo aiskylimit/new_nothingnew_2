@@ -1,5 +1,5 @@
-#2 -27
-#opsd
+#2 -0-10
+#palign
 #v1
 
 # cd P-ALIGN
