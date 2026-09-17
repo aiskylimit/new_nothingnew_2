@@ -43,6 +43,8 @@ export PYTHONUNBUFFERED=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
+# Make CUDA_VISIBLE_DEVICES indices match nvidia-smi (PCI order) instead of FASTEST_FIRST.
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 
 MERGED="${MERGED:-output/palign-qwen3-8b-lora-merged}"
@@ -54,8 +56,6 @@ MASTER_ADDR="${MASTER_ADDR:-127.0.0.1}"
 MASTER_PORT="${MASTER_PORT:-29330}"
 EFFECTIVE_BATCH=32
 PER_DEVICE_BS=1
-# Cosine schedule spans num_train_epochs (5) but training stops after this epoch.
-export PALIGN_STOP_EPOCH="${PALIGN_STOP_EPOCH:-3}"
 STAGE="${1:-all}"
 
 cmd_env() {
@@ -84,15 +84,19 @@ cmd_train() {
   WORLD_SIZE=$((NPROC_PER_NODE * NNODES))
   GRAD_ACCUM=$((EFFECTIVE_BATCH / (PER_DEVICE_BS * WORLD_SIZE)))
   echo "SFT nproc=${NPROC_PER_NODE} grad_accum=${GRAD_ACCUM} effective_batch=${EFFECTIVE_BATCH}"
-  torchrun \
-    --nproc_per_node "$NPROC_PER_NODE" \
-    --nnodes "$NNODES" \
-    --node_rank "$RANK" \
-    --master_addr "$MASTER_ADDR" \
-    --master_port "$MASTER_PORT" \
+  # Cluster pods export PET_RDZV_* (c10d rendezvous on a pod hostname) which
+  # overrides --master_addr and hangs at "Rendezvous'ing worker group" on a
+  # single node; --standalone forces a local rendezvous.
+  if [ "$NNODES" -eq 1 ]; then
+    LAUNCH_ARGS=(--standalone --nproc_per_node "$NPROC_PER_NODE")
+  else
+    LAUNCH_ARGS=(--nproc_per_node "$NPROC_PER_NODE" --nnodes "$NNODES" --node_rank "$RANK"
+                 --rdzv_backend static --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT")
+  fi
+  torchrun "${LAUNCH_ARGS[@]}" \
     src/train.py configs/qwen3_8b_palign_sft.yaml \
     gradient_accumulation_steps="$GRAD_ACCUM"
-  # Scheduler spans 5 epochs, training stops at PALIGN_STOP_EPOCH; merge the checkpoint closest to epoch 3.
+  # num_train_epochs=3 with save_strategy=epoch; merge the checkpoint closest to epoch 3 (the last one).
   BENCH_CKPT="$(python - <<'PY'
 import glob, json, os
 best = None
