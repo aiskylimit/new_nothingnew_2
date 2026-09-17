@@ -1,13 +1,13 @@
-#1 
+#2 -0
 #palign
 #v1
 
 # cd P-ALIGN
 # # nvidia-smi
-cd ./OPSD
+# cd ./OPSD
 
-zip -r opsd_4b_results_done_v3.zip results/raw/qwen3-4b/opsd
-echo "=== ZIP DONE ==="
+# zip -r opsd_4b_results_done_v3.zip results/raw/qwen3-4b/opsd
+# echo "=== ZIP DONE ==="
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
 nvidia-smi
