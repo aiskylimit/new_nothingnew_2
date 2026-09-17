@@ -1,6 +1,6 @@
-#2 -0-10
-#palign
-#v2
+#1
+#tropic
+#v1
 
 # cd P-ALIGN
 # # nvidia-smi
@@ -10,6 +10,10 @@
 # kill -9 97517 97518
 
 nvidia-smi
+
+cd ./offline_rlsd_sdpo_b200
+ls
+
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
 # if [[ ! -x "$SDXL_ENV/bin/python" ]]; then
 #   echo "SDXL_ENV_MISSING=$SDXL_ENV"
