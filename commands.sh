@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/offline_rlsd_sdpo_b200/results_rlsd_4b_eval_step25.log
-#tropic
+#2 -0-10
+#sft
 #v1
 
 # cd P-ALIGN
