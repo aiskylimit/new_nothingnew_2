@@ -1,4 +1,4 @@
-#1
+#2 -0
 #tropic
 #v1
 
@@ -11,8 +11,8 @@
 
 nvidia-smi
 
-cd ./offline_rlsd_sdpo_b200
-ls
+# cd ./offline_rlsd_sdpo_b200
+# ls
 
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
 # if [[ ! -x "$SDXL_ENV/bin/python" ]]; then
