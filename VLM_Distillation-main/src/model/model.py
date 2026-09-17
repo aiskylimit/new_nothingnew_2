@@ -66,31 +66,26 @@ class VLMModel(nn.Module):
             setattr(config, name, value)
 
     @classmethod
-    def _force_eager_attention(
+    def _configure_attention_backend(
         cls,
         config,
         vision_output_attentions=True,
         output_attentions=True,
-        force_sdpa=False,
+        force_eager=False,
     ):
         sub_configs = {
             name: getattr(config, name, None)
             for name in ("text_config", "vision_config", "vision_config_2", "audio_config")
         }
-        original_backends = {
-            name: getattr(sub_config, "_attn_implementation", None)
-            for name, sub_config in sub_configs.items()
-            if sub_config is not None
-        }
         config.use_cache = False
-        if output_attentions:
+        if force_eager or output_attentions:
             # Transformers generally needs eager attention when callers request
-            # the full attention matrices.  Keep that behaviour for criteria
-            # such as SCVA/SRE, but leave the configured efficient backend alone
-            # when a criterion (for example DWA-KD) does not consume attentions.
+            # the full attention matrices. FastVLM also stays on eager because
+            # its current implementation does not support the SDPA backend.
             config._attn_implementation = "eager"
             config.attn_implementation = "eager"
-        elif force_sdpa:
+        else:
+            # Attention-free criteria use SDPA for every non-FastVLM backbone.
             config._attn_implementation = "sdpa"
             config.attn_implementation = "sdpa"
         config.output_attentions = output_attentions
@@ -102,26 +97,12 @@ class VLMModel(nn.Module):
             sub_output_attentions = (
                 vision_output_attentions if sub_config_name.startswith("vision_config") else output_attentions
             )
-            if sub_output_attentions:
+            if force_eager or sub_output_attentions:
                 sub_config._attn_implementation = "eager"
                 sub_config.attn_implementation = "eager"
-            elif force_sdpa and getattr(sub_config, "model_type", None) != "timm_wrapper":
+            else:
                 sub_config._attn_implementation = "sdpa"
                 sub_config.attn_implementation = "sdpa"
-            elif sub_config_name.startswith("vision_config"):
-                # Setting the composite config to eager recursively mutates all
-                # sub-configs in Transformers.  Restore a fast backend for the
-                # vision tower when the criterion only consumes text attention.
-                backend = original_backends.get(sub_config_name)
-                # FastVLM's vision_config is a TimmWrapperConfig.  Transformers
-                # treats its attention backend as eager-only even though timm
-                # internally owns the actual optimized vision implementation.
-                if getattr(sub_config, "model_type", None) == "timm_wrapper":
-                    backend = "eager"
-                elif backend in (None, "eager"):
-                    backend = "sdpa"
-                sub_config._attn_implementation = backend
-                sub_config.attn_implementation = backend
             cls._set_config_attr_if_present(
                 sub_config,
                 "output_attentions",
@@ -138,6 +119,32 @@ class VLMModel(nn.Module):
     @staticmethod
     def _model_path(model_args: ModelArguments):
         return model_args.checkpoint_path if model_args.checkpoint_path else model_args.model_name
+
+    @staticmethod
+    def _verify_attention_backend(model, expected_backend: str, model_backbone: str):
+        config = model.config
+        configs = {"config": config}
+        configs.update(
+            {
+                name: sub_config
+                for name in ("text_config", "vision_config", "vision_config_2", "audio_config")
+                if (sub_config := getattr(config, name, None)) is not None
+            }
+        )
+        mismatches = {
+            name: getattr(candidate, "_attn_implementation", None)
+            for name, candidate in configs.items()
+            if getattr(candidate, "_attn_implementation", None) != expected_backend
+        }
+        if mismatches:
+            raise RuntimeError(
+                f"Attention backend verification failed for {model_backbone}: "
+                f"expected {expected_backend}, got {mismatches}."
+            )
+        print_master(
+            f"Verified attention backend [{expected_backend}] for [{model_backbone}] "
+            f"across {', '.join(configs)}."
+        )
 
     @staticmethod
     def _clean_model_inputs(model_inputs):
@@ -373,11 +380,11 @@ class VLMModel(nn.Module):
 
         if vision_output_attentions is None:
             vision_output_attentions = output_attentions and model_backbone != FAST_VLM
-        config = cls._force_eager_attention(
+        config = cls._configure_attention_backend(
             config,
             vision_output_attentions=vision_output_attentions,
             output_attentions=output_attentions,
-            force_sdpa=force_sdpa,
+            force_eager=model_backbone == FAST_VLM,
         )
         config.padding_side = "left"
 
@@ -391,25 +398,26 @@ class VLMModel(nn.Module):
             **kwargs,
         }
         
+        expected_attention_backend = "eager" if model_backbone == FAST_VLM or output_attentions else "sdpa"
         if model_backbone == LLAVA_NEXT:
-            return LlavaNextForConditionalGeneration.from_pretrained(model_name_or_path, **load_kwargs), model_backbone
-
-        if model_backbone == LLAVA_ONEVISION:
-            return LlavaOnevisionForConditionalGeneration.from_pretrained(model_name_or_path, **load_kwargs), model_backbone
-
-        if model_backbone in {FAST_VLM, QWEN2_VL, QWEN2_5_VL, QWEN3_VL}:
+            model = LlavaNextForConditionalGeneration.from_pretrained(model_name_or_path, **load_kwargs)
+        elif model_backbone == LLAVA_ONEVISION:
+            model = LlavaOnevisionForConditionalGeneration.from_pretrained(model_name_or_path, **load_kwargs)
+        elif model_backbone in {FAST_VLM, QWEN2_VL, QWEN2_5_VL, QWEN3_VL}:
             # print(f"Using custom loading for backbone {model_backbone} with config {config}")
             model = backbone2model[model_backbone].from_pretrained(model_name_or_path, **load_kwargs)
             if model_backbone == FAST_VLM:
                 normalize_fast_vlm_model(model, fast_vlm_tokenizer)
-            return model, model_backbone
+        else:
+            model = cls.TRANSFORMER_CLS.from_pretrained(
+                model_name_or_path,
+                attn_implementation=expected_attention_backend,
+                trust_remote_code=True,
+                **load_kwargs,
+            )
 
-        return cls.TRANSFORMER_CLS.from_pretrained(
-            model_name_or_path,
-            attn_implementation="eager",
-            trust_remote_code=True,
-            **load_kwargs,
-        ), model_backbone
+        cls._verify_attention_backend(model, expected_attention_backend, model_backbone)
+        return model, model_backbone
 
     @staticmethod
     def _find_lora_targets(base_model, model_args):
