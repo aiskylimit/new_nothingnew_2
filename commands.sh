@@ -1,5 +1,5 @@
-#1 +10
-#gpu
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OPSD/opsd_4b_results_done.tar.gz
+#opsd
 #v1
 
 # cd P-ALIGN
