@@ -1,5 +1,5 @@
 #1 +10
-#vlm-distill-base
+#vlm-distill-baseline
 #v1
 
 # cd P-ALIGN
