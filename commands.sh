@@ -1,8 +1,5 @@
-#d
-#models
---hf Qwen/Qwen2-VL-7B-Instruct /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/models/Qwen/Qwen2-VL-7B-Instruct
-
-#vlm
+#1 +10
+#vlm-distill-baseline
 #v1
 
 # cd P-ALIGN

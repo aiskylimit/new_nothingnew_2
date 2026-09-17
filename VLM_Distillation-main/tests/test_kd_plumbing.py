@@ -628,7 +628,7 @@ class KDPlumbingTests(unittest.TestCase):
 
         distiller.init_dskd_projectors_if_needed()
 
-        self.assertEqual(tuple(distiller.part_teacher_head_pinv.shape), (3, 6))
+        self.assertEqual(tuple(distiller.cached_s2t_projection.shape), (4, 6))
         self.assertFalse(any(parameter.requires_grad for parameter in distiller.projectors["s2t"].parameters()))
 
     def test_dskd_auto_creates_projectors_without_json(self):
