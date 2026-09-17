@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/offline_rlsd_sdpo_b200/results_sdpo_4b_eval_step100.log +a
+#i spectral_guided_learning.txt
 #tropic
 #v1
 
