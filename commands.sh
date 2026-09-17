@@ -5,7 +5,7 @@
 # cd P-ALIGN
 # # nvidia-smi
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
-
+# cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh
 
 nvidia-smi
 
