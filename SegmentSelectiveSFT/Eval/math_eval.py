@@ -34,6 +34,9 @@ def parse_args():
     parser.add_argument("--temperature", default=0, type=float)
     parser.add_argument("--n_sampling", default=1, type=int)
     parser.add_argument("--top_p", default=1, type=float)
+    # 1.0 = khong phat lap (mac dinh vLLM). Chi ghi vao ten file khi != 1.0 de
+    # output cu van duoc nhan ra (resume / bo qua task da cham).
+    parser.add_argument("--repetition_penalty", default=1.0, type=float)
     parser.add_argument("--max_tokens_per_call", default=2048, type=int)
     parser.add_argument("--shuffle", action="store_true")
     parser.add_argument("--use_vllm", action="store_true")
@@ -84,9 +87,10 @@ def prepare_data(data_name, args):
     examples = examples[args.start : len(examples) if args.end == -1 else args.end]
 
     # get out_file name
+    rep_tag = "" if args.repetition_penalty == 1.0 else f"_rep{args.repetition_penalty}"
     dt_string = datetime.now().strftime("%m-%d_%H-%M")
     model_name = "/".join(args.model_name_or_path.split("/")[-2:])
-    out_file_prefix = f"{args.split}_{args.prompt_type}_{args.num_test_sample}_seed{args.seed}_t{args.temperature}_n{args.n_sampling}_topp{args.top_p}_len{args.max_tokens_per_call}_{model_name}"
+    out_file_prefix = f"{args.split}_{args.prompt_type}_{args.num_test_sample}_seed{args.seed}_t{args.temperature}_n{args.n_sampling}_topp{args.top_p}{rep_tag}_len{args.max_tokens_per_call}_{model_name}"
     output_dir = args.output_dir
     out_file = f"{output_dir}/{out_file_prefix}_s{args.start}_e{args.end}.jsonl"
     os.makedirs(f"{output_dir}", exist_ok=True)
@@ -110,9 +114,10 @@ def setup(args):
     data_list = args.data_names.split(",")
     need_eval_data_list = []
     if not args.overwrite:
+        rep_tag = "" if args.repetition_penalty == 1.0 else f"_rep{args.repetition_penalty}"
         for data_name in data_list:
             postfix = "/".join(args.model_name_or_path.split("/")[-2:])
-            out_prefix = f"{args.split}_{args.prompt_type}_{args.num_test_sample}_seed{args.seed}_t{args.temperature}_n{args.n_sampling}_topp{args.top_p}_len{args.max_tokens_per_call}_{postfix}"
+            out_prefix = f"{args.split}_{args.prompt_type}_{args.num_test_sample}_seed{args.seed}_t{args.temperature}_n{args.n_sampling}_topp{args.top_p}{rep_tag}_len{args.max_tokens_per_call}_{postfix}"
             out_file =  f"{args.output_dir}/{out_prefix}_s{args.start}_e{args.end}.jsonl"
             out_metric_json = out_file.replace(".jsonl", f"_metrics.json")
             
@@ -323,6 +328,7 @@ def main(llm, tokenizer, data_name, args):
                 SamplingParams(
                     temperature=args.temperature,
                     top_p=args.top_p,
+                    repetition_penalty=args.repetition_penalty,
                     max_tokens=args.max_tokens_per_call,
                     n=1,
                     stop=stop_words,

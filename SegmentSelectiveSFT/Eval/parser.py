@@ -634,6 +634,7 @@ def parse_ground_truth(example: Dict[str, Any], data_name):
         "aime24",
         "aime25",
         "amc23",
+        "amc12",
         "cmath",
         "gaokao2024_I",
         "gaokao2024_II",

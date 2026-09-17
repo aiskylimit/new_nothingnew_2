@@ -42,6 +42,40 @@ class EarlyStopAtEpochCallback(TrainerCallback):
         return control
 
 
+class PeakVramCallback(TrainerCallback):
+    """Ghi peak VRAM vao moi dong log cua Trainer va in tong ket cuoi run.
+
+    max_memory_allocated = dinh cua tensor thuc su cap phat; max_memory_reserved
+    = dinh cua bo nho cache CUDA giu (gan voi so nvidia-smi bao). Dinh thuong
+    xuat hien o step gap mau dai nhat, nen theo doi tu dau la du biet co OOM khong.
+    Reset sau moi lan log de cot 'peak_step' cho biet dinh cua RIENG khoang do,
+    con 'peak_run' la dinh tu dau run.
+    """
+    def __init__(self):
+        self.peak_run = 0.0
+
+    def on_log(self, args, state, control, logs=None, **kwargs):
+        if not torch.cuda.is_available() or logs is None:
+            return control
+        gb = 1024 ** 3
+        alloc = torch.cuda.max_memory_allocated() / gb
+        reserved = torch.cuda.max_memory_reserved() / gb
+        self.peak_run = max(self.peak_run, reserved)
+        logs["vram_peak_step_gb"] = round(alloc, 1)
+        logs["vram_reserved_gb"] = round(reserved, 1)
+        logs["vram_peak_run_gb"] = round(self.peak_run, 1)
+        torch.cuda.reset_peak_memory_stats()
+        return control
+
+    def on_train_end(self, args, state, control, **kwargs):
+        if torch.cuda.is_available():
+            gb = 1024 ** 3
+            total = torch.cuda.get_device_properties(0).total_memory / gb
+            print("Peak VRAM ca run: %.1f GB reserved / %.1f GB tren GPU (%.0f%%)" % (
+                self.peak_run, total, 100.0 * self.peak_run / total))
+        return control
+
+
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--data_names", default="GAIR/LIMO", type=str)
@@ -74,8 +108,8 @@ def parse_args():
     # --- LoRA ---
     parser.add_argument("--full_finetune", action="store_true",
                         help="Full finetuning thay vi LoRA (mac dinh la LoRA)")
-    parser.add_argument("--lora_r", type=int, default=16)
-    parser.add_argument("--lora_alpha", type=int, default=16)
+    parser.add_argument("--lora_r", type=int, default=64)
+    parser.add_argument("--lora_alpha", type=int, default=64)
     parser.add_argument("--lora_dropout", type=float, default=0.05)
     parser.add_argument("--target_modules", default=",".join(DEFAULT_TARGET_MODULES), type=str)
 
@@ -166,7 +200,7 @@ if not args.output_dir:
         # thu muc de checkpoint baseline khong de len ban selective.
         suffix += "_fullsft"
     if args.use_lora:
-        suffix += "_lora"
+        suffix += f"_lora_r{args.lora_r}"
     args.output_dir = f"./checkpoints/{args.model_name_or_path.split('/')[-1]}_epoch{args.epochs}_lr{args.learning_rate}_len{args.max_seq_length}{suffix}"
     args.run_name += suffix
 
@@ -213,7 +247,9 @@ def segment_char_bounds(segments, offset):
 def formatting_prompts_func(examples):
     questions = examples["question"]
     outputs = examples["solution"] 
-    segments_ids = examples["selected_spans_ids"]
+    # Full-CoT SFT (khong --mask) khong can cot selected_spans_ids -> cho phep
+    # train thang tren data/s1k/train.jsonl ma khong phai chay IG truoc.
+    segments_ids = examples.get("selected_spans_ids") or [[]] * len(questions)
 
     input_ids_list = []
     labels_list = []
@@ -300,10 +336,14 @@ if "json" in args.data_names or args.data_names.endswith(".jsonl"):
 else:
     dataset = load_dataset(args.data_names, split = args.split)
 
+if args.mask and "selected_spans_ids" not in dataset.column_names:
+    raise SystemExit("--mask can cot selected_spans_ids (file solutions_selected.jsonl tu stage segments); "
+                     "file %s khong co." % args.data_names)
+
 dataset = dataset.map(
     formatting_prompts_func,
     batched=True,
-    remove_columns=["question", "solution", "answer", "selected_spans_ids", "segments"],  
+    remove_columns=dataset.column_names,
     load_from_cache_file=False,
 )
 gc.collect()
@@ -372,6 +412,10 @@ trainer = SFTTrainer(
         group_by_length = args.group_by_length,
         max_grad_norm=args.max_grad_norm,
     ),
-    callbacks=[EarlyStopAtEpochCallback(args.stop_at_epoch)],
+    callbacks=[EarlyStopAtEpochCallback(args.stop_at_epoch), PeakVramCallback()],
 )
+if torch.cuda.is_available():
+    # Model da nap xong: so nay la VRAM tinh (weight) truoc khi co grad/optimizer state.
+    print("VRAM sau khi nap model: %.1f GB allocated" % (torch.cuda.memory_allocated() / 1024 ** 3))
+    torch.cuda.reset_peak_memory_stats()
 trainer.train()

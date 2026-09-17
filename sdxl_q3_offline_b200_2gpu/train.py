@@ -283,6 +283,19 @@ def parse_args():
         help="Whether or not to use gradient checkpointing to save memory at the expense of slower backward pass.",
     )
     parser.add_argument(
+        "--disable_cpu_offload",
+        action="store_true",
+        help=(
+            "Keep the SDXL VAE, text encoders, and reference UNet resident on the "
+            "accelerator instead of installing Accelerate CPU-offload hooks."
+        ),
+    )
+    parser.add_argument(
+        "--skip_final_save",
+        action="store_true",
+        help="Skip final pipeline serialization for short VRAM-tuning runs.",
+    )
+    parser.add_argument(
         "--learning_rate",
         type=float,
         default=1e-8,
@@ -2066,15 +2079,19 @@ def main():
     if args.sdxl:
         text_encoder_one.to(accelerator.device, dtype=weight_dtype)
         text_encoder_two.to(accelerator.device, dtype=weight_dtype)
-        print("offload vae (this actually stays as CPU)")
-        vae = accelerate.cpu_offload(vae)
-        print("Offloading text encoders to cpu")
-        text_encoder_one = accelerate.cpu_offload(text_encoder_one)
-        text_encoder_two = accelerate.cpu_offload(text_encoder_two)
         if args.train_method == 'dpo':
             ref_unet.to(accelerator.device, dtype=weight_dtype)
-            print("offload ref_unet")
-            ref_unet = accelerate.cpu_offload(ref_unet)
+        if args.disable_cpu_offload:
+            print("SDXL CPU offload disabled; VAE, text encoders, and reference UNet remain on GPU")
+        else:
+            print("offload vae (this actually stays as CPU)")
+            vae = accelerate.cpu_offload(vae)
+            print("Offloading text encoders to cpu")
+            text_encoder_one = accelerate.cpu_offload(text_encoder_one)
+            text_encoder_two = accelerate.cpu_offload(text_encoder_two)
+            if args.train_method == 'dpo':
+                print("offload ref_unet")
+                ref_unet = accelerate.cpu_offload(ref_unet)
     else:
         text_encoder.to(accelerator.device, dtype=weight_dtype)
         if args.train_method == 'dpo':
@@ -3352,6 +3369,9 @@ def main():
     # Create the pipeline using the trained modules and save it.
     # This will save to top level of output_dir instead of a checkpoint directory
     accelerator.wait_for_everyone()
+    if args.skip_final_save:
+        accelerator.end_training()
+        return
     if accelerator.is_main_process:
         unet = accelerator.unwrap_model(unet)
         if confidence_head is not None:

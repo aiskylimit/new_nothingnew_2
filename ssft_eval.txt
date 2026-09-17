@@ -1,9 +1,26 @@
 # manager: uv
 # python: 3.11
-# From SegmentSelectiveSFT (chi cho stage split, ig, segments cua run_pipeline.sh; khong can vllm). Version lay theo cac env khac trong repo de mirror offline co san.
-torch==2.9.0
-transformers==4.56.1
+# From SegmentSelectiveSFT/requirements.txt: env eval (bash eval.sh, vLLM sinh dap an + cham diem) VA cac stage split/ig/segments cua run_pipeline.sh. vllm 0.10.2 ghim torch 2.8.0 nen KHONG cai chung voi ssft_train (torch 2.9 + unsloth). Truoc day ghim vllm 0.10.0 + torch 2.7.1 nhung wheel torch 2.7.1 tren PyPI build cu126, KHONG co kernel sm_100 (B200/Blackwell) -> 'no kernel image is available'; torch 2.8.0 tren PyPI build cu128 co sm_100, vllm 0.10.2 la ban dau tien ghim torch 2.8.0. KHONG can buoc cai tay nao sau file nay: latex2sympy la package vendored trong SegmentSelectiveSFT/Eval/latex2sympy, moi script eval chay voi cwd=Eval/ nen import thang tu do (setup.sh check cung kiem tra tu Eval/); chi can antlr4-python3-runtime==4.11.1 (dung ban parser da sinh san, ban khac chi canh bao 'versions disagree'). Danh sach duoi phu du moi module ma 'bash setup.sh check --for eval' import.
+vllm==0.10.2
+torch==2.8.0
+torchvision==0.23.0
+torchaudio==2.8.0
+xformers==0.0.32.post1
+triton==3.4.0
+# compressed-tensors (dep cua vllm) import frozendict; ban 1.x dung collections.Mapping (bo tu py3.10) -> AttributeError. Phai la 2.x.
+frozendict==2.4.6
+transformers==4.56.0
+tokenizers==0.22.1
 numpy==2.2.6
-datasets==4.1.1
-accelerate==1.10.1
-tqdm
+datasets==3.6.0
+accelerate==1.9.0
+sympy==1.14.0
+mpmath==1.3.0
+antlr4-python3-runtime==4.11.1
+pandas==2.3.1
+regex==2024.11.6
+Pebble==5.1.1
+multiprocess==0.70.16
+timeout-decorator==0.5.0
+word2number==1.1
+tqdm==4.67.1

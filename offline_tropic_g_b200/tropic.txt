@@ -1,0 +1,31 @@
+# manager: uv
+# python: 3.11
+# From this repo's own scripts/tropic (RLSD/SDPO/TROPIC-G baselines) - audited imports only.
+# torch/transformers/datasets/accelerate/peft/numpy pinned to the EXACT same
+# versions as this server's own talas-vlm-embed.txt (a different project,
+# but proven working on this same B200/CUDA 12.8 setup) - real evidence from
+# this server, not a guess. huggingface-hub/sentencepiece stay unpinned,
+# matching that same file (it doesn't pin them either).
+#
+# vllm: pinned to 0.18.0 - CONFIRMED actually installed and working on this
+# server (dry-run succeeded) once tropic/vllm_rollout_client.py dropped the
+# --disable-log-requests/--disable-uvicorn-access-log flag entirely (that
+# flag's name changed between vLLM versions and isn't worth chasing on a
+# submit-and-wait server with no interactive shell - see that file's
+# comment). Earlier attempts here are dead ends, do not repeat: a raw GitHub
+# wheel URL for v0.28.0+cu128 got silently substituted to v0.2.5 (ancient,
+# no B200/CLI support) by this server's offline install tool; reusing the
+# sibling project opsd.txt's exact pin (vllm==0.11.0, aiskylimit/
+# new_nothingnew_2/blob/main/opsd.txt) was tried as a second candidate but
+# turned out unnecessary once the real fix (dropping the flag) was found -
+# reverted in favor of just pinning the version already confirmed working.
+math-verify[antlr4_13_2]
+torch==2.9.0
+transformers==4.56.1
+datasets==4.1.1
+accelerate==1.10.1
+peft==0.17.1
+vllm==0.18.0
+huggingface-hub
+numpy==1.26.4
+sentencepiece

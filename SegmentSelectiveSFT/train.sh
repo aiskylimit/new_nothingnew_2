@@ -10,7 +10,7 @@
 #   3. Train (wandb da tat, log ra logs/train.log)
 #
 # Mac dinh (LoRA tren Qwen2.5-7B-Instruct, du lieu s1K-1.1):
-#   r=16 alpha=16 dropout=0.05 tren q/k/v/o/gate/up/down_proj
+#   r=64 alpha=64 dropout=0.05 tren q/k/v/o/gate/up/down_proj
 #   lr 5e-5, 3 epoch, seq 32768, batch 1 x accum 32 = 32 mau/step
 #   AdamW betas (0.9, 0.999) eps 1e-8 wd 0.0, cosine + warmup_ratio 0.1
 #
@@ -18,7 +18,8 @@
 #   bash train.sh --epochs 5 --lr 1e-5
 #   bash train.sh --gpu 1                  # dung GPU khac
 #   bash train.sh --batch-size 2 --grad-accum 16   # van la 32 mau/step
-#   bash train.sh --lora-r 32 --lora-alpha 64 --lora-dropout 0
+#   bash train.sh --grad-accum 16 --ckpt-suffix _bs16   # doi batch: them hau to de khong de len checkpoint cu
+#   bash train.sh --lora-r 16 --lora-alpha 16 --lora-dropout 0   # thu muc checkpoint co hau to _lora_r<R>
 #   bash train.sh --4bit                   # QLoRA: it VRAM hon, cham hon mot chut
 #   bash train.sh --target-modules "q_proj,v_proj"
 #   bash train.sh --full-finetune          # bo LoRA, finetune toan bo (rat ton VRAM)
@@ -59,13 +60,17 @@ MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
 BATCH_SIZE="${BATCH_SIZE:-1}"
 GRAD_ACCUM="${GRAD_ACCUM:-32}"
 GROUP_BY_LENGTH="${GROUP_BY_LENGTH:-0}"   # 1 = gom mau cung do dai, bo padding thua
+# Ten thu muc checkpoint khong chua batch/optim/... -> doi cac thu do ma khong
+# doi ten thi HF Trainer (save_total_limit=3) xoa dan checkpoint cua lan truoc.
+# Hau to nay ghep vao cuoi ten thu muc + ten log; eval.sh --ckpt-suffix phai khop.
+CKPT_SUFFIX_EXTRA="${CKPT_SUFFIX_EXTRA:-}"
 # Seq 32768 tren 7B thi gradient checkpointing la bat buoc -> mac dinh BAT.
 NO_GRAD_CKPT="${NO_GRAD_CKPT:-0}"         # 1 = tat (ton VRAM, nhanh hon)
 
 # --- LoRA ---
 USE_LORA="${USE_LORA:-1}"                 # 0 = full finetuning
-LORA_R="${LORA_R:-16}"
-LORA_ALPHA="${LORA_ALPHA:-16}"
+LORA_R="${LORA_R:-64}"
+LORA_ALPHA="${LORA_ALPHA:-64}"
 LORA_DROPOUT="${LORA_DROPOUT:-0.05}"
 LOAD_4BIT="${LOAD_4BIT:-0}"               # 1 = QLoRA, weight goc nap o 4-bit (it VRAM hon nhieu)
 TARGET_MODULES="${TARGET_MODULES:-q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj}"
@@ -106,6 +111,7 @@ while [[ $# -gt 0 ]]; do
     --max-seq-length)  MAX_SEQ_LENGTH="$2"; shift 2 ;;
     --batch-size)      BATCH_SIZE="$2"; shift 2 ;;
     --grad-accum)      GRAD_ACCUM="$2"; shift 2 ;;
+    --ckpt-suffix)     CKPT_SUFFIX_EXTRA="$2"; shift 2 ;;
     --group-by-length) GROUP_BY_LENGTH=1; shift ;;
     --no-grad-checkpoint) NO_GRAD_CKPT=1; shift ;;
     --grad-checkpoint) NO_GRAD_CKPT=0; shift ;;
@@ -128,7 +134,7 @@ while [[ $# -gt 0 ]]; do
     --reinstall)       REINSTALL=1; shift ;;
     --offline)         HF_OFFLINE=1; shift ;;
     --dry-run)         DRY_RUN=1; shift ;;
-    -h|--help)         sed -n '2,32p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help)         sed -n '2,33p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "Tham so khong hop le: $1 (xem --help)" >&2; exit 2 ;;
   esac
 done
@@ -148,6 +154,8 @@ echo "=============================================================="
 # 1. Kiem tra so bo
 # =============================================================================
 [[ -f "$DATA" ]] || die "Khong thay training file: ${DATA}"
+# Lat nua cd sang SelectiveSFT/ nen phai la duong dan tuyet doi; --data /abs/... giu nguyen.
+[[ "$DATA" == /* ]] || DATA="${ROOT_DIR}/${DATA}"
 log "Training data: ${DATA} ($(wc -l < "$DATA" | tr -d ' ') dong)"
 
 if command -v nvidia-smi >/dev/null 2>&1; then
@@ -267,13 +275,20 @@ if [[ "$USE_LORA" == "1" ]]; then
     --target_modules "${TARGET_MODULES}"
   )
   [[ "$LOAD_4BIT" == "1" ]] && TUNE_ARGS+=(--load_in_4bit)
-  TUNE_NAME="LoRA r=${LORA_R} alpha=${LORA_ALPHA} dropout=${LORA_DROPOUT}$([[ "$LOAD_4BIT" == 1 ]] && echo ' (4-bit/QLoRA)')"
-  CKPT_SUFFIX="${CKPT_SUFFIX}_lora"
-  LOG_NAME="${LOG_NAME}_lora"
+  # Khong dung $([[ ... ]] && echo) o day: khi dieu kien sai, command substitution
+  # tra ve 1 -> phep gan that bai -> set -e giet script (moi lan LoRA khong --4bit).
+  TUNE_NAME="LoRA r=${LORA_R} alpha=${LORA_ALPHA} dropout=${LORA_DROPOUT}"
+  [[ "$LOAD_4BIT" == "1" ]] && TUNE_NAME="${TUNE_NAME} (4-bit/QLoRA)"
+  # Ghi r vao ten de doi r khong de len checkpoint cu (eval.sh --lora-r phai khop).
+  CKPT_SUFFIX="${CKPT_SUFFIX}_lora_r${LORA_R}"
+  LOG_NAME="${LOG_NAME}_lora_r${LORA_R}"
 else
   TUNE_ARGS=(--full_finetune)
   TUNE_NAME="full finetuning"
 fi
+# Hau to nguoi dung dat (--ckpt-suffix) di sau cung: [_fullsft][_lora_r<R>][<suffix>]
+CKPT_SUFFIX="${CKPT_SUFFIX}${CKPT_SUFFIX_EXTRA}"
+LOG_NAME="${LOG_NAME}${CKPT_SUFFIX_EXTRA}"
 LOG_FILE="${LOG_DIR}/${LOG_NAME}.log"
 
 # Ten thu muc do bash quyet dinh roi truyen thang bang --output_dir. Truoc day
@@ -300,7 +315,7 @@ echo
 
 ( cd "${ROOT_DIR}/SelectiveSFT" && run python -u train_mask.py \
     --model_name_or_path "${MODEL}" \
-    --data_names "${ROOT_DIR}/${DATA}" \
+    --data_names "${DATA}" \
     --epochs "${EPOCHS}" \
     --learning_rate "${LR}" \
     --max_seq_length "${MAX_SEQ_LENGTH}" \

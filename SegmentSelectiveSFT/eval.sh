@@ -17,6 +17,8 @@
 # Tuy chon:
 #   bash eval.sh --base                    # eval model goc, chua finetune
 #   bash eval.sh --full-finetune           # checkpoint train khong dung LoRA
+#   bash eval.sh --lora-r 16               # checkpoint train voi r khac mac dinh (64)
+#   bash eval.sh --ckpt-suffix _bs16       # checkpoint train voi --ckpt-suffix _bs16
 #   bash eval.sh --full-sft                # eval checkpoint baseline full-CoT
 #   bash eval.sh --model /duong/dan/checkpoint-250
 #   bash eval.sh --model /duong/dan/checkpoint-250 --tag sel_ep5
@@ -27,6 +29,7 @@
 #   bash eval.sh --gpu 0,1,2,3 --data-parallel   # 1 task/GPU chay song song
 #   bash eval.sh --gpu 0,1                 # tensor parallel tren 2 GPU
 #   bash eval.sh --max-tokens 16384        # cat ngan sinh cho nhanh
+#   bash eval.sh --top-p 0.9 --repetition-penalty 1.05
 #   bash eval.sh --overwrite               # cham lai tu dau
 #   bash eval.sh --skip-setup / --reinstall / --dry-run
 # -----------------------------------------------------------------------------
@@ -53,7 +56,9 @@ LOG_DIR="${LOG_DIR:-logs}"
 EPOCHS="${EPOCHS:-3}"
 LR="${LR:-5e-5}"
 MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
-USE_LORA="${USE_LORA:-1}"   # train.sh mac dinh LoRA -> ten thu muc co hau to _lora
+USE_LORA="${USE_LORA:-1}"   # train.sh mac dinh LoRA -> ten thu muc co hau to _lora_r<R>
+LORA_R="${LORA_R:-64}"      # phai khop --lora-r luc train
+CKPT_SUFFIX="${CKPT_SUFFIX:-}"   # phai khop --ckpt-suffix luc train (vd _bs16)
 
 # "task so_mau_moi_cau" - lay tu Eval/run_eval.sh goc cua paper.
 TASKS_DEFAULT="aime24:32 amc23:32 math500:6 minerva:6 gpqa:6 olympiad:6"
@@ -66,6 +71,7 @@ SEED="${SEED:-0}"
 MAX_TOKENS="${MAX_TOKENS:-32768}"
 TEMPERATURE="${TEMPERATURE:-0.6}"
 TOP_P="${TOP_P:-1}"
+REPETITION_PENALTY="${REPETITION_PENALTY:-1.0}"   # 1.0 = khong phat lap
 PROMPT_TYPE="${PROMPT_TYPE:-deepseek-longcot}"
 
 DATA_PARALLEL=0                          # 1 = chia task ra tung GPU chay song song
@@ -97,6 +103,8 @@ while [[ $# -gt 0 ]]; do
     --full-sft)        WHICH="fullsft"; shift ;;
     --selective)       WHICH="selective"; shift ;;
     --lora)            USE_LORA=1; shift ;;
+    --lora-r)          LORA_R="$2"; shift 2 ;;
+    --ckpt-suffix)     CKPT_SUFFIX="$2"; shift 2 ;;
     --full-finetune)   USE_LORA=0; shift ;;
     --epochs)          EPOCHS="$2"; shift 2 ;;
     --lr)              LR="$2"; shift 2 ;;
@@ -114,13 +122,15 @@ while [[ $# -gt 0 ]]; do
     --seed)            SEED="$2"; shift 2 ;;
     --max-tokens)      MAX_TOKENS="$2"; shift 2 ;;
     --temperature)     TEMPERATURE="$2"; shift 2 ;;
+    --top-p)           TOP_P="$2"; shift 2 ;;
+    --repetition-penalty) REPETITION_PENALTY="$2"; shift 2 ;;
     --output-root)     OUTPUT_ROOT="$2"; shift 2 ;;
     --overwrite)       OVERWRITE=1; shift ;;
     --skip-setup)      SKIP_SETUP=1; shift ;;
     --reinstall)       REINSTALL=1; shift ;;
     --offline)         HF_OFFLINE=1; shift ;;
     --dry-run)         DRY_RUN=1; shift ;;
-    -h|--help)         sed -n '2,31p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help)         sed -n '2,32p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "Tham so khong hop le: $1 (xem --help)" >&2; exit 2 ;;
   esac
 done
@@ -153,9 +163,10 @@ latest_checkpoint() {
   return 0
 }
 
-# train.sh ghep hau to theo thu tu: [_fullsft][_lora]
+# train.sh ghep hau to theo thu tu: [_fullsft][_lora_r<R>][--ckpt-suffix]
 LORA_SUFFIX=""
-[[ "$USE_LORA" == "1" ]] && LORA_SUFFIX="_lora"
+[[ "$USE_LORA" == "1" ]] && LORA_SUFFIX="_lora_r${LORA_R}"
+LORA_SUFFIX="${LORA_SUFFIX}${CKPT_SUFFIX}"
 CKPT_BASE="${ROOT_DIR}/SelectiveSFT/checkpoints/$(basename "$BASE_MODEL")_epoch${EPOCHS}_lr${LR}_len${MAX_SEQ_LENGTH}"
 
 case "$WHICH" in
@@ -346,7 +357,7 @@ if [[ "$DATA_PARALLEL" == "1" ]]; then
 else
   echo "    gpu        : ${GPU} (tensor_parallel_size=${NGPU})"
 fi
-echo "    sampling   : t=${TEMPERATURE} top_p=${TOP_P} seed=${SEED} max_tokens=${MAX_TOKENS}"
+echo "    sampling   : t=${TEMPERATURE} top_p=${TOP_P} rep=${REPETITION_PENALTY} seed=${SEED} max_tokens=${MAX_TOKENS}"
 echo "    so cau     : $([[ "$NUM_TEST_SAMPLE" == "-1" ]] && echo "ca test set" || echo "${NUM_TEST_SAMPLE} cau dau")"
 echo "    vllm       : gpu_mem=${GPU_MEM_UTIL} prefix_cache=$([[ "$PREFIX_CACHING" == 1 ]] && echo on || echo off) logprobs=$([[ "$LOGPROBS" == 1 ]] && echo on || echo off) max_model_len=${MAX_MODEL_LEN:-auto}"
 echo "    output     : Eval/${OUTPUT_ROOT}/<task>/${RUN_TAG}"
@@ -373,6 +384,7 @@ run_tasks() {
       --temperature "${TEMPERATURE}" \
       --n_sampling "${n}" \
       --top_p "${TOP_P}" \
+      --repetition_penalty "${REPETITION_PENALTY}" \
       --start 0 \
       --end -1 \
       --use_vllm \
@@ -441,9 +453,9 @@ SUMMARY_JSON="${ROOT_DIR}/Eval/${OUTPUT_ROOT}/summary.json"
 
 if [[ "$DRY_RUN" != "1" ]]; then
   log "Ket qua"
-  META="$(printf '{"tag":"%s","model":"%s","decoding":"%s","temperature":%s,"top_p":%s,"seed":%s,"max_tokens":%s,"num_test_sample":%s,"prompt_type":"%s"}' \
+  META="$(printf '{"tag":"%s","model":"%s","decoding":"%s","temperature":%s,"top_p":%s,"repetition_penalty":%s,"seed":%s,"max_tokens":%s,"num_test_sample":%s,"prompt_type":"%s"}' \
     "$RUN_TAG" "$MODEL" "$([[ "$TEMPERATURE" == "0" ]] && echo greedy || echo sampling)" \
-    "$TEMPERATURE" "$TOP_P" "$SEED" "$MAX_TOKENS" "$NUM_TEST_SAMPLE" "$PROMPT_TYPE")"
+    "$TEMPERATURE" "$TOP_P" "$REPETITION_PENALTY" "$SEED" "$MAX_TOKENS" "$NUM_TEST_SAMPLE" "$PROMPT_TYPE")"
 
   python3 - "$ROOT_DIR/Eval/$OUTPUT_ROOT" "$SUMMARY_JSON" "$META" <<'PYSUM'
 import json, sys, glob, os, re, datetime

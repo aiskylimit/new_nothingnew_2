@@ -21,6 +21,7 @@
 #   bash run_pipeline.sh --stages train --epochs 5 --lr 1e-5
 #   bash run_pipeline.sh --stages cot           # tu sinh CoT truoc khi split
 #   bash run_pipeline.sh --offline              # may khong co mang
+#   bash run_pipeline.sh --stages ig --resume   # chay tiep IG do dang thay vi xoa ghi lai
 #   DRY_RUN=1 bash run_pipeline.sh              # chi in lenh, khong chay
 # -----------------------------------------------------------------------------
 
@@ -45,7 +46,7 @@ CONDA_ENV="${CONDA_ENV:-selective_sft}"
 PYTHON_VERSION="${PYTHON_VERSION:-3.11}"
 
 # --- Model ---
-ATTR_MODEL="${ATTR_MODEL:-Qwen/Qwen2.5-7B-Instruct}"   # model tinh IG
+ATTR_MODEL="${ATTR_MODEL:-deepseek-ai/DeepSeek-R1-Distill-Qwen-7B}"   # model tinh IG (paper App C.3: luon la R1-Distill-Qwen-7B)
 TRAIN_MODEL="${TRAIN_MODEL:-Qwen/Qwen2.5-7B-Instruct}"  # model SFT
 COT_MODEL="${COT_MODEL:-deepseek-ai/DeepSeek-R1-Distill-Qwen-7B}"     # model sinh CoT
 
@@ -67,7 +68,7 @@ TRAINING_FILE="${TRAINING_FILE:-data/s1k/solutions_selected.jsonl}"
 SEGMENT_MODE="${SEGMENT_MODE:-paragraph}"
 
 # --- Sieu tham so ---
-IG_STEPS="${IG_STEPS:-50}"
+IG_STEPS="${IG_STEPS:-20}"      # so buoc noi suy J; paper dung 50, 20 du (~5% sai so, Sundararajan 2017)
 IG_MAX_TOKENS="${IG_MAX_TOKENS:-0}"      # 0 = khong gioi han; >0 = mau dai hon thi gan diem 0
 IG_GRAD_CKPT="${IG_GRAD_CKPT:-1}"        # 1 = bat gradient checkpointing (it VRAM hon nhieu)
 IG_BATCH_SIZE="${IG_BATCH_SIZE:-4}"      # so buoc IG tinh chung mot forward; tang de dung them VRAM
@@ -90,6 +91,7 @@ COT_MAX_TOKENS="${COT_MAX_TOKENS:-32768}"
 # --- Co khac ---
 DRY_RUN="${DRY_RUN:-0}"
 FORCE="${FORCE:-0}"            # 1 = xoa file trung gian cu roi tinh lai
+IG_RESUME="${IG_RESUME:-0}"    # 1 = stage ig chay tiep tu file do dang (mac dinh: xoa di ghi lai)
 HF_OFFLINE="${HF_OFFLINE:-0}"  # 1 = cam moi ket noi ra HuggingFace Hub
 LOG_DIR="${LOG_DIR:-logs}"
 
@@ -120,6 +122,7 @@ while [[ $# -gt 0 ]]; do
     --dataset)         HF_DATASET="$2"; shift 2 ;;
     --segment-mode)    SEGMENT_MODE="$2"; shift 2 ;;
     --force)           FORCE=1; shift ;;
+    --resume)          IG_RESUME=1; shift ;;
     --offline)         HF_OFFLINE=1; shift ;;
     --dry-run)         DRY_RUN=1; shift ;;
     -h|--help)         sed -n '2,25p' "${BASH_SOURCE[0]}"; exit 0 ;;
@@ -278,14 +281,21 @@ stage_ig() {
   need_file "${ROOT_DIR}/${SEGMENT_FILE}"
   mkdir -p "$(dirname "${ROOT_DIR}/${IG_RAW_FILE}")" "$(dirname "${ROOT_DIR}/${IG_FILE}")"
 
-  # grad_analyze.py gio ghi de nen chay lai la an toan, khong can --force nua.
-  [[ -s "${ROOT_DIR}/${IG_RAW_FILE}" ]] && log "Ghi de file attribution cu: ${IG_RAW_FILE}"
+  # grad_analyze.py mac dinh xoa file cu va ghi lai tu dau; --resume de chay tiep.
+  if [[ -s "${ROOT_DIR}/${IG_RAW_FILE}" ]]; then
+    if [[ "$IG_RESUME" == "1" ]]; then
+      log "Chay tiep tu file attribution do dang: ${IG_RAW_FILE}"
+    else
+      log "Xoa va ghi lai file attribution cu: ${IG_RAW_FILE}"
+    fi
+  fi
 
   export CUDA_VISIBLE_DEVICES="$GPU_ATTR"
 
   IG_ARGS=()
   [[ "$IG_MAX_TOKENS" != "0" ]] && IG_ARGS+=(--max_input_tokens "$IG_MAX_TOKENS")
   [[ "$IG_GRAD_CKPT" == "0" ]]  && IG_ARGS+=(--no_gradient_checkpointing)
+  [[ "$IG_RESUME" == "1" ]]     && IG_ARGS+=(--resume)
 
   ( cd "${ROOT_DIR}/Attribution" && run python -u grad_analyze.py \
       --model_name "${ATTR_MODEL}" \

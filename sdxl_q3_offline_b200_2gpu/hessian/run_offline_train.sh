@@ -84,7 +84,8 @@ command=(
   --lr_scheduler=constant_with_warmup --lr_warmup_steps="$WARMUP_STEPS"
   --learning_rate="${BASE_LEARNING_RATE:-1e-8}" --scale_lr
   --gradient_checkpointing --allow_tf32
-  --checkpointing_steps="$MAX_TRAIN_STEPS" --checkpoints_total_limit=1
+  --checkpointing_steps="${CHECKPOINTING_STEPS:-$MAX_TRAIN_STEPS}"
+  --checkpoints_total_limit="${CHECKPOINTS_TOTAL_LIMIT:-1}"
   --no_hflip --proportion_empty_prompts=0
   --preference_loss=step_aware_tbpo
   --ratio_beta="${RATIO_BETA:-500}"
@@ -105,10 +106,19 @@ command=(
   --output_dir="$RUN_DIR" "${resume_args[@]}"
 )
 
+if [[ "${DISABLE_CPU_OFFLOAD:-0}" == 1 ]]; then
+  command+=(--disable_cpu_offload)
+fi
+if [[ "${SKIP_FINAL_SAVE:-0}" == 1 ]]; then
+  command+=(--skip_final_save)
+fi
+
 {
   printf 'mode=%s\nmodel_family=sdxl\nnum_gpus=%s\ngpu_ids=%s\n' "$MODE" "$NUM_GPUS" "$GPU_IDS"
   printf 'micro_batch=%s\naccumulation=%s\neffective_batch=%s\noptimizer_steps=%s\n' \
     "$TRAIN_BATCH_SIZE" "$GRADIENT_ACCUMULATION_STEPS" "$EFFECTIVE_BATCH" "$MAX_TRAIN_STEPS"
+  printf 'disable_cpu_offload=%s\nskip_final_save=%s\n' \
+    "${DISABLE_CPU_OFFLOAD:-0}" "${SKIP_FINAL_SAVE:-0}"
   printf 'offline_strict=%s\ncommand=' "$RATIO_OFFLINE_STRICT"
   printf '%q ' "${command[@]}"; printf '\n'
 } > "$RUN_DIR/command.txt"
@@ -131,4 +141,3 @@ if (( status == 0 )); then
   printf '%s\n' "$MAX_TRAIN_STEPS" > "$RUN_DIR/final-step.txt"
 fi
 exit "$status"
-

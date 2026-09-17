@@ -92,13 +92,15 @@ activate() {
 # Cap "module_import:ten_hien_thi". Chi liet ke goi that su duoc import o
 # top-level luc chay, khong ke goi chi dung trong nhanh tuy chon.
 PKGS_COMMON="numpy:numpy tqdm:tqdm transformers:transformers torch:torch datasets:datasets"
+# Ten hien thi (sau dau :) KHONG duoc co dau cach: vong "for pair in $list" tach theo
+# khoang trang, mot ten nhu "latex2sympy(cai -e X)" se thanh 3 goi gia "-e", "X)" luon MISS.
 PKGS_EVAL="vllm:vllm sympy:sympy mpmath:mpmath pandas:pandas regex:regex pebble:pebble
            multiprocess:multiprocess timeout_decorator:timeout-decorator word2number:word2number
-           latex2sympy.latex2sympy2:latex2sympy(cai -e Eval/latex2sympy)"
+           latex2sympy.latex2sympy2:latex2sympy(vendored-Eval/)"
 PKGS_TRAIN="unsloth:unsloth trl:trl peft:peft bitsandbytes:bitsandbytes torchao:torchao"
 
 do_check() {
-  local which="${CHECK_FOR:-all}" list="$PKGS_COMMON" missing=0
+  local which="${CHECK_FOR:-all}" list="$PKGS_COMMON" missing=0 missing_names=""
   case "$which" in
     eval)  list="$PKGS_COMMON $PKGS_EVAL" ;;
     train) list="$PKGS_COMMON $PKGS_TRAIN" ;;
@@ -114,7 +116,7 @@ do_check() {
       ok "$name"
     else
       miss "$name"
-      missing=$((missing + 1))
+      missing=$((missing + 1)); missing_names="${missing_names} ${name}"
     fi
   done
 
@@ -135,7 +137,31 @@ from transformers import AutoTokenizer, AutoModelForCausalLM
 import transformers.modeling_utils
 import transformers.models.qwen2.modeling_qwen2
 " 2>&1 | tail -3 | sed 's/^/        /'
-    missing=$((missing + 1))
+    missing=$((missing + 1)); missing_names="${missing_names} transformers(chuoi-import)"
+  fi
+
+  # 'import vllm' cung chua du: vLLM chi nap model class luc tao LLM(), keo theo
+  # compressed_tensors -> frozendict (ban 1.x chet vi collections.Mapping). Va
+  # torch wheel co the thieu kernel cho GPU (B200 = sm_100 can wheel cu128).
+  # Hai loi nay chi lo ra sau vai phut nap model, nen thu truoc o day.
+  if [[ "$which" != "train" ]]; then
+    log "Thu chuoi import that cua vLLM + kernel CUDA cho GPU"
+    local vllm_chk='
+from vllm.model_executor.models.qwen2 import Qwen2ForCausalLM   # -> compressed_tensors -> frozendict
+import torch
+if torch.cuda.is_available():
+    cap = "sm_%d%d" % torch.cuda.get_device_capability(0)
+    arch = torch.cuda.get_arch_list()
+    torch.zeros(1, device="cuda")                                # "no kernel image" neu thieu arch
+    assert cap in arch, "GPU %s khong co trong kernel cua torch %s" % (cap, arch)
+'
+    if python -c "$vllm_chk" >/dev/null 2>&1; then
+      ok "vllm nap duoc Qwen2ForCausalLM, torch co kernel cho GPU"
+    else
+      miss "vllm / CUDA KHONG san sang - loi that:"
+      python -c "$vllm_chk" 2>&1 | tail -3 | sed 's/^/        /'
+      missing=$((missing + 1)); missing_names="${missing_names} vllm(chuoi-import/CUDA)"
+    fi
   fi
 
   log "Phien ban"
@@ -162,7 +188,8 @@ PY
   if [[ "$missing" -eq 0 ]]; then
     log "Day du cho '${which}'."
   else
-    die "Thieu ${missing} goi cho '${which}'. Cai bang: bash setup.sh ${which/all/eval}"
+    # Neu tren tin chi giu "Thieu N goi", dong nay ke ten de khong phai doan.
+    die "Thieu ${missing} goi cho '${which}':${missing_names}. Cai bang: bash setup.sh ${which/all/eval}"
   fi
 }
 

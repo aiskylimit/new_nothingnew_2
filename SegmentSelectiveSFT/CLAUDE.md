@@ -65,7 +65,7 @@ bash run_pipeline.sh --stages prep,split    # -> data/s1k/solution_segments.json
 
 # Default pipeline: attribution + selective SFT (assumes solution_segments.jsonl exists)
 bash run_pipeline.sh                        # = --stages ig,segments,train
-bash run_pipeline.sh --stages ig --force     # ig stage appends; --force clears the old file first
+bash run_pipeline.sh --stages ig --resume    # ig stage overwrites by default; --resume continues a partial run
 bash run_pipeline.sh --offline               # air-gapped: sets HF_HUB_OFFLINE + HF_DATASETS_OFFLINE
 bash run_pipeline.sh --segment-mode cue      # paper's backtracking-cue split instead of "\n\n"
 DRY_RUN=1 bash run_pipeline.sh
@@ -75,7 +75,8 @@ bash train.sh                       # selective SFT, LoRA — see config table b
 bash train.sh --full-sft            # baseline: supervise the whole CoT
 bash train.sh --full-finetune       # no LoRA (very heavy at seq 32768 on 7B)
 bash train.sh --epochs 5 --lr 1e-5 --gpu 1
-bash train.sh --lora-r 32 --lora-alpha 64 --target-modules "q_proj,v_proj"
+bash train.sh --lora-r 16 --lora-alpha 16 --target-modules "q_proj,v_proj"   # checkpoint dir gets _lora_r16; pass the same --lora-r to eval.sh
+bash train.sh --grad-accum 16 --ckpt-suffix _bs16   # batch isn't in the dir name; suffix keeps a new run from rotating out the old checkpoints (pass the same --ckpt-suffix to eval.sh)
 bash train.sh --no-grad-checkpoint  # faster, more VRAM
 bash train.sh --dry-run             # print commands only
 
@@ -104,7 +105,7 @@ All three wrappers take `--dry-run` and `-h`.
 |---|---|
 | Model | `Qwen/Qwen2.5-7B-Instruct` |
 | Data | `data/s1k/solutions_selected.jsonl` (from `simplescaling/s1K-1.1`) |
-| Tuning | LoRA r=16, alpha=16, dropout=0.05, bias=none |
+| Tuning | LoRA r=64, alpha=64, dropout=0.05, bias=none |
 | `target_modules` | `q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj` |
 | LR / epochs | 5e-5 / 3 |
 | Effective batch | 32 (`per_device 1` x `grad_accum 32` x 1 GPU) |
@@ -127,7 +128,7 @@ data/s1k/train.jsonl                 (question, solution, answer)
   ▼
 data/s1k/solution_segments.jsonl     (+ segments[])
   │  Attribution/grad_analyze.py — Integrated Gradients from each segment's tokens
-  │                                to the \boxed{answer} tokens (ig_steps=50)
+  │                                to the \boxed{answer} tokens (ig_steps=20; paper used 50)
   ▼
 Attribution/processed_data/s1k/IG.jsonl  +  IG_compact.jsonl
   │  Attribution/get_important_segments.py — per-segment score = sum|IG| / sqrt(len);
@@ -137,7 +138,7 @@ Attribution/processed_data/s1k/IG.jsonl  +  IG_compact.jsonl
 data/s1k/solutions_selected.jsonl    (+ selected_spans_ids[])
   │  SelectiveSFT/train_mask.py — labels = -100 except the selected segments
   ▼
-SelectiveSFT/checkpoints/<model>_epoch<E>_lr<LR>_len<L>[_fullsft][_lora]/checkpoint-<step>
+SelectiveSFT/checkpoints/<model>_epoch<E>_lr<LR>_len<L>[_fullsft][_lora_r<R>][<--ckpt-suffix>]/checkpoint-<step>
   │  SelectiveSFT/merge_lora.py (LoRA only) -> checkpoint-<step>-merged
   │  Eval/math_eval.py via eval.sh
   ▼
@@ -162,11 +163,12 @@ silently misalign every downstream span, and a zero-length segment divides by ze
 - **A sample whose labels are all `-100` yields `nan` loss and poisons the run.** This happens when
   `max_seq_length` truncates away the response. `train_mask.py` drops such samples in `.map()` and
   reports the count; it does not crash.
-- **The `ig` stage resumes by default.** It re-reads its output, checks each record's `question` against
-  the input, and continues from the first unprocessed sample; a truncated last line (from a `kill -9`) is
-  dropped. A mismatch stops the run rather than interleaving two different runs — pass `--overwrite` to
-  recompute from scratch. The output file is opened `'w'` on a fresh run and `'a'` when resuming, so a
-  re-run never silently duplicates records.
+- **The `ig` stage overwrites by default.** `grad_analyze.py` deletes its old `output_data_file` and
+  opens it `'w'`, so a re-run never silently duplicates or interleaves records. Pass `--resume`
+  (`run_pipeline.sh --resume` / `IG_RESUME=1`) to continue a partial run instead: it re-reads the
+  output, checks each record's `question` against the input, continues from the first unprocessed
+  sample and opens the file `'a'`; a truncated last line (from a `kill -9`) is dropped, and a mismatch
+  stops the run rather than mixing two different runs.
 - **Per-token IG is never needed downstream.** `get_important_segments.py` only uses
   `Σ|IG|`, `ΣIG` and the token count per segment (Eq 3), so `grad_analyze.py` also writes
   `IG_compact.jsonl` holding exactly those three numbers — ~25x smaller than `IG.jsonl`, with verified
@@ -180,6 +182,9 @@ silently misalign every downstream span, and a zero-length segment divides by ze
 - **Eval scripts must run with cwd = `Eval/`**: `parser.py`/`grader.py` do
   `from latex2sympy.latex2sympy2 import ...` (resolved via the local package dir), and `--data_dir`
   defaults to `../data`. All wrappers `cd` there.
+- **`acc` in `*_metrics.json` scores only the first sample of each question** (`evaluate.py`:
+  `mean_score[0]`), not the mean over `n_sampling`. `Eval/pass_at_k.py outputs_<tag> --k 1 3` recomputes
+  unbiased pass@k from the per-question `score` lists and macro-averages across tasks.
 - **`math_eval.py` skips a task whose `*_metrics.json` already exists** — that is what makes `eval.sh`
   resumable after a crash. The output filename encodes
   `num_test_sample/seed/temperature/n_sampling/max_tokens`, so a `--quick` run and a full run coexist
@@ -197,19 +202,31 @@ silently misalign every downstream span, and a zero-length segment divides by ze
 - **`data/` ships no datasets anymore.** The eval test sets (`data/<task>/test.jsonl` for aime24, amc23,
   gpqa, math500, minerva, olympiad) and the paper's LIMO files (`data/limo/*.jsonl`) were removed from
   the repo; `Eval/data_loader.py` has no HF fallback for those tasks, so `eval.sh` fails on a missing
-  `test.jsonl`. Restore them from `upstream/main` (`git checkout upstream/main -- data/<task>`) or
-  point `--data_dir` at a copy.
+  `test.jsonl`. `prepare_eval_data.py --data-root <dir>` builds `data/{aime24,aime25,math500,amc12}/test.jsonl`
+  from the HF snapshots listed in `downloads.txt` (`amc12` = `AI-MO/aimo-validation-amc`, 83 problems;
+  registered in `Eval/parser.py`'s answer-field list). For the other tasks restore from `upstream/main`
+  or point `--data_dir` at a copy.
 - **`downloads.txt` lists what an offline server must fetch beforehand** (one `--hf-dataset` /
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
-  (`baesad/s1K-1.1-deepseek-cot`) and `Qwen/Qwen2.5-7B-Instruct`. Pair with `run_pipeline.sh --offline`.
+  (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships a ready `train.jsonl`; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
+  `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
+  `commands.sh` is the per-stage command sheet for that server (one uv env per stage); it currently runs the full-CoT SFT baseline (LoRA r=16) end to end: prep -> train -> merge -> eval -> pass@k.
 
 ## Defaults worth knowing
 
-- Attribution model = training model = `Qwen/Qwen2.5-7B-Instruct` (the paper instead attributed with a
-  7B model and trained a 1.5B one; `run_pipeline.sh --attr-model` still separates them).
-- IG attribution is the expensive stage: `ig_steps=50` forward+backward passes over the full sequence
-  per sample, on a 7B model. Paragraph splitting also produces far more segments per trace (~100-500)
-  than the paper's cue splitting (~10-30), which changes how many segments clear the 70% mass threshold.
+- Attribution model ≠ training model, as in the paper: `run_pipeline.sh` attributes with
+  `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (the model that generated the s1K CoTs; paper App. C.3 uses
+  it in every setting, even when the trained model is Qwen2.5-7B-Instruct) and `train.sh` trains
+  `Qwen/Qwen2.5-7B-Instruct`. Both are listed in `downloads.txt`; `commands.sh` points `--attr-model` at
+  the R1-Distill directory. Attributing with Qwen2.5-7B-Instruct instead runs, but that model was never
+  trained on R1-style long CoT, so its IG scores are off-distribution relative to the paper's.
+- IG attribution is the expensive stage: `ig_steps=20` (paper: 50) forward+backward passes over the full
+  sequence per sample, on a 7B model. Model weights are frozen in `grad_analyze.py` — IG only needs
+  gradients w.r.t. `inputs_embeds`, and freezing stops every `Linear` from saving its input activation.
+  Paragraph splitting also produces far more segments per trace (~100-500) than the paper's cue
+  splitting (~10-30), which changes how many segments clear the 70% mass threshold.
+- **`--resume` does not check `ig_steps`.** It only compares each record's `question`, so resuming a
+  file produced with J=50 under J=20 silently mixes the two. Start a fresh `ig` run after changing J.
 - Eval benchmarks and samples/question: `aime24:32 amc23:32 math500:6 minerva:6 gpqa:6 olympiad:6`,
   temperature 0.6, top_p 1, max 32768 tokens, prompt type `deepseek-longcot` (the prompt string matches
   what `train_mask.py` builds, so training and eval stay aligned).

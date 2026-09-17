@@ -17,7 +17,7 @@ export GPUS="${GPUS:-1}"
 # ============================ TRAIN ============================
 # per model: data -> capture (spectral + entropy) -> masks -> four matched SFT arms.
 # IWC and IWC-Stable share exactly the spectral-selected token set; only weights differ.
-source /mnt/local/uvenvs/spectral_guided_learning/bin/activate
+source /mnt/local/uvenvs/spectral_guided_learning_train/bin/activate
 # qwen25-7b train đã xong (2 checkpoint iwc + iwc-stable có sẵn) -- tạm tắt để chỉ chạy eval.
 bash scripts/data/data_qwen25-7b.sh
 bash scripts/capture/capture_qwen25-7b.sh
