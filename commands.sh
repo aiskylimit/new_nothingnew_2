@@ -1,10 +1,10 @@
-#2 -0-5
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OPSD/opsd_4b_results_done_v3.zip
 #opsd
 #v1
 
 # cd P-ALIGN
 # # nvidia-smi
-# cd ./OPSD
+
 
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 
