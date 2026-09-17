@@ -1,7 +1,6 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/offline_rlsd_sdpo_b200/results_sdpo_4b_eval_step50.log +a
+#2 -0-10
 #tropic
 #v1
-
 
 # cd P-ALIGN
 # # nvidia-smi
