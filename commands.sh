@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/offline_rlsd_sdpo_b200/results_sdpo_8b_eval_step25.log +a
+#2 -0-10
 #tropic
 #v1
 
