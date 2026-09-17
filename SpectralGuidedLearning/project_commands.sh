@@ -10,6 +10,8 @@ BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 
 # Which GPU(s) every phase script runs on (space-separated ids). Override: GPUS="0 1" ./project_commands.sh
+CUDA_GPUS="${CUDA_VISIBLE_DEVICES:-}"
+export GPUS="${GPUS:-${CUDA_GPUS:+${CUDA_GPUS//,/ }}}"
 export GPUS="${GPUS:-1}"
 
 # ============================ TRAIN ============================
