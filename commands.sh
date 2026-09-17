@@ -54,8 +54,8 @@ export NCCL_DEBUG=WARN
 # cd ./offline_rlsd_sdpo_b200
 # bash project_commands.sh
 
-cd ./opsd
-bash project_commands.sh
+# cd ./opsd
+# bash project_commands.sh
 
 cd ./VLM_Distillation-main
 bash project_commands.sh
