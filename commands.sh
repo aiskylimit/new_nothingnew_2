@@ -1,5 +1,5 @@
-#1 +60
-#iwc
+#3
+#tropic
 #v1
 
 # cd P-ALIGN
@@ -7,7 +7,7 @@
 # cd SpectralGuidedLearning && bash project_commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 nvidia-smi
-cd SpectralGuidedLearning && GPUS=1 bash project_commands2.sh
+# cd SpectralGuidedLearning && GPUS=1 bash project_commands2.sh
 
 # kill -9 154023 154024
 
