@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OPSD/opsd_4b_results_done_v5.zip.part-ac +a
-#opsd
+#1 +10
+#kill
 #v1
 
 # cd P-ALIGN
@@ -7,6 +7,7 @@
 
 
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
+kill -9 97517 97518
 
 nvidia-smi
 # SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
