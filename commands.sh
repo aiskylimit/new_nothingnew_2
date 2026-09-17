@@ -1,4 +1,4 @@
-#1 +10
+#2
 #palign_sft
 #v1
 
@@ -59,5 +59,5 @@ export NCCL_DEBUG=WARN
 # cd ./VLM_Distillation-main
 # bash project_commands.sh
 
-cd ./palign_sft
-CUDA_VISIBLE_DEVICES=0,1 bash ./project_commands.sh
+# cd ./palign_sft
+# CUDA_VISIBLE_DEVICES=0,1 bash ./project_commands.sh
