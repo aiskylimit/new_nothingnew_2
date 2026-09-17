@@ -1,28 +1,18 @@
-#2 -0
-#tropic
+#1 +10
+#palign_sft
 #v1
 
 # cd P-ALIGN
 # # nvidia-smi
-
-
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
-# kill -9 97517 97518
+
 
 nvidia-smi
 
 # cd ./offline_rlsd_sdpo_b200
 # ls
 
-# SDXL_ENV=/mnt/local/uvenvs/sdxl-q3-offline-b200-2gpu
-# if [[ ! -x "$SDXL_ENV/bin/python" ]]; then
-#   echo "SDXL_ENV_MISSING=$SDXL_ENV"
-#   exit 1
-# fi
-# echo "SDXL_ENV_READY=$SDXL_ENV"
-# "$SDXL_ENV/bin/python" --version
-# nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu,power.draw --format=csv,noheader
-# nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_memory --format=csv,noheader || true
+
 export PATH=/usr/local/cuda/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
 export HF_HUB_OFFLINE=1
@@ -68,3 +58,6 @@ export NCCL_DEBUG=WARN
 
 # cd ./VLM_Distillation-main
 # bash project_commands.sh
+
+cd ./palign_sft
+CUDA_VISIBLE_DEVICES=0,1 bash ./project_commands.sh
