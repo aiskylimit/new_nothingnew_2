@@ -6,7 +6,7 @@ set -euo pipefail
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${BASE_PATH}"
 
-PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral-guided-learning}"
+PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
 INSTALL_FLASH_ATTN=false
 
 command -v uv >/dev/null || { echo "ERROR: uv not found" >&2; exit 1; }

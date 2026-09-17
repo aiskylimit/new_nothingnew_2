@@ -15,11 +15,11 @@ export GPUS="${GPUS:-1}"
 # ============================ TRAIN ============================
 # per model: data -> capture (spectral + entropy) -> masks -> four matched SFT arms.
 # IWC and IWC-Stable share exactly the spectral-selected token set; only weights differ.
-source /mnt/local/uvenvs/spectral_guided_learning_train/bin/activate
+# source /mnt/local/uvenvs/spectral_guided_learning_train/bin/activate
 # qwen25-7b train đã xong (2 checkpoint iwc + iwc-stable có sẵn) -- tạm tắt để chỉ chạy eval.
-bash scripts/data/data_qwen25-7b.sh
-bash scripts/capture/capture_qwen25-7b.sh
-bash scripts/masks/masks_qwen25-7b.sh
+# bash scripts/data/data_qwen25-7b.sh
+# bash scripts/capture/capture_qwen25-7b.sh
+# bash scripts/masks/masks_qwen25-7b.sh
 # bash scripts/masks/iwc_qwen25-7b.sh
 # bash scripts/spectral/spectral_qwen25-7b.sh
 # bash scripts/sft/sft_qwen25-7b.sh
@@ -28,11 +28,11 @@ bash scripts/masks/masks_qwen25-7b.sh
 # bash scripts/spectral/spectral_unsloth_qwen25-7b.sh
 # bash scripts/iwc/train_iwc_unsloth.sh qwen25-7b iwc
 # bash scripts/iwc/train_iwc_unsloth.sh qwen25-7b iwc-stable
-bash scripts/sft/sft_unsloth_qwen25-7b.sh
+# bash scripts/sft/sft_unsloth_qwen25-7b.sh
 
-bash scripts/data/data_qwen3-8b.sh
-bash scripts/capture/capture_qwen3-8b.sh
-bash scripts/masks/masks_qwen3-8b.sh
+# bash scripts/data/data_qwen3-8b.sh
+# bash scripts/capture/capture_qwen3-8b.sh
+# bash scripts/masks/masks_qwen3-8b.sh
 # bash scripts/masks/iwc_qwen3-8b.sh
 # bash scripts/spectral/spectral_qwen3-8b.sh
 # bash scripts/sft/sft_qwen3-8b.sh
@@ -41,9 +41,12 @@ bash scripts/masks/masks_qwen3-8b.sh
 # bash scripts/spectral/spectral_unsloth_qwen3-8b.sh
 # bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc
 # bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc-stable
-bash scripts/sft/sft_unsloth_qwen3-8b.sh
+# bash scripts/sft/sft_unsloth_qwen3-8b.sh
 
 # ============================ EVAL =============================
+# Leave the unsloth train env so each eval script activates the vLLM env (spectral-guided-learning).
+deactivate 2>/dev/null || true
+unset VIRTUAL_ENV
 # only the iwc / iwc-stable checkpoints (vanilla/spectral training is commented out above)
 
 # bash scripts/eval/eval_qwen25-7b.sh
@@ -62,4 +65,4 @@ bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-unsloth-qwen3-8b vanilla-
 
 # =========================== COMPARE ==========================
 # writes results/comparison-table.md and results/eval-summary.json
-python "${BASE}/src/compare_results.py"
+"${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" "${BASE}/src/compare_results.py"

@@ -14,7 +14,7 @@ set -euo pipefail
 
 STUDIO_ROOT="${STUDIO_ROOT:-/teamspace/studios/this_studio}"
 export GPUS="${GPUS:-0}"                                                    # single-GPU studio
-export PROJECT_ENV="${PROJECT_ENV:-${STUDIO_ROOT}/uvenvs/spectral-guided-learning}"
+export PROJECT_ENV="${PROJECT_ENV:-${STUDIO_ROOT}/uvenvs/spectral_guided_learning}"
 export LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-${STUDIO_ROOT}/models}"
 export DATASET_NAME="${DATASET_NAME:-simplescaling/s1K-1.1}"                # HF repo id directly
 export BENCH_DATA_ROOT=""                                                   # "" (set, not unset) -> evaluate.py also pulls straight from HF Hub
