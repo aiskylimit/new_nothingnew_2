@@ -283,6 +283,32 @@ def main() -> None:
         if len(at_k) != len(summaries):
             line += f" (over {len(at_k)}/{len(summaries)} benchmarks at k={k})"
     print(f"{line}  Overall length = {avg_length:.0f} tok -> {results_path}")
+    print_summary_table(tag, summaries)
+
+
+def print_summary_table(tag: str, summaries: list[dict]) -> None:
+    """Final per-benchmark table on stdout. Metrics only -- generations stay in raw/*.jsonl."""
+    k = max(s["samples_per_problem"] for s in summaries)
+    cols = ["benchmark", "pass@1"] + ([f"pass@{k}"] if k > 1 else []) + ["length", "truncated", "no_boxed", "n"]
+    rows = [
+        [
+            s["benchmark"],
+            f"{s['pass@1']:.1%}",
+            *([f"{s[f'pass@{k}']:.1%}" if f"pass@{k}" in s else "-"] if k > 1 else []),
+            f"{s['length']:.0f}",
+            f"{s['truncation_rate']:.1%}",
+            f"{s['no_boxed_answer_rate']:.1%}",
+            str(s["n_problems"]),
+        ]
+        for s in summaries
+    ]
+    widths = [max(len(c), *(len(r[i]) for r in rows)) for i, c in enumerate(cols)]
+    fmt = lambda r: "  ".join(v.ljust(w) if i == 0 else v.rjust(w) for i, (v, w) in enumerate(zip(r, widths)))
+    print(f"\n=== {tag} ===")
+    print(fmt(cols))
+    print("  ".join("-" * w for w in widths))
+    for r in rows:
+        print(fmt(r))
 
 
 if __name__ == "__main__":

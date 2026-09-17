@@ -65,4 +65,4 @@ bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-unsloth-qwen3-8b vanilla-
 
 # =========================== COMPARE ==========================
 # writes results/comparison-table.md and results/eval-summary.json
-"${PROJECT_ENV:-/mnt/local/uvenvs/spectral-guided-learning}/bin/python" "${BASE}/src/compare_results.py"
+"${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" "${BASE}/src/compare_results.py"

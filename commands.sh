@@ -1,11 +1,11 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/offline_rlsd_sdpo_b200/results_rlsd_4b_eval_step100.log
+#1 +120
 #tropic
 #v1
 
 # cd P-ALIGN
 # # nvidia-smi
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
-# cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh
+cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh
 
 nvidia-smi
 
@@ -59,5 +59,5 @@ export NCCL_DEBUG=WARN
 # cd ./VLM_Distillation-main
 # bash project_commands.sh
 
-cd ./palign_sft
-CUDA_VISIBLE_DEVICES=0,1 bash ./project_commands.sh
+# cd ./palign_sft
+# CUDA_VISIBLE_DEVICES=0,1 bash ./project_commands.sh
