@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Spectral experiment driver -- TRAIN everything, then EVAL, then compare.
+# The IWC arm has its own driver (project_commands_iwc.sh) so it can run on another GPU while
+# this one is busy; the two touch disjoint data/, checkpoints/, logs/ and results/<tag>/ paths.
 # Models: qwen25-7b, qwen3-8b (P-ALIGN's two student models). Dataset: s1K-1.1.
 # Comment out any line you don't want to run.
 #
@@ -10,6 +12,8 @@ BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 
 # Which GPU(s) every phase script runs on (space-separated ids). Override: GPUS="0 1" ./project_commands.sh
+CUDA_GPUS="${CUDA_VISIBLE_DEVICES:-}"
+export GPUS="${GPUS:-${CUDA_GPUS:+${CUDA_GPUS//,/ }}}"
 export GPUS="${GPUS:-1}"
 
 # ============================ TRAIN ============================
