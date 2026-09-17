@@ -11,7 +11,7 @@ Values marked **paper** are stated in the paper. Values marked **assumed** are n
 | Teacher (Long-CoT) | DeepSeek-R1 | data already in `data/palign_sft_qwen2.5-7b.json` | n/a (offline data) |
 | Method | SFT + LoRA | `finetuning_type: lora` | yes |
 | Framework | TRL + LLaMA-Factory | LLaMA-Factory `src/train.py` | yes |
-| Epochs | 3 | `num_train_epochs: 5.0` (cosine horizon), callback stops after epoch 3 (`PALIGN_STOP_EPOCH`) | trains 3, scheduler horizon 5 |
+| Epochs | 3 | `num_train_epochs: 3.0` | yes |
 | Learning rate | \(5 \times 10^{-5}\) | `5.0e-5` | yes |
 | Train set | 1,000 from s1K-1.1, Eq.9-filtered → 966 | local JSON, 966 rows | yes (file on disk) |
 | Loss | response only (Eq. 2) | `train_on_prompt: false` | yes |
