@@ -1,5 +1,5 @@
-#2 -3
-#vlm-distill
+#1 
+#tropic-olm
 #v1
 
 # cd P-ALIGN
@@ -7,6 +7,8 @@
 # cd SpectralGuidedLearning && bash project_commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 nvidia-smi
+cd ./offline_olmo7b_b200
+bash project_commands.sh
 # cd SpectralGuidedLearning && GPUS=1 bash project_commands2.sh
 
 # kill -9 154023 154024
