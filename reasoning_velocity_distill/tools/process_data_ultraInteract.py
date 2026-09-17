@@ -1,11 +1,16 @@
 import multiprocessing
 import os
 import time
+import torch
 import json
 import sys
 import random
 from pathlib import Path
-from data_utils.records import get_raw_prompt, get_response
+
+import numpy as np
+from data_utils.indexed_dataset import make_builder
+from transformers import AutoTokenizer
+from arguments import get_args
 
 random.seed(42)
 
@@ -15,62 +20,34 @@ class Encoder(object):
         self.args = args
 
     def initializer(self):
-        from transformers import AutoTokenizer
-
         Encoder.tokenizer = AutoTokenizer.from_pretrained(self.args.model_path)
 
     def encode(self, line):
-        raw_prompt = get_raw_prompt(line, Encoder.tokenizer)
-        response = get_response(line)
-        if isinstance(response, list):
-            response = response[0] if response else None
-        if not isinstance(response, str) or not response.strip():
-            raise ValueError("Preprocessing requires a nonempty reference response")
+        raw_prompt = line["prompt"]
+        response = line["generated_text"]
 
-        messages = []
-        if line.get("system_prompt"):
-            messages.append({"role": "system", "content": line["system_prompt"]})
-        messages.append({"role": "user", "content": raw_prompt})
+        messages = [
+            {"role": "user", "content": raw_prompt}
+        ]
         
         prompt_str = Encoder.tokenizer.apply_chat_template(
             messages, 
             tokenize=False, 
             add_generation_prompt=True
         )
-        # Insert teacher-only context inside the user turn, before the assistant header.
-        privileged_prompt = Encoder.tokenizer.apply_chat_template(
-            messages[:-1] + [{"role": "user", "content": raw_prompt + "{privileged_context}"}],
-            tokenize=False,
-            add_generation_prompt=True,
-        )
 
-        # Tokenize the two causal segments independently. Tokenizing their text
-        # concatenation can create a BPE token across the boundary, making the
-        # response IDs disagree with JSONL loading and step-span alignment.
         prompt_tokens = Encoder.tokenizer.encode(prompt_str, add_special_tokens=False)
-        response_tokens = Encoder.tokenizer.encode(response, add_special_tokens=False) + [
+        full_tokens = Encoder.tokenizer.encode(prompt_str + response, add_special_tokens=False) + [
             Encoder.tokenizer.eos_token_id]
 
-        # Match data_utils.lm_datasets._pack_example: retain the suffix so chat
-        # generation headers immediately before the response are not discarded.
-        prompt_tokens = prompt_tokens[-self.args.max_prompt_length:]
+        response_tokens = full_tokens[len(prompt_tokens):]
+
+        if len(prompt_tokens) > self.args.max_prompt_length:
+            prompt_tokens = prompt_tokens[:self.args.max_prompt_length]
             
         bytes_processed = len(prompt_str.encode('utf-8')) + len(response.encode('utf-8'))
 
-        return line, prompt_str, privileged_prompt, prompt_tokens, response_tokens, bytes_processed
-
-
-def processed_record(line, prompt, privileged_prompt):
-    # Raw question validity was already checked in the encoding worker.
-    record = dict(instruction=get_raw_prompt(line, None), prompt=prompt,
-                  privileged_prompt=privileged_prompt, output=get_response(line))
-    if "context" in line:
-        if not isinstance(line["context"], str) or not line["context"].strip():
-            raise ValueError("Prepared raw rows must contain nonempty context")
-        record["context"] = line["context"]
-    if line.get("system_prompt"):
-        record["system_prompt"] = line["system_prompt"]
-    return record
+        return line, prompt_str, prompt_tokens, response_tokens, bytes_processed
 
 
 def resolve_processed_data_dir(processed_data_dir, model_path, base_path=None):
@@ -89,11 +66,6 @@ def resolve_processed_data_dir(processed_data_dir, model_path, base_path=None):
 
 
 def main():
-    import torch
-    import numpy as np
-    from data_utils.indexed_dataset import make_builder
-    from arguments import get_args
-
     print("OK")
     args = get_args()
 
@@ -156,7 +128,7 @@ def main():
 
         json_file = open(os.path.join(args.processed_data_dir, f"{split}.jsonl"), "w")
 
-        for lid, (line, prompt_str, privileged_prompt, prompt, response, bytes_processed) in enumerate(encoded_docs):
+        for lid, (line, prompt_str, prompt, response, bytes_processed) in enumerate(encoded_docs):
             total_bytes_processed += bytes_processed
             if prompt is None:
                 continue
@@ -169,11 +141,11 @@ def main():
             else:
                 binary_builder.add_item(torch.IntTensor(prompt + [-1] + response))
 
-            # Carry context with its own row through splitting and unordered workers.
-            # The raw-source fingerprint stays in the original prepared JSONL;
-            # training reads context directly from these processed records.
-            json_file.write(json.dumps(processed_record(
-                line, prompt_str, privileged_prompt)) + "\n")
+            json_file.write(json.dumps({
+                "instruction": line["prompt"],
+                "prompt": prompt_str,
+                "output": line["generated_text"]
+            }) + "\n")
 
             prompt_lens.append(len(prompt))
             response_lens.append(len(response))

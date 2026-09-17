@@ -618,6 +618,39 @@ class KDPlumbingTests(unittest.TestCase):
         self.assertEqual(criterion.attention_layer, -2)
         self.assertEqual(criterion.min_vision_tokens, 8)
 
+    def test_scva_resolves_layer_pairs_once(self):
+        from src.model.scva_attention import resolve_layer_pairs
+
+        self.assertEqual(
+            resolve_layer_pairs(36, 36, n_pairs=4, low_pct=0.4, high_pct=0.7),
+            [(14, 14), (18, 18), (21, 21), (25, 25)],
+        )
+        self.assertEqual(
+            resolve_layer_pairs(36, 40, n_pairs=4, low_pct=0.4, high_pct=0.7),
+            [(14, 16), (18, 20), (21, 23), (25, 28)],
+        )
+
+    def test_scva_sparse_capture_returns_only_response_to_vision(self):
+        from src.model.scva_attention import capture_response_to_vision_attention
+
+        module = SimpleNamespace(
+            _scva_capture_enabled=True,
+            _scva_response_mask=torch.tensor([[False, False, False, True, True]]),
+            _scva_vision_mask=torch.tensor([[False, True, True, False, False]]),
+            num_key_value_groups=2,
+        )
+        query = torch.randn(1, 4, 5, 3)
+        key = torch.randn(1, 2, 5, 3)
+        causal_mask = torch.triu(torch.full((1, 1, 5, 5), float("-inf")), diagonal=1)
+
+        captured = capture_response_to_vision_attention(
+            module, query, key, causal_mask, scaling=3 ** -0.5
+        )
+
+        self.assertEqual(len(captured), 1)
+        self.assertEqual(tuple(captured[0].shape), (2, 2))
+        torch.testing.assert_close(captured[0].sum(dim=-1), torch.ones(2))
+
     def test_cgkd_reads_arguments(self):
         from src.criterions.cgkd import CGKDCriterion
 

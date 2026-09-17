@@ -13,7 +13,7 @@ SCRIPTS=(
   "train_qwen3_teacher_4b_fastvlm_student_05b_dwa_kd.sh"
   "train_qwen3_teacher_4b_fastvlm_student_05b_emkd.sh"
   # "train_qwen3_teacher_4b_fastvlm_student_05b_mcw_kd.sh"
-  "train_qwen3_teacher_4b_fastvlm_student_05b_sre.sh"
+  # "train_qwen3_teacher_4b_fastvlm_student_05b_sre.sh"
 )
 
 for script_name in "${SCRIPTS[@]}"; do

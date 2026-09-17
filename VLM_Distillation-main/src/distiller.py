@@ -6,7 +6,8 @@ import torch.nn as nn
 
 from src.arguments import ModelArguments, TrainingArguments
 from src.model.model import VLMModel
-from src.model.processor import load_processor
+from src.model.processor import QWEN2_5_VL, QWEN3_VL, load_processor
+from src.model.scva_attention import resolve_layer_pairs
 from src.utils import print_master, print_rank
 
 
@@ -49,9 +50,11 @@ class Distiller(nn.Module):
         super().__init__()
         self.model_args = model_args
         self.training_args = training_args
+        self.use_sparse_scva_attention = self._should_use_sparse_scva_attention()
 
         self.student = self._load_student()
         self.teacher = self._load_teacher()
+        self._configure_sparse_scva_attention()
 
         self.student_hidden_dim = self._infer_text_hidden_dim(self.student, model_args.student_hidden_dim)
         self.teacher_hidden_dim = self._infer_text_hidden_dim(self.teacher, model_args.teacher_hidden_dim)
@@ -82,7 +85,60 @@ class Distiller(nn.Module):
     # Model loading
     # ------------------------------------------------------------------
 
+    @staticmethod
+    def _is_sparse_scva_model(model_name: str, model_backbone: str | None) -> bool:
+        if model_backbone in {QWEN2_5_VL, QWEN3_VL}:
+            return True
+        normalized = (model_name or "").lower().replace("_", "-")
+        return "qwen2.5-vl" in normalized or "qwen3-vl" in normalized
+
+    def _should_use_sparse_scva_attention(self) -> bool:
+        kd_loss_type = (getattr(self.training_args, "kd_loss_type", "") or "").lower()
+        if kd_loss_type not in {"scva", "scva_cgkd", "draft"}:
+            return False
+        if not bool(getattr(self.training_args, "scva_sparse_attention", True)):
+            return False
+        student_ok = self._is_sparse_scva_model(
+            self.model_args.model_name,
+            self.model_args.model_backbone or self.model_args.model_type,
+        )
+        teacher_ok = self._is_sparse_scva_model(
+            self.model_args.teacher_model_name,
+            self.model_args.teacher_backbone,
+        )
+        return student_ok and teacher_ok
+
+    def _configure_sparse_scva_attention(self) -> None:
+        self.scva_layer_pairs = None
+        if not self.use_sparse_scva_attention:
+            return
+
+        student_layers = self.student.attention_layer_indices()
+        teacher_layers = self.teacher.attention_layer_indices()
+        if not student_layers or not teacher_layers:
+            raise RuntimeError("Sparse SCVA capture could not find Qwen decoder attention layers.")
+
+        pairs = resolve_layer_pairs(
+            len(student_layers),
+            len(teacher_layers),
+            n_pairs=int(getattr(self.training_args, "scva_n_layer_pairs", 4)),
+            low_pct=float(getattr(self.training_args, "scva_layer_low_pct", 0.4)),
+            high_pct=float(getattr(self.training_args, "scva_layer_high_pct", 0.7)),
+        )
+        if not pairs:
+            raise RuntimeError("Sparse SCVA resolved no student/teacher layer pairs.")
+
+        self.scva_layer_pairs = pairs
+        self.student.configure_scva_attention(s_idx for s_idx, _ in pairs)
+        self.teacher.configure_scva_attention(t_idx for _, t_idx in pairs)
+        print_master(
+            "Sparse SCVA attention enabled with SDPA backbone forward; "
+            f"selected layer pairs={pairs}."
+        )
+
     def _needs_attention_outputs(self) -> bool:
+        if getattr(self, "use_sparse_scva_attention", False):
+            return False
         kd_loss_type = (getattr(self.training_args, "kd_loss_type", "") or "").lower()
         attention_free_kd_losses = {
             "ce_only",
@@ -105,6 +161,8 @@ class Distiller(nn.Module):
         return kd_loss_type not in attention_free_kd_losses
 
     def _needs_vision_attention_outputs(self) -> bool:
+        if getattr(self, "use_sparse_scva_attention", False):
+            return False
         # SRE consumes text-decoder attention only.  Keeping the vision backend
         # on SDPA/Flash avoids eager vision attention without changing SRE.
         kd_loss_type = (getattr(self.training_args, "kd_loss_type", "") or "").lower()
@@ -138,6 +196,7 @@ class Distiller(nn.Module):
             self.model_args,
             output_attentions=self._needs_attention_outputs(),
             vision_output_attentions=self._needs_vision_attention_outputs(),
+            force_sdpa=self.use_sparse_scva_attention,
         )
         print_master("Student model built.")
         return student
@@ -153,6 +212,7 @@ class Distiller(nn.Module):
             is_trainable=False,
             output_attentions=self._needs_attention_outputs(),
             vision_output_attentions=self._needs_vision_attention_outputs(),
+            force_sdpa=self.use_sparse_scva_attention,
         )
         for param in teacher.parameters():
             param.requires_grad = False

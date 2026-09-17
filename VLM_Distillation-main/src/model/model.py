@@ -66,7 +66,13 @@ class VLMModel(nn.Module):
             setattr(config, name, value)
 
     @classmethod
-    def _force_eager_attention(cls, config, vision_output_attentions=True, output_attentions=True):
+    def _force_eager_attention(
+        cls,
+        config,
+        vision_output_attentions=True,
+        output_attentions=True,
+        force_sdpa=False,
+    ):
         sub_configs = {
             name: getattr(config, name, None)
             for name in ("text_config", "vision_config", "vision_config_2", "audio_config")
@@ -84,6 +90,9 @@ class VLMModel(nn.Module):
             # when a criterion (for example DWA-KD) does not consume attentions.
             config._attn_implementation = "eager"
             config.attn_implementation = "eager"
+        elif force_sdpa:
+            config._attn_implementation = "sdpa"
+            config.attn_implementation = "sdpa"
         config.output_attentions = output_attentions
         config.output_hidden_states = True
 
@@ -96,6 +105,9 @@ class VLMModel(nn.Module):
             if sub_output_attentions:
                 sub_config._attn_implementation = "eager"
                 sub_config.attn_implementation = "eager"
+            elif force_sdpa and getattr(sub_config, "model_type", None) != "timm_wrapper":
+                sub_config._attn_implementation = "sdpa"
+                sub_config.attn_implementation = "sdpa"
             elif sub_config_name.startswith("vision_config"):
                 # Setting the composite config to eager recursively mutates all
                 # sub-configs in Transformers.  Restore a fast backend for the
@@ -205,7 +217,81 @@ class VLMModel(nn.Module):
         forward_kwargs["output_attentions"] = self.output_attentions
         forward_kwargs["use_cache"] = False
 
-        return self.encoder(**forward_kwargs)
+        self._prepare_scva_capture(model_inputs)
+        try:
+            outputs = self.encoder(**forward_kwargs)
+            scva_attentions = self._collect_scva_captures()
+        finally:
+            self._clear_scva_capture_context()
+
+        if scva_attentions:
+            setattr(outputs, "scva_attentions", scva_attentions)
+        return outputs
+
+    def _scva_attention_modules(self):
+        return [
+            module for module in self.encoder.modules()
+            if getattr(module, "supports_scva_sparse_capture", False)
+            and getattr(module, "layer_idx", None) is not None
+        ]
+
+    def attention_layer_indices(self) -> list[int]:
+        return sorted({int(module.layer_idx) for module in self._scva_attention_modules()})
+
+    def configure_scva_attention(self, layer_indices) -> None:
+        selected = {int(index) for index in layer_indices}
+        available = set(self.attention_layer_indices())
+        missing = selected - available
+        if missing:
+            raise ValueError(f"SCVA requested unavailable decoder layers: {sorted(missing)}")
+        for module in self._scva_attention_modules():
+            module._scva_capture_enabled = int(module.layer_idx) in selected
+
+    def _prepare_scva_capture(self, model_inputs) -> None:
+        selected = [
+            module for module in self._scva_attention_modules()
+            if getattr(module, "_scva_capture_enabled", False)
+        ]
+        if not selected:
+            return
+
+        input_ids = model_inputs.get("input_ids")
+        labels = model_inputs.get("labels")
+        if not torch.is_tensor(input_ids) or not torch.is_tensor(labels):
+            return
+
+        vision_mask = torch.zeros_like(input_ids, dtype=torch.bool)
+        for token_attr in ("image_token_id", "video_token_id"):
+            token_id = getattr(self.config, token_attr, None)
+            if token_id is not None:
+                vision_mask |= input_ids.eq(int(token_id))
+        response_mask = labels.ne(-100)
+        attention_mask = model_inputs.get("attention_mask")
+        if torch.is_tensor(attention_mask) and attention_mask.ndim == 2:
+            valid = attention_mask.to(dtype=torch.bool, device=response_mask.device)
+            response_mask &= valid
+            vision_mask &= valid.to(vision_mask.device)
+
+        for module in selected:
+            module._scva_response_mask = response_mask
+            module._scva_vision_mask = vision_mask
+            module._scva_attention = None
+
+    def _collect_scva_captures(self):
+        captures = {}
+        for module in self._scva_attention_modules():
+            if not getattr(module, "_scva_capture_enabled", False):
+                continue
+            attention = getattr(module, "_scva_attention", None)
+            if attention is not None:
+                captures[int(module.layer_idx)] = attention
+        return captures
+
+    def _clear_scva_capture_context(self) -> None:
+        for module in self._scva_attention_modules():
+            module._scva_response_mask = None
+            module._scva_vision_mask = None
+            module._scva_attention = None
 
     def generate(self, **model_inputs):
         generation_kwargs = self._clean_model_inputs(model_inputs)
@@ -262,6 +348,7 @@ class VLMModel(nn.Module):
         model_name_or_path: str,
         output_attentions: bool = True,
         vision_output_attentions: bool | None = None,
+        force_sdpa: bool = False,
         **kwargs,
     ):
         config = AutoConfig.from_pretrained(model_name_or_path, trust_remote_code=True)
@@ -290,6 +377,7 @@ class VLMModel(nn.Module):
             config,
             vision_output_attentions=vision_output_attentions,
             output_attentions=output_attentions,
+            force_sdpa=force_sdpa,
         )
         config.padding_side = "left"
 
@@ -370,6 +458,7 @@ class VLMModel(nn.Module):
         model_args: ModelArguments,
         output_attentions: bool = True,
         vision_output_attentions: bool | None = None,
+        force_sdpa: bool = False,
         **kwargs,
     ):
         base_model, model_backbone = cls._load_base_model(
@@ -377,6 +466,7 @@ class VLMModel(nn.Module):
             model_args.model_name,
             output_attentions=output_attentions,
             vision_output_attentions=vision_output_attentions,
+            force_sdpa=force_sdpa,
             **kwargs,
         )
         encoder = cls._wrap_lora_if_needed(base_model, model_args, cls._model_path(model_args), is_trainable=True)
@@ -391,6 +481,7 @@ class VLMModel(nn.Module):
         is_trainable=True,
         output_attentions: bool = True,
         vision_output_attentions: bool | None = None,
+        force_sdpa: bool = False,
         **kwargs,
     ):
         model_name_or_path = cls._model_path(model_args)
@@ -402,6 +493,7 @@ class VLMModel(nn.Module):
             base_load_path,
             output_attentions=output_attentions,
             vision_output_attentions=vision_output_attentions,
+            force_sdpa=force_sdpa,
             **kwargs,
         )
         encoder = cls._wrap_lora_if_needed(base_model, model_args, model_name_or_path, is_trainable=is_trainable)

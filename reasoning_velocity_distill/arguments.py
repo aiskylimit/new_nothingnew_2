@@ -82,8 +82,7 @@ def add_data_args(parser: argparse.ArgumentParser):
     group.add_argument("--prompt-type", type=str, default=None)
     group.add_argument("--num-workers", type=int, default=1)
     group.add_argument("--max-prompt-length", type=int, default=512)
-    group.add_argument("--t-max-prompt-length", type=int, default=1536,
-                       help="Teacher prompt limit, including context in privileged distillation")
+    group.add_argument("--t-max-prompt-length", type=int, default=640)
     group.add_argument("--min-prompt-length", type=int, default=128)
     group.add_argument("--json-data", action="store_true")
     group.add_argument("--bin-data", action="store_true")
@@ -113,8 +112,8 @@ def add_hp_args(parser: argparse.ArgumentParser):
                        help='total number of iterations per epoch')
     group.add_argument('--max-length', type=int, default=1024,
                        help='max length of input')
-    group.add_argument('--t-max-length', type=int, default=2560,
-                       help='Teacher prompt + response limit in privileged distillation')
+    group.add_argument('--t-max-length', type=int, default=1024,
+                       help='max length of input')
     group.add_argument('--seed', type=int, default=1234,
                        help='random seed for reproducibility')
     group.add_argument("--seed-order", type=int, default=42)
@@ -193,48 +192,11 @@ def add_distillation_args(parser: argparse.ArgumentParser):
     group.add_argument("--gram-weight", type=float, default=1.0)
     group.add_argument("--logit-weight", type=float, default=1.0)
     group.add_argument("--distill-top-k", type=int, default=32,
-                       help="Teacher top-k vocabulary candidates per response position for distillation")
-    group.add_argument("--distill-temperature", type=float, default=1.0,
-                       help="Distillation temperature for teacher-selected top-k logits")
+                       help="Teacher vocabulary candidates per response prediction position")
+    group.add_argument("--distill-temperature", type=float, default=1.0)
 
-    # Explicit modes belong to finetune_v2; the original RVD entrypoint is unchanged.
-    group.add_argument("--distill-mode", choices=["off_policy", "on_policy", "privileged"], default=None)
-    group.add_argument("--kd-loss", choices=["fkl", "rkl", "sfkl", "srkl", "jsd", "tvd"], default=None)
-    group.add_argument("--skew-alpha", type=float, default=0.1)
-    group.add_argument("--off-policy-geometry", action="store_true",
-                       help="Enable magnitude/Gram losses for off_policy only (legacy flag)")
-    group.add_argument("--geometry", action="store_true",
-                       help="Enable magnitude/Gram losses for off_policy and privileged batches")
-    group.add_argument("--disable-lm-loss", action="store_true",
-                       help="Optimize distillation alone, without kd-ratio scaling")
-    group.add_argument("--privileged-trajectory", choices=["canonical", "student"], default="canonical",
-                       help="finetune_v2 privileged distillation requires canonical (dataset response)")
-    group.add_argument("--privileged-data-path", default=None,
-                       help="Full JSONL from prepare_privileged_data.py; uses cached teacher context with unchanged canonical responses")
-    group.add_argument("--privileged-dev-data-path", default=None,
-                       help="Optional row-aligned prepared context JSONL for the existing valid split")
-    group.add_argument("--privileged-context-field", default="context",
-                       help="JSONL field containing the context appended to the privileged teacher prompt")
-    group.add_argument("--privileged-context-template",
-                       default="\n\nAdditional context:\n{privileged_context}\n\n")
-    # Legacy alias for on_policy in finetune_v2.
+    # Retain this flag only to reject obsolete on-policy invocations clearly.
     group.add_argument("--student-gen", action="store_true", help=argparse.SUPPRESS)
-
-    from distillm.adaptive import AdaptiveConfig, DEPRECATED_ADAPTIVE_ARGUMENTS
-    defaults = AdaptiveConfig()
-    group.add_argument("--dual-adaptive-exposure", "--adaptive-on-policy",
-                       dest="adaptive_on_policy", action="store_true",
-                       help="Sample OFF/PRIV/ON once per optimizer step using dev teacher/student discrepancies")
-    for name in ("rho_priv_init", "rho_on_init", "rho_priv_max", "rho_on_max",
-                 "rho_priv_increment", "rho_on_increment"):
-        group.add_argument("--" + name.replace("_", "-"), type=float, default=getattr(defaults, name))
-    group.add_argument("--adaptive-deterioration-threshold", "--adaptive-threshold",
-                       dest="adaptive_deterioration_threshold", type=float,
-                       default=defaults.deterioration_threshold)
-    group.add_argument("--adaptive-eps", type=float, default=defaults.eps)
-    for name in DEPRECATED_ADAPTIVE_ARGUMENTS:
-        group.add_argument("--" + name.replace("_", "-"), default=argparse.SUPPRESS,
-                           help=argparse.SUPPRESS)
 
     return parser
 

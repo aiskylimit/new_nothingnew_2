@@ -1,7 +1,7 @@
 #!/bin/bash
 # Smoke test of the same env → data → train → merge → eval flow as
 # project_commands.sh, using local Qwen2.5-0.5B-Instruct and tiny splits.
-# Does not replace the 7B run. Production: bash project_commands.sh
+# Does not replace the 8B run. Production: bash project_commands.sh
 #
 #   bash project_commands_smoke.sh
 
@@ -33,6 +33,8 @@ export PYTHONUNBUFFERED=1
 export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
+# Make CUDA_VISIBLE_DEVICES indices match nvidia-smi (PCI order) instead of FASTEST_FIRST.
+export CUDA_DEVICE_ORDER=PCI_BUS_ID
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0}"
 
 NPROC_PER_NODE="${NPROC_PER_NODE:-1}"
@@ -56,6 +58,9 @@ fi
 python -c "import torch, transformers, llamafactory, vllm; print('env ok')"
 
 mkdir -p "$DATA_DIR/raw" output/log output/result "$SMOKE_RAW" output/smoke
+if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ] && [ -f "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" ]; then
+  gunzip -kc "$DATA_DIR/palign_sft_qwen2.5-7b.json.gz" > "$DATA_DIR/palign_sft_qwen2.5-7b.json"
+fi
 if [ ! -f "$DATA_DIR/palign_sft_qwen2.5-7b.json" ]; then
   echo "missing local train file $DATA_DIR/palign_sft_qwen2.5-7b.json" >&2
   exit 1
@@ -81,12 +86,14 @@ PY
 WORLD_SIZE=$((NPROC_PER_NODE * NNODES))
 GRAD_ACCUM=$((EFFECTIVE_BATCH / (PER_DEVICE_BS * WORLD_SIZE)))
 echo "SMOKE SFT nproc=${NPROC_PER_NODE} grad_accum=${GRAD_ACCUM} model=${SMOKE_MODEL}"
-torchrun \
-  --nproc_per_node "$NPROC_PER_NODE" \
-  --nnodes "$NNODES" \
-  --node_rank "$RANK" \
-  --master_addr "$MASTER_ADDR" \
-  --master_port "$MASTER_PORT" \
+# --standalone: cluster pods export PET_RDZV_* which otherwise hangs single-node rendezvous
+if [ "$NNODES" -eq 1 ]; then
+  LAUNCH_ARGS=(--standalone --nproc_per_node "$NPROC_PER_NODE")
+else
+  LAUNCH_ARGS=(--nproc_per_node "$NPROC_PER_NODE" --nnodes "$NNODES" --node_rank "$RANK"
+               --rdzv_backend static --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT")
+fi
+torchrun "${LAUNCH_ARGS[@]}" \
   src/train.py configs/qwen3_8b_palign_sft.yaml \
   model_name_or_path="$SMOKE_MODEL" \
   template=qwen \

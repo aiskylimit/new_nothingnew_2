@@ -2,11 +2,11 @@
 set -e
 
 PROJECT_DIR="$(pwd)"
-DOWNLOAD_ROOT=/mnt/local/aiskylimit_new_nothing/VLM_Distillation-main
+DOWNLOAD_ROOT=/mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main
 DOWNLOAD_DATA_DIR="${DOWNLOAD_ROOT}/train_data"
 DATA_DIR="${PROJECT_DIR}/train_data"
 
-source /mnt/local/uvenvs/vlm-distillation/bin/activate
+source /mnt/local/uvenvs/vlm-distill/bin/activate
 
 # Copy metadata into the relative train_data tree.  cmp also safely handles
 # the case where the download directory and code directory are the same.
@@ -29,5 +29,7 @@ fi
 
 #bash download_datatrain.sh
 
-export CUDA_VISIBLE_DEVICES=4,5,6,7
+export CUDA_VISIBLE_DEVICES=6,7
 bash script_train/run_baseline.sh
+
+# bash script_train/run_propose.sh
