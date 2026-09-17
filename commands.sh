@@ -1,11 +1,11 @@
-#i spectral_guided_learning.txt
-#tropic
+#1 +60
+#eval_sft
 #v1
 
 # cd P-ALIGN
 # # nvidia-smi
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
-# cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh
+cd SpectralGuidedLearning && GPUS=0 bash project_commands.sh
 
 nvidia-smi
 
