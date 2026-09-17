@@ -1,6 +1,6 @@
 #d
 #models
---hf Qwen/Qwen2-VL-7B-Instruct /mnt/local/aiskylimit_new_nothing/VLM_Distillation-main/models/Qwen/Qwen2-VL-7B-Instruct
+--hf Qwen/Qwen2-VL-7B-Instruct /mnt/local/aiskylimit_new_nothingnew_2/VLM_Distillation-main/models/Qwen/Qwen2-VL-7B-Instruct
 
 #vlm
 #v1
