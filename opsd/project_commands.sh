@@ -20,7 +20,7 @@ export NUM_PROCESSES=2
 export EVAL_TENSOR_PARALLEL_SIZE=2
 export VLLM_GPU_MEMORY_UTILIZATION=0.6
 export GPU_MEMORY_UTILIZATION=0.9
-export MAIN_PROCESS_PORT=19346
+export MAIN_PROCESS_PORT=auto
 
 python "${PROJECT_ROOT}/data/prepare_data.py" \
     --raw_root "${RAW_DATA_ROOT}" \
@@ -28,11 +28,11 @@ python "${PROJECT_ROOT}/data/prepare_data.py" \
     --overwrite
 
 # Evaluate each base model once, independently of method training and checkpoint evaluation.
-bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 4b
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b opsd
+# bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 4b
+# bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b opsd
 
-bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 8b
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b opsd
+# bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 8b
+# bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b opsd
 
 bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 4b
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b sft

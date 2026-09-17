@@ -15,9 +15,13 @@ export VLLM_LOGGING_LEVEL="${VLLM_LOGGING_LEVEL:-WARNING}"
 export BENCH_DATA_ROOT="${BENCH_DATA_ROOT-/mnt/local/_data/aiskylimit_new_nothingnew_2}"
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral-guided-learning}"
-if [[ -z "${VIRTUAL_ENV:-}" ]]; then
-  [[ -f "${PROJECT_ENV}/bin/activate" ]] || "${BASE_PATH}/scripts/setup.sh"
+PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
+# Always switch to the eval env: the driver may have left the unsloth train env active, which has no vLLM.
+if [[ "${VIRTUAL_ENV:-}" != "${PROJECT_ENV}" ]]; then
+  [[ -f "${PROJECT_ENV}/bin/activate" ]] || {
+    echo "ERROR: eval env not found at ${PROJECT_ENV}; build it from spectral_guided_learning.txt (repo root) or set PROJECT_ENV" >&2
+    exit 1
+  }
   source "${PROJECT_ENV}/bin/activate"
 fi
 export PYTHONPATH="${BASE_PATH}/src"
@@ -34,8 +38,8 @@ TEMPERATURE=0.6
 TOP_P=0.9
 REP_PENALTY=1.05      # P-ALIGN/scripts/Inference.sh
 N_SAMPLES=3           # P-ALIGN reports Pass@1 and Pass@3
-MAX_TOKENS=30720
-MAX_MODEL_LEN=32768
+MAX_TOKENS=3584          # MAX_MODEL_LEN minus ~512 tok prompt budget
+MAX_MODEL_LEN=4096
 GPU_MEM_UTIL=0.9
 SEED=42
 CHAT_TEMPLATE=true

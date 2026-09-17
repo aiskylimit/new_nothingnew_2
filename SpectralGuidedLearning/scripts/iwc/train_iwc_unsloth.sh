@@ -25,7 +25,7 @@ export HF_HUB_DISABLE_SYMLINKS_WARNING=1
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 # Unsloth needs its own venv (torch 2.9 / transformers 4.57 -- see spectral_guided_learning_train.txt);
 # the main env (torch 2.13 / vllm) cannot hold it, so never fall back to scripts/setup.sh here.
-PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral-guided-learning-train}"
+PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning_train}"
 if [[ -z "${VIRTUAL_ENV:-}" ]]; then
   [[ -f "${PROJECT_ENV}/bin/activate" ]] || {
     echo "ERROR: unsloth train env not found at ${PROJECT_ENV}; build it from spectral_guided_learning_train.txt or set PROJECT_ENV" >&2
