@@ -1,5 +1,5 @@
-#2 -34
-#opsd
+#1 +10
+#gpu
 #v1
 
 # cd P-ALIGN
