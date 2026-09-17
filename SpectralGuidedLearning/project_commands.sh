@@ -19,9 +19,9 @@ export GPUS="${GPUS:-1}"
 # IWC and IWC-Stable share exactly the spectral-selected token set; only weights differ.
 source /mnt/local/uvenvs/spectral_guided_learning_train/bin/activate
 # qwen25-7b train đã xong (2 checkpoint iwc + iwc-stable có sẵn) -- tạm tắt để chỉ chạy eval.
-bash scripts/data/data_qwen25-7b.sh
-bash scripts/capture/capture_qwen25-7b.sh
-bash scripts/masks/masks_qwen25-7b.sh
+# bash scripts/data/data_qwen25-7b.sh
+# bash scripts/capture/capture_qwen25-7b.sh
+# bash scripts/masks/masks_qwen25-7b.sh
 # bash scripts/masks/iwc_qwen25-7b.sh
 # bash scripts/spectral/spectral_qwen25-7b.sh
 # bash scripts/sft/sft_qwen25-7b.sh
@@ -30,20 +30,20 @@ bash scripts/masks/masks_qwen25-7b.sh
 # bash scripts/spectral/spectral_unsloth_qwen25-7b.sh
 # bash scripts/iwc/train_iwc_unsloth.sh qwen25-7b iwc
 # bash scripts/iwc/train_iwc_unsloth.sh qwen25-7b iwc-stable
-bash scripts/sft/sft_unsloth_qwen25-7b.sh
+# bash scripts/sft/sft_unsloth_qwen25-7b.sh
 
 bash scripts/data/data_qwen3-8b.sh
 bash scripts/capture/capture_qwen3-8b.sh
-bash scripts/masks/masks_qwen3-8b.sh
-# bash scripts/masks/iwc_qwen3-8b.sh
+# bash scripts/masks/masks_qwen3-8b.sh
+bash scripts/masks/iwc_qwen3-8b.sh
 # bash scripts/spectral/spectral_qwen3-8b.sh
 # bash scripts/sft/sft_qwen3-8b.sh
 # bash scripts/iwc/train_iwc.sh qwen3-8b iwc
 # bash scripts/iwc/train_iwc.sh qwen3-8b iwc-stable
 # bash scripts/spectral/spectral_unsloth_qwen3-8b.sh
-# bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc
+bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc
 # bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc-stable
-bash scripts/sft/sft_unsloth_qwen3-8b.sh
+# bash scripts/sft/sft_unsloth_qwen3-8b.sh
 
 # ============================ EVAL =============================
 # only the iwc / iwc-stable checkpoints (vanilla/spectral training is commented out above)
@@ -54,13 +54,14 @@ bash scripts/sft/sft_unsloth_qwen3-8b.sh
 # bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-stable-qwen25-7b iwc-stable-qwen25-7b
 # bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-unsloth-qwen25-7b iwc-unsloth-qwen25-7b
 # bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-stable-unsloth-qwen25-7b iwc-stable-unsloth-qwen25-7b
-bash scripts/eval/eval_qwen25-7b.sh checkpoints/vanilla-unsloth-qwen25-7b vanilla-unsloth-qwen25-7b
+# bash scripts/eval/eval_qwen25-7b.sh checkpoints/vanilla-unsloth-qwen25-7b vanilla-unsloth-qwen25-7b
 
 # bash scripts/eval/eval_qwen3-8b.sh
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-qwen3-8b vanilla-qwen3-8b
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-qwen3-8b iwc-qwen3-8b
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-stable-qwen3-8b iwc-stable-qwen3-8b
-bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-unsloth-qwen3-8b vanilla-unsloth-qwen3-8b
+# bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-unsloth-qwen3-8b vanilla-unsloth-qwen3-8b
+bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-unsloth-qwen3-8b iwc-unsloth-qwen3-8b
 
 # =========================== COMPARE ==========================
 # writes results/comparison-table.md and results/eval-summary.json
