@@ -1,11 +1,11 @@
-#2 -0-10
+#1 +60
 #sft_longcot
 #v1
 
-# cd SpectralGuidedLearning
+cd SpectralGuidedLearning
 # cd P-ALIGN
-# nvidia-smi
-# CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
+nvidia-smi
+CUDA_VISIBLE_DEVICES=0 bash project_commands.sh
 
 
 nvidia-smi
