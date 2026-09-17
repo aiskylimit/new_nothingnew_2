@@ -1,5 +1,5 @@
-#1 +10
-#VLM_Distillation
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/offline_rlsd_sdpo_b200/results_sdpo_8b_eval_step25.log +a
+#tropic
 #v1
 
 # cd P-ALIGN
@@ -57,5 +57,5 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash project_commands.sh
 
-cd ./VLM_Distillation-main
-bash project_commands.sh
+# cd ./VLM_Distillation-main
+# bash project_commands.sh
