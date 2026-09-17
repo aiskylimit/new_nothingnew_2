@@ -84,6 +84,45 @@ eval_checkpoint() {
       2>&1 | tee "${output_dir}_eval_step${step}.log"
 }
 
+# Aggregates avg@12/pass@12 lines from whichever eval log(s) match the given
+# glob pattern(s) into one JSON + printed table - called separately for
+# RLSD+SDPO (so those results are visible as soon as the baselines finish,
+# without waiting on TROPIC-G) and again at the very end for everything.
+aggregate_results() {
+  local outfile=$1
+  shift
+  python - "$outfile" "$@" <<'PYEOF'
+import glob, json, re, sys
+
+outfile = sys.argv[1]
+patterns = sys.argv[2:]
+
+pattern = re.compile(
+    r"\[(?P<tag>[\w]+)_step(?P<step>\d+)\]\s+(?P<bench>aime25|aime26|hmmt25)\s+"
+    r"avg@12=(?P<avg>[\d.]+)\s+pass@12=(?P<pass_>[\d.]+)"
+)
+files = []
+for p in patterns:
+    files.extend(glob.glob(p))
+rows = []
+for path in sorted(set(files)):
+    text = open(path, encoding="utf-8", errors="replace").read()
+    for m in pattern.finditer(text):
+        rows.append({
+            "file": path, "tag": m["tag"], "step": int(m["step"]), "benchmark": m["bench"],
+            "avg@12": float(m["avg"]), "pass@12": float(m["pass_"]),
+        })
+
+with open(outfile, "w") as f:
+    json.dump(rows, f, indent=2)
+
+print(f"{'tag':<16} {'step':>4}  {'benchmark':<8} {'avg@12':>7} {'pass@12':>8}")
+for r in rows:
+    print(f"{r['tag']:<16} {r['step']:>4}  {r['benchmark']:<8} {r['avg@12']:>7.3f} {r['pass@12']:>8.3f}")
+print(f"\n{len(rows)} rows written to {outfile}")
+PYEOF
+}
+
 # ============================================================
 # 3. Dry run first - a few training steps on RLSD/OLMo, to surface
 #    path/GPU/env mistakes cheaply AND to sanity-check the empty-think-
@@ -93,13 +132,11 @@ eval_checkpoint() {
 train_dry_run run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
 
 # ============================================================
-# 4. Train + eval RLSD, then SDPO, then TROPIC-G (fullvocab, then top-k64) on
-#    OLMo-3-7B-Think - EACH METHOD'S TRAIN+EVAL FULLY FINISHES before the next
-#    one starts (per user's explicit request: RLSD/SDPO are the baselines and
-#    must be completely done before TROPIC, the proposal, begins). RLSD/SDPO/
-#    TROPIC-G already ran on Qwen3-4B/8B separately (offline_rlsd_sdpo_b200/,
-#    offline_tropic_g_b200/) - this folder is only the OLMo addition, not a
-#    re-run of those.
+# 4. Train + eval RLSD, then SDPO on OLMo-3-7B-Think - EACH METHOD'S TRAIN+EVAL
+#    FULLY FINISHES before the next one starts. Baselines only: results print
+#    immediately below once both are done, WITHOUT waiting on TROPIC-G. RLSD/
+#    SDPO already ran on Qwen3-4B/8B separately (offline_rlsd_sdpo_b200/) -
+#    this folder is only the OLMo addition, not a re-run of those.
 # ============================================================
 train run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
 for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b rlsd "$step"; done
@@ -107,6 +144,17 @@ for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_olmo7b.py 
 train run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b
 for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b sdpo "$step"; done
 
+aggregate_results baseline_results.json "results_rlsd_olmo7b_eval_step*.log" "results_sdpo_olmo7b_eval_step*.log"
+echo "RLSD+SDPO DONE - see baseline_results.json for the aggregated table (TROPIC-G still running below)."
+
+# ============================================================
+# 5. Train + eval TROPIC-G (fullvocab, then top-k64) - the proposal, runs only
+#    after RLSD+SDPO above are completely done. Already ran on Qwen3-4B/8B
+#    separately (offline_tropic_g_b200/) - this is only the OLMo addition.
+#    Check its own results later with a separate command (grep the
+#    results_tropic_g*_eval_step*.log files, or re-run aggregate_results
+#    against them) rather than waiting on this script to finish.
+# ============================================================
 train run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b tropic_g_olmo "$step"; done
 
@@ -114,31 +162,8 @@ train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo "$step"; done
 
 # ============================================================
-# 5. Aggregate every avg@12/pass@12 line into one final table + JSON.
+# 6. Aggregate every avg@12/pass@12 line (all 4 methods) into one final
+#    table + JSON.
 # ============================================================
-python - <<'PYEOF'
-import glob, json, re
-
-pattern = re.compile(
-    r"\[(?P<tag>[\w]+)_step(?P<step>\d+)\]\s+(?P<bench>aime25|aime26|hmmt25)\s+"
-    r"avg@12=(?P<avg>[\d.]+)\s+pass@12=(?P<pass_>[\d.]+)"
-)
-rows = []
-for path in sorted(glob.glob("results_*_eval_step*.log")):
-    text = open(path, encoding="utf-8", errors="replace").read()
-    for m in pattern.finditer(text):
-        rows.append({
-            "file": path, "tag": m["tag"], "step": int(m["step"]), "benchmark": m["bench"],
-            "avg@12": float(m["avg"]), "pass@12": float(m["pass_"]),
-        })
-
-with open("final_results.json", "w") as f:
-    json.dump(rows, f, indent=2)
-
-print(f"{'tag':<16} {'step':>4}  {'benchmark':<8} {'avg@12':>7} {'pass@12':>8}")
-for r in rows:
-    print(f"{r['tag']:<16} {r['step']:>4}  {r['benchmark']:<8} {r['avg@12']:>7.3f} {r['pass@12']:>8.3f}")
-print(f"\n{len(rows)} rows written to final_results.json")
-PYEOF
-
+aggregate_results final_results.json "results_*_eval_step*.log"
 echo "ALL DONE - see final_results.json for the aggregated table."
