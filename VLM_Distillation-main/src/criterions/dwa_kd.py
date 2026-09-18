@@ -334,6 +334,27 @@ class DWAKDCriterion(VariousDivergence):
         for index in range(student_embs.shape[0]):
             student_positions = student_mask[index].nonzero(as_tuple=False).flatten()
             teacher_positions = teacher_mask[index].nonzero(as_tuple=False).flatten()
+
+            # Keep the CUDA Soft-DTW launch below its practical per-block
+            # resource limit while preserving coverage of the full sequence.
+            max_dtw_tokens = 768
+            if student_positions.numel() > max_dtw_tokens:
+                selected = torch.linspace(
+                    0,
+                    student_positions.numel() - 1,
+                    steps=max_dtw_tokens,
+                    device=student_positions.device,
+                ).round().long()
+                student_positions = student_positions.index_select(0, selected)
+            if teacher_positions.numel() > max_dtw_tokens:
+                selected = torch.linspace(
+                    0,
+                    teacher_positions.numel() - 1,
+                    steps=max_dtw_tokens,
+                    device=teacher_positions.device,
+                ).round().long()
+                teacher_positions = teacher_positions.index_select(0, selected)
+
             student_len = int(student_positions.numel())
             teacher_len = int(teacher_positions.numel())
             if student_len == 0 or teacher_len == 0:
