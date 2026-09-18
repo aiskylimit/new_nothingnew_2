@@ -1,7 +1,4 @@
-#d
-#models
---hf allenai/Olmo-3-7B-Think /mnt/local/@PROJECT@/tropic_baselines/models/Olmo-3-7B-Think
-
+#1
 #tropic-olmo
 #v1
 
@@ -10,8 +7,8 @@
 # cd SpectralGuidedLearning && bash project_commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 nvidia-smi
-# cd ./offline_olmo7b_b200
-# bash project_commands.sh
+cd ./offline_olmo7b_b200
+bash project_commands.sh
 # cd SpectralGuidedLearning && GPUS=1 bash project_commands2.sh
 
 # kill -9 155157 155158
