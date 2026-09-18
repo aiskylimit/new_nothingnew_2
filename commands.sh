@@ -1,4 +1,7 @@
-#2 -0-10
+#d
+#datasets
+--hf-dataset baesad/s1K-1.1-deepseek-cot /mnt/local/_data/@PROJECT@/s1k
+
 #ssft_8b
 #v1
 
