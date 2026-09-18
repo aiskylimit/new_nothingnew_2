@@ -1,4 +1,4 @@
-#2 -0
+#i tropic.txt
 #tropic-olmo
 #v1
 
