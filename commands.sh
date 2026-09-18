@@ -1,6 +1,6 @@
 #2 -0
 #tropic-olmo
-#v1
+#v2
 
 # cd P-ALIGN
 # # nvidia-smi
