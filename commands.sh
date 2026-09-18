@@ -1,5 +1,5 @@
-#2 -0-10
-#ssft_8b
+#1 +10
+#vlm_baseline
 #v1
 
 # cd P-ALIGN
@@ -62,5 +62,5 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash project_commands.sh
 
-# cd ./VLM_Distillation-main
-# bash project_commands.sh
+cd ./VLM_Distillation-main
+bash project_commands.sh
