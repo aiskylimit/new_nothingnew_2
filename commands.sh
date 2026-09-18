@@ -1,9 +1,9 @@
-#2 -0
+#1 +10
 #reeval
 #v1
 
 # cd P-ALIGN
-# nvidia-smi
+nvidia-smi
 # cd SpectralGuidedLearning && GPUS=0 bash project_commands2.sh
 # cd SpectralGuidedLearning && bash project_commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
