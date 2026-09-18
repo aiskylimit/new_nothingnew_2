@@ -32,7 +32,9 @@ export GPUS="${GPUS:-0}"
 bash scripts/data/data_qwen3-8b.sh
 bash scripts/capture/capture_qwen3-8b.sh
 bash scripts/masks/iwc_qwen3-8b.sh
-bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc
+bash scripts/iwc/train_iwc.sh qwen3-8b iwc
+# bash scripts/iwc/train_iwc.sh qwen3-8b iwc-stable
+# bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc
 # bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc-stable
 
 # ============================ EVAL =============================
@@ -43,7 +45,9 @@ unset VIRTUAL_ENV
 # bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-unsloth-qwen25-7b iwc-unsloth-qwen25-7b
 # bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-stable-unsloth-qwen25-7b iwc-stable-unsloth-qwen25-7b
 
-bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-unsloth-qwen3-8b iwc-unsloth-qwen3-8b
+bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-qwen3-8b iwc-qwen3-8b
+# bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-stable-qwen3-8b iwc-stable-qwen3-8b
+# bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-unsloth-qwen3-8b iwc-unsloth-qwen3-8b
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-stable-unsloth-qwen3-8b iwc-stable-unsloth-qwen3-8b
 
 # =========================== COMPARE ==========================
