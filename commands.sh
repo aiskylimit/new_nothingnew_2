@@ -1,5 +1,5 @@
-#1 +60
-#ssft_8b
+#3
+#vlm
 #v1
 
 # cd P-ALIGN
