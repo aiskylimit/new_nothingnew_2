@@ -9,11 +9,11 @@ export PROJECT_DIR
 
 SCRIPTS=(
   # "train_qwen2_teacher_7b_fastvlm_student_05b_ce_only.sh"
-  "train_qwen2_teacher_7b_fastvlm_student_05b_dskd_v2_with_eta.sh"
+  # "train_qwen2_teacher_7b_fastvlm_student_05b_dskd_v2_with_eta.sh"
   "train_qwen2_teacher_7b_fastvlm_student_05b_dwa_kd.sh"
   "train_qwen2_teacher_7b_fastvlm_student_05b_emkd.sh"
-  # "train_qwen2_teacher_7b_fastvlm_student_05b_mcw_kd.sh"
-  # "train_qwen2_teacher_7b_fastvlm_student_05b_sre.sh"
+  "train_qwen2_teacher_7b_fastvlm_student_05b_mcw_kd.sh"
+  "train_qwen2_teacher_7b_fastvlm_student_05b_sre.sh"
 )
 
 for script_name in "${SCRIPTS[@]}"; do
