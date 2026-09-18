@@ -4,7 +4,7 @@ cd "$(dirname "$0")"
 export PYTHONPATH=.
 
 source /mnt/local/uvenvs/tropic/bin/activate
-
+pip install --upgrade "transformers==4.57.6"
 # ============================================================
 # 1. Paths - MUST match how download.txt's @PROJECT@ was actually resolved.
 #    Fill in PROJECT_NAME before running. Dataset paths reuse the SAME
