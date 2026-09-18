@@ -1,6 +1,6 @@
 #2 -0-15
 #vlm_baseline
-#v2
+#v1
 
 # cd P-ALIGN
 nvidia-smi
