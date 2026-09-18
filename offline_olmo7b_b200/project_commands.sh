@@ -12,7 +12,7 @@ source /mnt/local/uvenvs/tropic/bin/activate
 #    download.txt (already downloaded there if those ran first under the
 #    same @PROJECT@) - only the OLMo model itself is new.
 # ============================================================
-PROJECT_NAME="CHANGE_ME"
+PROJECT_NAME="aiskylimit_new_nothingnew_2"
 BASE_DIR="/mnt/local/${PROJECT_NAME}/tropic_baselines"
 MODEL_OLMO="${BASE_DIR}/models/Olmo-3-7B-Think"
 export TROPIC_TRAIN_DATA_PATH="${BASE_DIR}/data/train"
