@@ -10,6 +10,7 @@
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
 nvidia-smi
+cd SpectralGuidedLearning && GPUS=0 bash scripts/eval/reeval_all.sh
 
 # kill -9 155157 155158
 
