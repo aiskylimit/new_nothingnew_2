@@ -1,4 +1,4 @@
-#2 -0-20
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/results/comparison-table.md
 #vlm_baseline
 #v2
 
