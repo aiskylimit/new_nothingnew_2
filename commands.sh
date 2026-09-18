@@ -1,5 +1,8 @@
-#2 -0-10
-#checkgpu
+#d
+#models
+--hf allenai/Olmo-3-7B-Think /mnt/local/@PROJECT@/tropic_baselines/models/Olmo-3-7B-Think
+
+#tropic-olmo
 #v1
 
 # cd P-ALIGN
