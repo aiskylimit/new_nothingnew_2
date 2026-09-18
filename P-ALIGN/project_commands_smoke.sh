@@ -1,7 +1,7 @@
 #!/bin/bash
-# Smoke test of the same env → data → train → merge → eval flow as
+# Smoke test of the same env → data → train → eval flow as
 # project_commands.sh, using local Qwen2.5-0.5B-Instruct and tiny splits.
-# Does not replace the 8B run. Production: bash project_commands.sh
+# Does not replace the 7B run. Production: bash project_commands.sh
 #
 #   bash project_commands_smoke.sh
 
@@ -46,8 +46,7 @@ EFFECTIVE_BATCH=2
 PER_DEVICE_BS=1
 SMOKE_N="${SMOKE_N:-1}"
 SMOKE_MODEL="${SMOKE_MODEL:-$ROOT/models/Qwen2.5-0.5B-Instruct}"
-SMOKE_LORA="${SMOKE_LORA:-output/smoke/palign-qwen2.5-0.5b-instruct-lora}"
-SMOKE_MERGED="${SMOKE_MERGED:-output/smoke/palign-qwen2.5-0.5b-instruct-lora-merged}"
+SMOKE_OUT="${SMOKE_OUT:-output/smoke/palign-qwen2.5-0.5b-instruct-full}"
 SMOKE_RAW="${SMOKE_RAW:-output/smoke/raw}"
 
 if [ ! -f "$SMOKE_MODEL/config.json" ]; then
@@ -94,10 +93,10 @@ else
                --rdzv_backend static --rdzv_endpoint "$MASTER_ADDR:$MASTER_PORT")
 fi
 torchrun "${LAUNCH_ARGS[@]}" \
-  src/train.py configs/qwen3_8b_palign_sft.yaml \
+  src/train.py configs/qwen25_7b_palign_sft.yaml \
   model_name_or_path="$SMOKE_MODEL" \
   template=qwen \
-  output_dir="$SMOKE_LORA" \
+  output_dir="$SMOKE_OUT" \
   cutoff_len=1024 \
   max_samples=4 \
   max_steps=2 \
@@ -109,15 +108,8 @@ torchrun "${LAUNCH_ARGS[@]}" \
   gradient_checkpointing=false \
   gradient_accumulation_steps="$GRAD_ACCUM"
 
-llamafactory-cli export configs/qwen3_8b_palign_export.yaml \
-  model_name_or_path="$SMOKE_MODEL" \
-  template=qwen \
-  adapter_name_or_path="$SMOKE_LORA" \
-  export_dir="$SMOKE_MERGED" \
-  export_size=2
-
 python src/test.py \
-  --model "$SMOKE_MERGED" \
+  --model "$SMOKE_OUT" \
   --input_files "$SMOKE_RAW/aime25.jsonl" "$SMOKE_RAW/aime24.jsonl" "$SMOKE_RAW/amc12.jsonl" "$SMOKE_RAW/math500.jsonl" \
   --output_files output/result/aime25.jsonl output/result/aime24.jsonl output/result/amc12.jsonl output/result/math500.jsonl \
   --batch_size 8 \

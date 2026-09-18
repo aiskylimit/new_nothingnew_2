@@ -1,15 +1,17 @@
-# P-ALIGN hyperparameters vs paper (Qwen3-8B)
+# P-ALIGN hyperparameters vs paper (Qwen2.5-7B-Instruct)
 
 Paper: [Long-Chain Reasoning Distillation via Adaptive Prefix Alignment](https://arxiv.org/pdf/2601.10064).
-Values marked **paper** are stated in the paper. Values marked **assumed** are not published and are set in `configs/qwen3_8b_palign_sft.yaml` / `project_commands.sh`.
+Values marked **paper** are stated in the paper. Values marked **assumed** are not published and are set in `configs/qwen25_7b_palign_sft.yaml` / `project_commands.sh`.
+
+This run uses **full-parameter SFT** (not LoRA) on **Qwen2.5-7B-Instruct**.
 
 ## Match check
 
 | Item | Paper | This repo | Match |
 |---|---|---|---|
-| Student | Qwen2.5-7B-Instruct (also Qwen3-8B) | `Qwen/Qwen3-8B` (`template: qwen3`, `enable_thinking: false`) | yes |
+| Student | Qwen2.5-7B-Instruct (also Qwen3-8B) | `Qwen/Qwen2.5-7B-Instruct` (`template: qwen`) | yes |
 | Teacher (Long-CoT) | DeepSeek-R1 | data already in `data/palign_sft_qwen2.5-7b.json` | n/a (offline data) |
-| Method | SFT + LoRA | `finetuning_type: lora` | yes |
+| Method | SFT + LoRA | `finetuning_type: full` | no (full params) |
 | Framework | TRL + LLaMA-Factory | LLaMA-Factory `src/train.py` | yes |
 | Epochs | 3 | `num_train_epochs: 3.0` | yes |
 | Learning rate | \(5 \times 10^{-5}\) | `5.0e-5` | yes |
@@ -23,18 +25,15 @@ Values marked **paper** are stated in the paper. Values marked **assumed** are n
 | `repetition_penalty` | not stated | `1.05` | eval default |
 | Samples / problem | AIME/AMC 32, MATH500 8 | `k=3` all benchmarks | eval uses k=3 |
 | Max response | 32768 | `--max_tokens 4096` | eval uses 4096 |
-| LoRA rank | 16 | `lora_rank: 16` | yes |
-| LoRA alpha | 16 | `lora_alpha: 16` | yes |
-| LoRA dropout | 0.05 | `lora_dropout: 0.05` | yes |
-| LoRA targets | q/k/v/o + gate/up/down | `q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj` | yes |
+| Adapter | LoRA rank/alpha 16, dropout 0.05 | none (full weights) | no |
 | Effective batch | 32 samples/step | `per_device=1 × grad_accum=32` (EFFECTIVE_BATCH=32) | yes |
 | Optimizer | AdamW, β=(0.9, 0.999), eps default, wd=0 | `adamw_torch`, same β/eps/wd | yes |
-| Scheduler | cosine + warmup, warmup_ratio 0.1 (LambdaLR) | `lr_scheduler_type: cosine`, `warmup_steps: 0.1` | yes |
+| Scheduler | cosine + warmup, warmup_ratio 0.1 (LambdaLR) | `lr_scheduler_type: cosine`, `warmup_ratio: 0.1` | yes |
 | Max sequence length | 32768 | `cutoff_len: 32768` | yes |
 | Precision | not stated | bf16 | assumed |
 | Grad checkpoint | not stated | `true` | assumed |
 
-## Paper Table 1 (P-ALIGN, Qwen2.5-7B-Instruct) — reference only (Qwen3-8B row not in this table)
+## Paper Table 1 (P-ALIGN, Qwen2.5-7B-Instruct) — LoRA reference
 
 | Metric | AIME25 | AIME24 | AMC12 | MATH500 | Avg. |
 |---|---|---|---|---|---|
@@ -47,3 +46,4 @@ AMC: Table 3 says AMC23; Table 1 / `data/raw` use AMC12 (`AI-MO/aimo-validation-
 
 All install / data / train / eval commands: `project_commands.sh`.
 Eval table is written to `output/eval_results.txt` (pass@1, pass@3, average).
+The epoch-3 full checkpoint under `output/palign-qwen2.5-7b-full/checkpoint-*` is used for eval (no LoRA merge).
