@@ -1,11 +1,11 @@
-#1 +10
-#reeval
+#1 +60
+#ssft_8b
 #v1
 
 # cd P-ALIGN
 nvidia-smi
 # cd SpectralGuidedLearning && GPUS=0 bash project_commands2.sh
-# cd SpectralGuidedLearning && bash project_commands.sh
+cd SegmentSelectiveSFT && GPU=1 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
