@@ -1,4 +1,4 @@
-#1 +60
+#2 -0-10
 #vlm
 #v1
 
@@ -9,8 +9,8 @@
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
-nvidia-smi
-cd SpectralGuidedLearning && GPUS=0 bash scripts/eval/reeval_all.sh
+# nvidia-smi
+# cd SpectralGuidedLearning && GPUS=0 bash scripts/eval/reeval_all.sh
 
 # kill -9 155157 155158
 
