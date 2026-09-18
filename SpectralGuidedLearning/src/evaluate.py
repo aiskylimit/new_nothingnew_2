@@ -261,17 +261,17 @@ def main() -> None:
         summaries.append(summary)
         k = summary["samples_per_problem"]
         print(
-            f"[{name}] pass@1 = {summary['pass@1']:.1%}  "
-            + (f"pass@{k} = {summary[f'pass@{k}']:.1%}  " if k > 1 else "")
+            f"[{name}] pass@1 = {summary['pass@1']:.2%}  "
+            + (f"pass@{k} = {summary[f'pass@{k}']:.2%}  " if k > 1 else "")
             + f"length = {summary['length']:.0f} tok  "
-            f"truncated = {summary['truncation_rate']:.1%}"
+            f"truncated = {summary['truncation_rate']:.2%}"
         )
 
     results_path = run_dir / f"summary{suffix}.json"
     results_path.write_text(json.dumps(summaries, indent=2))
     average = sum(s["pass@1"] for s in summaries) / len(summaries)
     avg_length = sum(s["length"] for s in summaries) / len(summaries)
-    line = f"\n{tag}: Overall pass@1 = {average:.1%}"
+    line = f"\n{tag}: Overall pass@1 = {average:.2%}"
 
     # Only average Pass@k over benchmarks that actually carry that k -- reused raw files can
     # hold a different sample count than this run requested, and treating a missing key as 0%
@@ -279,7 +279,7 @@ def main() -> None:
     k = max(s["samples_per_problem"] for s in summaries)
     if k > 1:
         at_k = [s[f"pass@{k}"] for s in summaries if f"pass@{k}" in s]
-        line += f"  Overall pass@{k} = {sum(at_k) / len(at_k):.1%}"
+        line += f"  Overall pass@{k} = {sum(at_k) / len(at_k):.2%}"
         if len(at_k) != len(summaries):
             line += f" (over {len(at_k)}/{len(summaries)} benchmarks at k={k})"
     print(f"{line}  Overall length = {avg_length:.0f} tok -> {results_path}")
@@ -293,11 +293,11 @@ def print_summary_table(tag: str, summaries: list[dict]) -> None:
     rows = [
         [
             s["benchmark"],
-            f"{s['pass@1']:.1%}",
-            *([f"{s[f'pass@{k}']:.1%}" if f"pass@{k}" in s else "-"] if k > 1 else []),
+            f"{s['pass@1']:.2%}",
+            *([f"{s[f'pass@{k}']:.2%}" if f"pass@{k}" in s else "-"] if k > 1 else []),
             f"{s['length']:.0f}",
-            f"{s['truncation_rate']:.1%}",
-            f"{s['no_boxed_answer_rate']:.1%}",
+            f"{s['truncation_rate']:.2%}",
+            f"{s['no_boxed_answer_rate']:.2%}",
             str(s["n_problems"]),
         ]
         for s in summaries

@@ -63,12 +63,12 @@ def format_table(models: dict[str, dict[str, dict[str, float]]], metric: str) ->
             for name in benchmarks
             if name in PRIMARY_BENCHMARKS and (value := score(scores, name)) is not None
         ]
-        cells = [f"{value:.1%}" if value is not None else "-" for value in values]
+        cells = [f"{value:.2%}" if value is not None else "-" for value in values]
         if not present:
             continue
         lines.append(
-            f"| {tag} | " + " | ".join(cells) + f" | {sum(present) / len(present):.1%} | "
-            + (f"{sum(primary) / len(primary):.1%}" if primary else "-") + " |"
+            f"| {tag} | " + " | ".join(cells) + f" | {sum(present) / len(present):.2%} | "
+            + (f"{sum(primary) / len(primary):.2%}" if primary else "-") + " |"
         )
 
     # Group by track so the vanilla-vs-spectral delta is computed per model line
@@ -91,7 +91,7 @@ def format_table(models: dict[str, dict[str, dict[str, float]]], metric: str) ->
             deltas = []
             for name in benchmarks:
                 base, new = score(base_scores, name), score(new_scores, name)
-                deltas.append(f"{(new - base) * 100:+.1f}" if base is not None and new is not None else "-")
+                deltas.append(f"{(new - base) * 100:+.2f}" if base is not None and new is not None else "-")
             lines.append(f"| **delta ({method} - vanilla, {track}) (pp)** | " + " | ".join(deltas) + " | | |")
 
     return "\n".join(lines)

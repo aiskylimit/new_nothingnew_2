@@ -1,14 +1,11 @@
-#d
-#datasets
---hf-dataset baesad/s1K-1.1-deepseek-cot /mnt/local/_data/@PROJECT@/s1k
-
+#1 +60
 #ssft_8b
 #v1
 
 # cd P-ALIGN
 nvidia-smi
 # cd SpectralGuidedLearning && GPUS=0 bash project_commands2.sh
-# cd SegmentSelectiveSFT && GPU=1 bash commands.sh
+cd SegmentSelectiveSFT && GPU=1 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
