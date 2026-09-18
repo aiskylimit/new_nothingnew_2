@@ -1,5 +1,5 @@
-#2 -0-10
-#vlm
+#2 -0
+#reeval
 #v1
 
 # cd P-ALIGN
