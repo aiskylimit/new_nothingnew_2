@@ -152,7 +152,7 @@ t_start = time.time()
 RESULTS_DIR = Path(__file__).resolve().parent.parent / args.output_dir
 RESULTS_DIR.mkdir(exist_ok=True, parents=True)
 
-CHECKPOINT_STEPS = {20, 25, 40, 50, 60, 75, 80, 100}  # same union cadence as RLSD/SDPO's offline scripts
+CHECKPOINT_STEPS = {10, 15, 20, 25, 40, 50, 60, 75, 80, 100}  # same union cadence as RLSD/SDPO's offline scripts, plus 10/15
 
 
 def tick(label):

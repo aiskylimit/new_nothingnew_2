@@ -29,14 +29,15 @@ VLLM_BASE_PORT=8100
 VLLM_EXECUTABLE="vllm"
 GPU_MEM_UTIL=0.9
 
-# Per-method eval cadence (checkpoints are still SAVED at all 8 steps below
-# by each script's own CHECKPOINT_STEPS - this only controls which of those
-# get EVALUATED, per the user's explicit choice: RLSD/SDPO (baselines) eval
-# less densely than TROPIC-G (the proposal). SDPO's cadence is ASSUMED same
-# as RLSD (not separately specified) - flag if that's wrong.
+# Per-method eval cadence (checkpoints are still SAVED at all steps below by
+# each script's own CHECKPOINT_STEPS - 8 steps for RLSD/SDPO, 10 for
+# TROPIC-G (adds 10/15) - this only controls which of those get EVALUATED,
+# per the user's explicit choice: RLSD/SDPO (baselines) eval less densely
+# than TROPIC-G (the proposal). SDPO's cadence is ASSUMED same as RLSD (not
+# separately specified) - flag if that's wrong.
 CHECKPOINTS_RLSD="25 50 75 100"
 CHECKPOINTS_SDPO="25 50 75 100"
-CHECKPOINTS_TROPIC="20 25 40 50 75 100"
+CHECKPOINTS_TROPIC="10 15 20 25 40 50 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {
