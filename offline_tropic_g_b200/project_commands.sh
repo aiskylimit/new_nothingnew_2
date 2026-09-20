@@ -89,14 +89,15 @@ train_dry_run run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b
 # ============================================================
 # 4. Train both model sizes. Only TROPIC-G here - RLSD/SDPO already ran
 #    separately (offline_rlsd_sdpo_b200/), this package is a standalone
-#    addition, not a re-run of those. run_tropic_g_topk64_4b.py is the
-#    sparsified top_k=64 sibling of run_tropic_g_experiment_4b.py's
+#    addition, not a re-run of those. run_tropic_g_topk64_4b.py/_8b.py are
+#    the sparsified top_k=64 siblings of run_tropic_g_experiment_4b.py/_8b.py's
 #    full-vocab ablation - same model/settings, added to also cover the
 #    ONLINE cluster's own tropic_g default on this offline deployment.
 # ============================================================
 train run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b
 train run_tropic_g_experiment_8b.py "${MODEL_8B}" results_tropic_g_8b
 train run_tropic_g_topk64_4b.py "${MODEL_4B}" results_tropic_g_topk64_4b
+train run_tropic_g_topk64_8b.py "${MODEL_8B}" results_tropic_g_topk64_8b
 
 # ============================================================
 # 5. Eval every saved checkpoint for both model sizes.
@@ -104,6 +105,7 @@ train run_tropic_g_topk64_4b.py "${MODEL_4B}" results_tropic_g_topk64_4b
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_4b.py "${MODEL_4B}" results_tropic_g_4b tropic_g "$step"; done
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_8b.py "${MODEL_8B}" results_tropic_g_8b tropic_g "$step"; done
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_4b.py "${MODEL_4B}" results_tropic_g_topk64_4b tropic_g_topk64 "$step"; done
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_8b.py "${MODEL_8B}" results_tropic_g_topk64_8b tropic_g_topk64 "$step"; done
 
 # ============================================================
 # 6. Aggregate every avg@12/pass@12 line into one final table + JSON.
