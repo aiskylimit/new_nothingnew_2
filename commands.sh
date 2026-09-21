@@ -1,4 +1,4 @@
-#i talas-vlm-embed.txt
+#i ssft_eval.txt
 #VLM_Distillation
 #v1
 
