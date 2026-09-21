@@ -208,9 +208,9 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   or point `--data_dir` at a copy.
 - **`downloads.txt` lists what an offline server must fetch beforehand** (one `--hf-dataset` /
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
-  (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships a ready `train.jsonl`; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
+  (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships `train.jsonl`, `solution_segments.jsonl` (934 rows, `paragraph` split) **and** `solutions_selected.jsonl` (same rows + `selected_spans_ids` from the earlier R1-Distill IG run; 17 rows select nothing and fall back to the 3 default segments), so no attribution stage runs on the server unless that last file is missing; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
   `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
-  `commands.sh` is the per-stage command sheet for that server (one uv env per stage); it currently runs the full-CoT SFT baseline (LoRA r=16) on `Qwen/Qwen3-8B` end to end: prep -> train -> merge -> eval -> pass@k -> printed result table.
+  `commands.sh` is the per-stage command sheet for that server (one uv env per stage); it currently runs the paper's selective SFT (LoRA r=16) on `Qwen/Qwen3-8B` end to end: symlink the downloaded `solutions_selected.jsonl` (falls back to `segments` from `IG_compact.jsonl`, or a full resumable `ig`+`segments` run with R1-Distill-7B, only when it is missing) -> `train.sh --selective` -> merge -> `eval.sh --max-tokens 4096` (`EVAL_MAX_TOKENS`; the tag carries `_4k` so outputs never mix with the earlier 32k run) -> pass@k -> printed table. Only the selective model is evaluated; commands for re-scoring the full-CoT baseline or the base model at the same `max_tokens` sit commented under `[Tham khao]`.
 
 ## Defaults worth knowing
 
