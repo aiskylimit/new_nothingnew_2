@@ -1,4 +1,4 @@
-#i ssft_eval.txt
+#i ssft_train.txt
 #VLM_Distillation
 #v1
 
