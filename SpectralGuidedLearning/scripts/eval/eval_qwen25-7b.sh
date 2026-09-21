@@ -38,15 +38,21 @@ TEMPERATURE=0.6
 TOP_P=0.9
 REP_PENALTY=1.05      # P-ALIGN/scripts/Inference.sh
 N_SAMPLES=3           # P-ALIGN reports Pass@1 and Pass@3
-MAX_TOKENS=3584          # MAX_MODEL_LEN minus ~512 tok prompt budget
-MAX_MODEL_LEN=4096
+# Long-CoT arms were trained on samples up to 32k tokens; the old 3584 cap truncated >90% of AIME
+# generations, so scores mostly measured "finished in 3.5k tokens". Match the r1 scripts / paper (32k).
+MAX_TOKENS="${MAX_TOKENS:-30720}"       # MAX_MODEL_LEN minus ~2k tok prompt budget
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-32768}"
+# Problems per generate() call: finished ones are flushed to raw/*.jsonl after each batch, so a
+# killed multi-hour run keeps what it produced (evaluate.py still regenerates on the next run).
+BATCH_SIZE="${BATCH_SIZE:-64}"
 GPU_MEM_UTIL=0.9
 SEED=42
 CHAT_TEMPLATE=true
 ENABLE_THINKING=false  # P-ALIGN/src/test.py evaluates with enable_thinking=False
 ENFORCE_EAGER=true
 LORA_R=16
-RESULTS_DIR="${BASE_PATH}/results"
+# Override to keep a re-eval under a different cap apart from the original results/ tree.
+RESULTS_DIR="${RESULTS_DIR:-${BASE_PATH}/results}"
 
 OPTS=""
 OPTS+=" --model ${MODEL}"
@@ -57,6 +63,7 @@ OPTS+=" --top-p ${TOP_P}"
 OPTS+=" --repetition-penalty ${REP_PENALTY}"
 OPTS+=" --n-samples ${N_SAMPLES}"
 OPTS+=" --max-tokens ${MAX_TOKENS}"
+OPTS+=" --batch-size ${BATCH_SIZE}"
 OPTS+=" --max-model-len ${MAX_MODEL_LEN}"
 OPTS+=" --gpu-memory-utilization ${GPU_MEM_UTIL}"
 [[ "${ENFORCE_EAGER}" == true ]] && OPTS+=" --enforce-eager" || OPTS+=" --no-enforce-eager"

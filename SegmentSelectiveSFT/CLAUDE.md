@@ -210,7 +210,7 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
   (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships a ready `train.jsonl`; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
   `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
-  `commands.sh` is the per-stage command sheet for that server (one uv env per stage); it currently runs the full-CoT SFT baseline (LoRA r=16) end to end: prep -> train -> merge -> eval -> pass@k.
+  `commands.sh` is the per-stage command sheet for that server (one uv env per stage); it currently runs the full-CoT SFT baseline (LoRA r=16) on `Qwen/Qwen3-8B` end to end: prep -> train -> merge -> eval -> pass@k -> printed result table.
 
 ## Defaults worth knowing
 

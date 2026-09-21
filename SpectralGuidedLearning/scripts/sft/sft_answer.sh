@@ -1,6 +1,16 @@
 #!/usr/bin/env bash
-# Phase 5: masked SFT -- vanilla, DeepSeek-R1-Distill-Qwen-7B track (LoRA, DDP across both GPUs).
+# Phase 5: answer-only SFT (no long CoT), LoRA + DeepSpeed ZeRO-2, DDP. Hyperparameters match
+# sft_<track>.sh exactly so the only difference to the vanilla arm is the target text.
+#   bash scripts/sft/sft_answer.sh qwen25-7b
+#   bash scripts/sft/sft_answer.sh qwen3-8b
 set -euo pipefail
+
+TRACK="${1:?track is required: qwen25-7b or qwen3-8b}"
+case "${TRACK}" in
+  qwen25-7b) MODEL_DIR="Qwen2.5-7B-Instruct" ;;
+  qwen3-8b) MODEL_DIR="Qwen3-8B" ;;
+  *) echo "unknown track: ${TRACK}" >&2; exit 2 ;;
+esac
 
 read -ra GPUS <<< "${GPUS:-0 1}"
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
@@ -35,15 +45,15 @@ export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p "${BASE_PATH}/logs"
 
 LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
-MODEL_NAME="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-7B"
-DATA_PATH="${BASE_PATH}/data/r1-qwen-7b/train-vanilla.jsonl"
-OUTPUT_DIR="${BASE_PATH}/checkpoints/vanilla-r1-qwen-7b"
+MODEL_NAME="${LOCAL_MODELS_ROOT}/${MODEL_DIR}"
+DATA_PATH="${BASE_PATH}/data/${TRACK}-answer/train-vanilla.jsonl"
+OUTPUT_DIR="${BASE_PATH}/checkpoints/answer-${TRACK}"
 EPOCHS=3
 LR=5.0e-5
 MIN_LR=1.0e-5
 WARMUP_RATIO=0.1
 BATCH_SIZE=1
-GRAD_ACC=32
+GRAD_ACC=16           # bs1 x ga16 x 2 GPU = effective batch 32
 ATTN=sdpa
 LOG_INTERVAL=5
 SEED=42
@@ -85,4 +95,4 @@ OPTS+=" --max-seq-len ${MAX_SEQ_LEN}"
 
 CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
 echo "${CMD}"
-${CMD} 2>&1 | tee "${BASE_PATH}/logs/vanilla-r1-qwen-7b.log"
+${CMD} 2>&1 | tee "${BASE_PATH}/logs/answer-${TRACK}.log"

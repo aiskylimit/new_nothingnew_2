@@ -11,12 +11,16 @@ export HF_HUB_DISABLE_SYMLINKS_WARNING=1
 # build (see docs/server-runbook.md CUDAMismatchException) -- skip that version check.
 export DS_SKIP_CUDA_CHECK=1
 
+# The cluster (PyTorchJob pod) injects PET_RDZV_BACKEND=c10d / PET_RDZV_ENDPOINT=<worker-0>:23456 /
+# TORCHELASTIC_*; torchrun reads those over --master_addr and hangs in "Rendezvous'ing worker group"
+# waiting on that endpoint. This is a single-node run: drop them and pin the static backend.
+for _v in $(compgen -e PET_) $(compgen -e TORCHELASTIC_); do unset "$_v"; done
 MASTER_ADDR=localhost
 MASTER_PORT=66$(($RANDOM%90+10))
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=${#GPUS[@]}
-DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
+DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --rdzv_backend static \
                   --nnodes $NNODES \
                   --node_rank $NODE_RANK \
                   --master_addr $MASTER_ADDR \

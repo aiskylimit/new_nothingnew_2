@@ -460,9 +460,10 @@ class Qwen3VLTextAttention(Qwen3Attention):
             **kwargs,
         )
 
-        self._scva_attention = capture_response_to_vision_attention(
-            self, query_states, key_states, attention_mask, self.scaling
-        )
+        if getattr(self, "_scva_capture_enabled", False):
+            self._scva_attention = capture_response_to_vision_attention(
+                self, query_states, key_states, attention_mask, self.scaling
+            )
 
         attn_output = attn_output.reshape(*input_shape, -1).contiguous()
         attn_output = self.o_proj(attn_output)

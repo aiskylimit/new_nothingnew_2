@@ -45,6 +45,14 @@ def _resolve_dskd_topk_vocab(args) -> int:
     return value
 
 
+def _wide_matrix_pinv(matrix: torch.Tensor) -> torch.Tensor:
+    """Compute a wide matrix pseudo-inverse without an SVD over vocabulary size."""
+    if matrix.shape[1] <= matrix.shape[0]:
+        return torch.linalg.pinv(matrix)
+    gram = matrix @ matrix.transpose(0, 1)
+    return matrix.transpose(0, 1) @ torch.linalg.pinv(gram, hermitian=True)
+
+
 class Distiller(nn.Module):
     def __init__(self, model_args: ModelArguments, training_args: TrainingArguments):
         super().__init__()
@@ -423,19 +431,26 @@ class Distiller(nn.Module):
                 self.student_overlap_token_ids = self.student_overlap_token_ids[:topk_vocab]
 
         if getattr(self.training_args, "init_t2s_projector", False):
-            part_student_head_pinv = torch.linalg.pinv(part_student_head)
+            part_student_head_pinv = _wide_matrix_pinv(part_student_head)
             init_t2s = (part_teacher_head @ part_student_head_pinv).transpose(0, 1)
             self._copy_linear_weight(self.projectors["t2s"], init_t2s)
             print_master("DSKDv2 initialized t2s projector with LM-head pseudo-inverse.")
 
         if getattr(self.training_args, "init_s2t_projector", False):
-            pinv_dtype = next(self.projectors["s2t"].parameters()).dtype
-            self.part_teacher_head_pinv = torch.linalg.pinv(part_teacher_head).to(dtype=pinv_dtype).detach()
-            # The dynamic branch derives s2t from the frozen LM heads on every
-            # forward and never calls this configured module.  Keeping it
-            # trainable would allocate optimizer state for unused parameters.
+            projection_dtype = next(self.projectors["s2t"].parameters()).dtype
+            teacher_head_pinv = _wide_matrix_pinv(part_teacher_head)
+            cached_s2t_projection = (part_student_head @ teacher_head_pinv).to(
+                dtype=projection_dtype
+            ).detach()
+            self.register_buffer(
+                "cached_s2t_projection",
+                cached_s2t_projection,
+                persistent=False,
+            )
+            # The cached mapping replaces this configured module. Keeping the
+            # latter frozen avoids optimizer state for unused parameters.
             self.projectors["s2t"].requires_grad_(False)
-            print_master("DSKDv2 cached teacher-head pseudo-inverse for dynamic s2t projection.")
+            print_master("DSKDv2 cached the invariant LM-head s2t projection.")
 
     @staticmethod
     def _output_head_weight(model: nn.Module) -> torch.Tensor:
