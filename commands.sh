@@ -1,13 +1,13 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SegmentSelectiveSFT/Eval/outputs_qwen3_8b_sel_r16_ep3_4k/pass_at_k.json
+#1 +60
 #ssft_8b
 #v2
 
-tree SegmentSelectiveSFT
+# tree SegmentSelectiveSFT
 # cd P-ALIGN
 # nvidia-smi
 # cd SpectralGuidedLearning && GPUS=0 bash project_commands2.sh
 # cd SegmentSelectiveSFT && GPU=1 bash commands.sh
-# cd SegmentSelectiveSFT && GPU=0 bash commands.sh
+cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh

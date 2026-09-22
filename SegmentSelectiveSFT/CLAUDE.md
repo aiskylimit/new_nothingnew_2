@@ -183,8 +183,10 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   `from latex2sympy.latex2sympy2 import ...` (resolved via the local package dir), and `--data_dir`
   defaults to `../data`. All wrappers `cd` there.
 - **`acc` in `*_metrics.json` scores only the first sample of each question** (`evaluate.py`:
-  `mean_score[0]`), not the mean over `n_sampling`. `Eval/pass_at_k.py outputs_<tag> --k 1 3` recomputes
-  unbiased pass@k from the per-question `score` lists and macro-averages across tasks.
+  `mean_score[0]`), not the mean over `n_sampling`. `eval.sh`'s summary step imports `pass_at_k.py` and
+  writes unbiased pass@1 and pass@n (n = `n_sampling`) per task + macro-average into
+  `summary.json["pass_at_k"]`; `Eval/pass_at_k.py outputs_<tag> --k 1 3` recomputes the same numbers for
+  arbitrary k into `pass_at_k.json`. All accuracies are rounded to 2 decimals.
 - **`math_eval.py` skips a task whose `*_metrics.json` already exists** — that is what makes `eval.sh`
   resumable after a crash. The output filename encodes
   `num_test_sample/seed/temperature/n_sampling/max_tokens`, so a `--quick` run and a full run coexist
@@ -210,7 +212,7 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
   (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships `train.jsonl`, `solution_segments.jsonl` (934 rows, `paragraph` split) **and** `solutions_selected.jsonl` (same rows + `selected_spans_ids` from the earlier R1-Distill IG run; 17 rows select nothing and fall back to the 3 default segments), so no attribution stage runs on the server unless that last file is missing; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
   `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
-  `commands.sh` is the per-stage command sheet for that server (one uv env per stage); it currently runs the paper's selective SFT (LoRA r=16) on `Qwen/Qwen3-8B` end to end: symlink the downloaded `solutions_selected.jsonl` (falls back to `segments` from `IG_compact.jsonl`, or a full resumable `ig`+`segments` run with R1-Distill-7B, only when it is missing) -> `train.sh --selective` -> merge -> `eval.sh --max-tokens 4096` (`EVAL_MAX_TOKENS`; the tag carries `_4k` so outputs never mix with the earlier 32k run) -> pass@k -> printed table. Only the selective model is evaluated; commands for re-scoring the full-CoT baseline or the base model at the same `max_tokens` sit commented under `[Tham khao]`.
+  `commands.sh` is the command sheet for that server; it currently **only evaluates** the already-trained selective SFT checkpoint (LoRA r=16, 3 epochs, `Qwen/Qwen3-8B`, `SelectiveSFT/checkpoints/Qwen3-8B_epoch3_lr5e-5_len32768_lora_r16/checkpoint-<latest>-merged`) in the `ssft_eval` env: check the merged checkpoint exists (it does not train or merge — it prints the merge command and exits) -> `prepare_eval_data.py` -> `eval.sh --max-tokens 32768` (`EVAL_MAX_TOKENS`; the tag carries `_32k` so outputs never mix with the earlier `_4k` run) -> `pass_at_k.py` -> printed table (acc + pass@1/pass@3, 2 decimals). The earlier end-to-end version (data symlink / IG fallback / `train.sh --selective` / merge) is in git history. Commands for re-scoring the full-CoT baseline or the base model at the same `max_tokens` sit commented under `[Tham khao]`.
 
 ## Defaults worth knowing
 

@@ -462,6 +462,11 @@ import json, sys, glob, os, re, datetime
 
 root, out_path, meta = sys.argv[1], sys.argv[2], json.loads(sys.argv[3])
 
+# pass@k unbiased tinh tu truong "score" trong *.jsonl - dung chung cong thuc voi pass_at_k.py
+# ("acc" trong *_metrics.json chi la mau dau tien cua moi cau).
+sys.path.insert(0, os.path.join(os.path.dirname(out_path), ".."))
+from pass_at_k import pass_at_k, load_scores
+
 # Ten thu muc chua so cau va so mau/cau, nen mot lan chay nhanh va mot lan
 # chay day du nam canh nhau van phan biet duoc.
 PAT = re.compile(r"_(-?\d+)_seed(\d+)_t([\d.]+)_n(\d+)_topp")
@@ -474,6 +479,14 @@ for f in sorted(glob.glob(os.path.join(root, "*", "*", "**", "*_metrics.json"), 
         m = json.load(open(f))
     except Exception:
         continue
+    # pass@1 (trung binh tren du n mau) va pass@n (n = n_sampling) cua task nay
+    pk = {}
+    scores = load_scores(f.replace("_metrics.json", ".jsonl")) if os.path.exists(f.replace("_metrics.json", ".jsonl")) else []
+    if scores:
+        n_min = min(len(x) for x in scores)
+        for k in sorted({1, n_min}):
+            vals = [pass_at_k(n_min, sum(x[:n_min]), k) for x in scores]
+            pk["pass@%d" % k] = round(100.0 * sum(vals) / len(vals), 2)
     rows.append({
         "task": task,
         "num_test_sample": (int(mo.group(1)) if mo else None),
@@ -481,6 +494,7 @@ for f in sorted(glob.glob(os.path.join(root, "*", "*", "**", "*_metrics.json"), 
         "temperature": (float(mo.group(3)) if mo else None),
         "n_sampling": (int(mo.group(4)) if mo else None),
         "acc": m.get("acc"),
+        **pk,
         "num_samples": m.get("num_samples"),
         "empty_samples": m.get("empty_samples"),
         "timeout_samples": m.get("timeout_samples"),
@@ -489,11 +503,22 @@ for f in sorted(glob.glob(os.path.join(root, "*", "*", "**", "*_metrics.json"), 
     })
 
 accs = [r["acc"] for r in rows if isinstance(r["acc"], (int, float))]
+pk_keys = sorted({k for r in rows for k in r if k.startswith("pass@")}, key=lambda k: int(k[5:]))
+pk_avg = {}
+for key in pk_keys:
+    vals = [r[key] for r in rows if isinstance(r.get(key), (int, float))]
+    pk_avg[key] = round(sum(vals) / len(vals), 2) if vals else None
 summary = {
     "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
     **meta,
     "tasks": {r["task"]: r["acc"] for r in rows},
     "average_acc": (round(sum(accs) / len(accs), 2) if accs else None),
+    # pass@k: per-task + macro-average (AVG) - cung so voi pass_at_k.py --k 1 <n>
+    "pass_at_k": {
+        "k": [int(k[5:]) for k in pk_keys],
+        "tasks": {r["task"]: {k: r.get(k) for k in pk_keys} for r in rows},
+        "average": pk_avg,
+    },
     "results": rows,
 }
 
@@ -504,17 +529,19 @@ with open(out_path, "w") as fh:
 if not rows:
     print("  (chua co metrics.json nao trong %s)" % root)
 else:
-    hdr = "  %-12s %7s %4s %8s %10s %8s"
-    print(hdr % ("task", "subset", "n", "acc", "num_samples", "time"))
+    fmt = lambda v: "%.2f" % v if isinstance(v, (int, float)) else "-"
+    hdr = "  %-12s %7s %4s %8s " + " ".join(["%8s"] * len(pk_keys)) + " %10s %8s"
+    print(hdr % ("task", "subset", "n", "acc", *pk_keys, "num_samples", "time"))
     for r in rows:
         sub = "full" if r["num_test_sample"] == -1 else r["num_test_sample"]
         t = r["time_use_in_second"]
-        print(hdr % (r["task"], sub, r["n_sampling"],
-                     "%.2f" % r["acc"] if isinstance(r["acc"], (int, float)) else r["acc"],
+        print(hdr % (r["task"], sub, r["n_sampling"], fmt(r["acc"]),
+                     *[fmt(r.get(k)) for k in pk_keys],
                      r["num_samples"],
                      "%d:%02d" % (t // 60, t % 60) if isinstance(t, (int, float)) else "-"))
     if accs:
-        print(hdr % ("TRUNG BINH", "", "", "%.2f" % (sum(accs) / len(accs)), "", ""))
+        print(hdr % ("TRUNG BINH", "", "", fmt(summary["average_acc"]),
+                     *[fmt(pk_avg[k]) for k in pk_keys], "", ""))
 print()
 print("  JSON: %s" % out_path)
 PYSUM
