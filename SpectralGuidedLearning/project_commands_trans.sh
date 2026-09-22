@@ -15,10 +15,16 @@ export GPUS="${GPUS:-${CUDA_GPUS:+${CUDA_GPUS//,/ }}}"
 export GPUS="${GPUS:-0 1}"
 
 # ============================ DATA ============================
-# Needs data/qwen3-8b/train-segmented.jsonl + train-vanilla.jsonl already on disk (data_qwen3-8b.sh,
-# masks_qwen3-8b.sh). Adds \n\n-step fields; the NLL mask is copied untouched. Seconds, CPU only.
+# Phase 2 + 4 for a fresh server (only the raw downloads from download.txt present). Both are
+# skipped when their output already exists; delete the file to force a rebuild.
+#   data_qwen3-8b.sh     tokenizes + segments s1K-1.1 (CPU, ~1 min)      -> train-segmented.jsonl
+#   vanilla_qwen3-8b.sh  all-ones NLL mask, no spectral capture needed   -> train-vanilla.jsonl
+[[ -f data/qwen3-8b/train-segmented.jsonl ]] || bash scripts/data/data_qwen3-8b.sh
+[[ -f data/qwen3-8b/train-vanilla.jsonl ]]   || bash scripts/masks/vanilla_qwen3-8b.sh
+# Adds \n\n-step fields; the NLL mask is copied untouched. Seconds, CPU only.
 bash scripts/trans/build_trans_qwen3-8b.sh vanilla
-# bash scripts/trans/build_trans_qwen3-8b.sh spectral        # for config 5 (SGL + L_trans)
+# bash scripts/trans/build_trans_qwen3-8b.sh spectral        # config 5 (SGL + L_trans): needs
+#                                                            # capture_qwen3-8b.sh + masks_qwen3-8b.sh first
 
 # ============================ TRAIN ============================
 # Effective batch 32 regardless of GPU count (ga = 32 / n_gpu). Watch in logs/trans-*.log:
