@@ -38,10 +38,13 @@ TEMPERATURE=0.6
 TOP_P=0.9
 REP_PENALTY=1.05      # P-ALIGN/scripts/Inference.sh
 N_SAMPLES=3           # P-ALIGN reports Pass@1 and Pass@3
-# Long-CoT arms were trained on samples up to 32k tokens; the old 3584 cap truncated >90% of AIME
-# generations, so scores mostly measured "finished in 3.5k tokens". Match the r1 scripts / paper (32k).
-MAX_TOKENS="${MAX_TOKENS:-30720}"       # MAX_MODEL_LEN minus ~2k tok prompt budget
-MAX_MODEL_LEN="${MAX_MODEL_LEN:-32768}"
+# 4k context for the L_trans experiment table: every arm, baselines included, must be evaluated
+# under the same cap (results/<tag>/ from an earlier 30720/32768 run are not comparable). vLLM
+# rejects a request whose prompt + max_tokens exceeds max_model_len, so the generation cap leaves a
+# 512-token prompt budget (longest chat-templated benchmark prompt is well under that).
+# Override for a long-CoT re-eval: MAX_TOKENS=30720 MAX_MODEL_LEN=32768 RESULTS_DIR=results-32k.
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-4096}"
+MAX_TOKENS="${MAX_TOKENS:-$(( MAX_MODEL_LEN - 512 ))}"
 # Problems per generate() call: finished ones are flushed to raw/*.jsonl after each batch, so a
 # killed multi-hour run keeps what it produced (evaluate.py still regenerates on the next run).
 BATCH_SIZE="${BATCH_SIZE:-64}"

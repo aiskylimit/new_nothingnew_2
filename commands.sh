@@ -1,6 +1,6 @@
 #1 +60
 #iwc
-#v1
+#v0
 
 # tree SegmentSelectiveSFT
 # cd P-ALIGN

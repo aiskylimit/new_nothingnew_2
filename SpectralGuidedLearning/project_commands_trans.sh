@@ -32,10 +32,27 @@ bash scripts/trans/train_trans_qwen3-8b.sh vanilla 0.3                 # config 
 # bash scripts/trans/train_trans_qwen3-8b.sh vanilla 0.3 shuffle       # config 6 (control)
 
 # ============================ EVAL =============================
+# eval_qwen3-8b.sh now defaults to a 4k context (max_model_len 4096, 3584 generated tokens) with
+# thinking off; results/<tag>/ produced under the old 32k cap are NOT comparable -- re-eval the
+# baselines below so the comparison table is apples to apples.
 deactivate 2>/dev/null || true
 unset VIRTUAL_ENV
+TAG="trans-vanilla-l0.3-qwen3-8b"
 # Adapter-only checkpoint like every other arm; trans_predictor.pt next to it is ignored by vLLM.
-bash scripts/eval/eval_qwen3-8b.sh checkpoints/trans-vanilla-l0.3-qwen3-8b trans-vanilla-l0.3-qwen3-8b
+bash scripts/eval/eval_qwen3-8b.sh "checkpoints/${TAG}" "${TAG}"
+# bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-qwen3-8b vanilla-qwen3-8b        # SFT baseline @4k
+# bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-stable-qwen3-8b iwc-stable-qwen3-8b  # SGL baseline @4k
 
-# =========================== COMPARE ==========================
-"${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" "${BASE}/src/compare_results.py"
+# =========================== RESULTS ==========================
+# Printed last so they are on screen when the driver exits (also in logs/eval-${TAG}.log and
+# results/comparison-table.md): this arm's per-benchmark table, then the cross-arm comparison.
+PY="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python"
+PYTHONPATH="${BASE}/src" "${PY}" - "${TAG}" <<'PYEOF'
+import json, sys
+from pathlib import Path
+from evaluate import print_summary_table
+tag = sys.argv[1]
+print_summary_table(tag, json.loads((Path("results") / tag / "summary.json").read_text()))
+PYEOF
+echo
+"${PY}" "${BASE}/src/compare_results.py"
