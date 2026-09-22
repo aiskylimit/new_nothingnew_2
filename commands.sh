@@ -1,4 +1,4 @@
-#1 +60
+#2 -0-10
 #multi-mode-distill
 #v1
 
