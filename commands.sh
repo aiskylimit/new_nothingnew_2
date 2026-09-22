@@ -1,11 +1,10 @@
-#1 +10
+#1 +60
 #multi-mode-distill
 #v1
 
 # tree SegmentSelectiveSFT
 # cd P-ALIGN
 nvidia-smi
-# cd SpectralGuidedLearning && GPUS=0 bash project_commands2.sh
 # cd SegmentSelectiveSFT && GPU=1 bash commands.sh
 # nvidia-smi
 # cd SegmentSelectiveSFT && GPU=0 bash commands.sh
@@ -13,8 +12,7 @@ nvidia-smi
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
 # nvidia-smi
-# cd SpectralGuidedLearning && GPUS=0 bash scripts/eval/reeval_all.sh
-# cd SpectralGuidedLearning && GPUS="0 1" bash project_commands_trans.sh
+cd SpectralGuidedLearning && GPUS="0 1" bash project_commands_trans.sh
 # kill -9 155157 155158
 
 # cd ./offline_rlsd_sdpo_b200
