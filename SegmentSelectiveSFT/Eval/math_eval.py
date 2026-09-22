@@ -45,6 +45,10 @@ def parse_args():
     parser.add_argument("--use_safetensors", action="store_true")
     parser.add_argument("--num_shots", type=int, default=0)
     parser.add_argument("--enable_think", action="store_true")
+    # Qwen3: apply_chat_template(enable_thinking=False) -> template chen khoi rong
+    # "<think>\n\n</think>\n\n" sau "<|im_start|>assistant\n". Phai khop voi luc train
+    # (train_mask.py --think_prefix off). Template khong co bien nay (Qwen2.5) thi bo qua.
+    parser.add_argument("--disable_think", action="store_true")
     parser.add_argument(
         "--apply_chat_template",
         action="store_true",
@@ -253,6 +257,7 @@ def main(llm, tokenizer, data_name, args):
             sample["pred_thought"] for sample in samples for _ in range(args.n_sampling)
         ]
     if args.apply_chat_template:
+        chat_kwargs = {"enable_thinking": False} if args.disable_think else {}
         if args.prompt_type == "qwen-instruct":
             if args.enable_think: 
                 input_prompts = [
@@ -263,6 +268,7 @@ def main(llm, tokenizer, data_name, args):
                         ],
                         tokenize=False,
                         add_generation_prompt=True,
+                        **chat_kwargs,
                     ) + "<think>\n"
                     for prompt in input_prompts
                 ] 
@@ -275,6 +281,7 @@ def main(llm, tokenizer, data_name, args):
                         ],
                         tokenize=False,
                         add_generation_prompt=True,
+                        **chat_kwargs,
                     )
                     for prompt in input_prompts
                 ] 
@@ -284,7 +291,8 @@ def main(llm, tokenizer, data_name, args):
                     [{"role": "user", "content": prompt.strip()}],
                     tokenize=False,
                     add_generation_prompt=True,
-                ) 
+                    **chat_kwargs,
+                )
                 for prompt in input_prompts
             ]
 

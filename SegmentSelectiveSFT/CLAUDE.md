@@ -160,6 +160,15 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   `len(tokenizer("".join(segments[:k])))` — mixes two different tokenizations (prompt+response vs.
   response alone) and drifts a token or two at the junction, leaking text from *unselected* segments
   into the supervised span. This requires a fast tokenizer; the script exits early if it doesn't get one.
+- **Qwen3 thinking mode is a train/eval contract.** `train_mask.py --think_prefix off` and
+  `math_eval.py --disable_think` (`eval.sh --no-think`) both call
+  `apply_chat_template(enable_thinking=False)`, so the Qwen3 template appends an empty
+  `<think>\n\n</think>\n\n` block to the prompt (label `-100`) and the plain s1K trace follows it;
+  `train_mask.py` probes the template and exits if the prefix does not match (Qwen2.5 ignores the
+  kwarg, so `off` fails loudly there). The default `none` inserts nothing in either script. A checkpoint
+  trained one way must be evaluated the same way — `train.sh` appends `_nothink` to the checkpoint dir
+  and `eval.sh --no-think` looks for that suffix (and adds `_nothink` to the default tag) so the two
+  cannot be mixed by accident.
 - **A sample whose labels are all `-100` yields `nan` loss and poisons the run.** This happens when
   `max_seq_length` truncates away the response. `train_mask.py` drops such samples in `.map()` and
   reports the count; it does not crash.
@@ -212,7 +221,7 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
   (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships `train.jsonl`, `solution_segments.jsonl` (934 rows, `paragraph` split) **and** `solutions_selected.jsonl` (same rows + `selected_spans_ids` from the earlier R1-Distill IG run; 17 rows select nothing and fall back to the 3 default segments), so no attribution stage runs on the server unless that last file is missing; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
   `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
-  `commands.sh` is the command sheet for that server; it currently **only evaluates** the already-trained selective SFT checkpoint (LoRA r=16, 3 epochs, `Qwen/Qwen3-8B`, `SelectiveSFT/checkpoints/Qwen3-8B_epoch3_lr5e-5_len32768_lora_r16/checkpoint-<latest>-merged`) in the `ssft_eval` env: check the merged checkpoint exists (it does not train or merge — it prints the merge command and exits) -> `prepare_eval_data.py` -> `eval.sh --max-tokens 32768` (`EVAL_MAX_TOKENS`; the tag carries `_32k` so outputs never mix with the earlier `_4k` run) -> `pass_at_k.py` -> printed table (acc + pass@1/pass@3, 2 decimals). The earlier end-to-end version (data symlink / IG fallback / `train.sh --selective` / merge) is in git history. Commands for re-scoring the full-CoT baseline or the base model at the same `max_tokens` sit commented under `[Tham khao]`.
+  `commands.sh` is the command sheet for that server; it currently **only evaluates** the existing selective-SFT checkpoint (LoRA r=16, 3 epochs on `Qwen/Qwen3-8B`, dir `..._lora_r16/checkpoint-<step>-merged`, no retrain) **with Qwen3 thinking turned off** at `max_tokens 4096`: `eval.sh --model <merged> --no-think --max-tokens 4096 --tag qwen3_8b_sel_r16_ep3_nothink_4k` -> `pass_at_k.py` -> printed table (acc + pass@1/pass@3, 2 decimals) that also shows the earlier thinking-default run on the same checkpoint (`outputs_qwen3_8b_sel_r16_ep3_4k`) for comparison. Note the deliberate train/eval mismatch: that checkpoint was trained with `--think_prefix none`, so the empty think block appears only at eval time; `--model` is passed explicitly because `eval.sh --selective --no-think` would look for a `_nothink` dir. `EVAL_MAX_TOKENS=32768 bash commands.sh` re-runs at 32k under tag `..._nothink_32k`. Commands for the base model with thinking off and for retraining with `--think-prefix off` sit commented under `[Tham khao]`.
 
 ## Defaults worth knowing
 

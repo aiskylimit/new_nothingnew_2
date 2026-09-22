@@ -26,6 +26,7 @@
 #   bash train.sh --no-grad-checkpoint     # nhanh hon, ton VRAM hon
 #   bash train.sh --segment-mode cue       # chia segment kieu paper thay vi theo "\n\n"
 #   bash train.sh --full-sft               # baseline: SFT tren TOAN BO long CoT (khong mask)
+#   bash train.sh --think-prefix off       # Qwen3: tat thinking (enable_thinking=False), checkpoint co hau to _nothink
 #   bash train.sh --optim adamw_8bit       # tiet kiem VRAM optimizer state
 #   bash train.sh --reinstall              # cai lai dependency
 #   bash train.sh --skip-setup             # bo qua buoc dung env
@@ -86,7 +87,7 @@ WARMUP_RATIO="${WARMUP_RATIO:-0.1}"
 
 # --- Segmentation / prompt ---
 SEGMENT_MODE="${SEGMENT_MODE:-paragraph}"  # paragraph = chia theo "\n\n"
-THINK_PREFIX="${THINK_PREFIX:-none}"       # Qwen khong co token <think>; xem train_mask.py
+THINK_PREFIX="${THINK_PREFIX:-none}"       # none | off (Qwen3 enable_thinking=False) | plain | special; xem train_mask.py
 # 0 = selective SFT (chi hoc segment duoc chon) - mac dinh, dung cua paper.
 # 1 = long-CoT SFT thuong: hoc toan bo response. Checkpoint/log rieng,
 #     khong de len ban selective.
@@ -286,7 +287,13 @@ else
   TUNE_ARGS=(--full_finetune)
   TUNE_NAME="full finetuning"
 fi
-# Hau to nguoi dung dat (--ckpt-suffix) di sau cung: [_fullsft][_lora_r<R>][<suffix>]
+# Tat thinking (Qwen3) doi prompt -> checkpoint khac, khong de len ban thinking mac dinh
+# (eval.sh --no-think ghep cung hau to nay).
+if [[ "$THINK_PREFIX" == "off" ]]; then
+  CKPT_SUFFIX="${CKPT_SUFFIX}_nothink"
+  LOG_NAME="${LOG_NAME}_nothink"
+fi
+# Hau to nguoi dung dat (--ckpt-suffix) di sau cung: [_fullsft][_lora_r<R>][_nothink][<suffix>]
 CKPT_SUFFIX="${CKPT_SUFFIX}${CKPT_SUFFIX_EXTRA}"
 LOG_NAME="${LOG_NAME}${CKPT_SUFFIX_EXTRA}"
 LOG_FILE="${LOG_DIR}/${LOG_NAME}.log"

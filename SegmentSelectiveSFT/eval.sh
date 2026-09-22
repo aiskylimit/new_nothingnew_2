@@ -19,6 +19,7 @@
 #   bash eval.sh --full-finetune           # checkpoint train khong dung LoRA
 #   bash eval.sh --lora-r 16               # checkpoint train voi r khac mac dinh (64)
 #   bash eval.sh --ckpt-suffix _bs16       # checkpoint train voi --ckpt-suffix _bs16
+#   bash eval.sh --no-think                # Qwen3: tat thinking (enable_thinking=False) - khop train.sh --think-prefix off
 #   bash eval.sh --full-sft                # eval checkpoint baseline full-CoT
 #   bash eval.sh --model /duong/dan/checkpoint-250
 #   bash eval.sh --model /duong/dan/checkpoint-250 --tag sel_ep5
@@ -59,6 +60,10 @@ MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
 USE_LORA="${USE_LORA:-1}"   # train.sh mac dinh LoRA -> ten thu muc co hau to _lora_r<R>
 LORA_R="${LORA_R:-64}"      # phai khop --lora-r luc train
 CKPT_SUFFIX="${CKPT_SUFFIX:-}"   # phai khop --ckpt-suffix luc train (vd _bs16)
+# 1 = math_eval.py --disable_think: apply_chat_template(enable_thinking=False), Qwen3 chen khoi
+# "<think>\n\n</think>\n\n" rong vao prompt. Checkpoint tuong ung (train.sh --think-prefix off)
+# co hau to _nothink; tag mac dinh cung them _nothink de khong tron output voi ban thinking.
+NO_THINK="${NO_THINK:-0}"
 
 # "task so_mau_moi_cau" - lay tu Eval/run_eval.sh goc cua paper.
 TASKS_DEFAULT="aime24:32 amc23:32 math500:6 minerva:6 gpqa:6 olympiad:6"
@@ -105,6 +110,7 @@ while [[ $# -gt 0 ]]; do
     --lora)            USE_LORA=1; shift ;;
     --lora-r)          LORA_R="$2"; shift 2 ;;
     --ckpt-suffix)     CKPT_SUFFIX="$2"; shift 2 ;;
+    --no-think)        NO_THINK=1; shift ;;
     --full-finetune)   USE_LORA=0; shift ;;
     --epochs)          EPOCHS="$2"; shift 2 ;;
     --lr)              LR="$2"; shift 2 ;;
@@ -163,9 +169,10 @@ latest_checkpoint() {
   return 0
 }
 
-# train.sh ghep hau to theo thu tu: [_fullsft][_lora_r<R>][--ckpt-suffix]
+# train.sh ghep hau to theo thu tu: [_fullsft][_lora_r<R>][_nothink][--ckpt-suffix]
 LORA_SUFFIX=""
 [[ "$USE_LORA" == "1" ]] && LORA_SUFFIX="_lora_r${LORA_R}"
+[[ "$NO_THINK" == "1" ]] && LORA_SUFFIX="${LORA_SUFFIX}_nothink"
 LORA_SUFFIX="${LORA_SUFFIX}${CKPT_SUFFIX}"
 CKPT_BASE="${ROOT_DIR}/SelectiveSFT/checkpoints/$(basename "$BASE_MODEL")_epoch${EPOCHS}_lr${LR}_len${MAX_SEQ_LENGTH}"
 
@@ -191,7 +198,7 @@ case "$WHICH" in
     esac ;;
 esac
 
-[[ -n "$RUN_TAG" ]] || RUN_TAG="${DEFAULT_TAG:-$WHICH}"
+[[ -n "$RUN_TAG" ]] || { RUN_TAG="${DEFAULT_TAG:-$WHICH}"; [[ "$NO_THINK" == "1" ]] && RUN_TAG="${RUN_TAG}_nothink"; }
 [[ "$QUICK" == "1" && "$RUN_TAG" != *_quick ]] && RUN_TAG="${RUN_TAG}_quick"
 
 # Duong dan phai tuyet doi vi lat nua se cd sang Eval/.
@@ -319,6 +326,7 @@ EXTRA_ARGS=(--gpu_memory_utilization "$GPU_MEM_UTIL")
 [[ "$PREFIX_CACHING" == "1" ]]  && EXTRA_ARGS+=(--enable_prefix_caching)
 [[ "$LOGPROBS" == "1" ]]        && EXTRA_ARGS+=(--return_logprobs)
 [[ -n "$MAX_MODEL_LEN" ]]       && EXTRA_ARGS+=(--max_model_len "$MAX_MODEL_LEN")
+[[ "$NO_THINK" == "1" ]]        && EXTRA_ARGS+=(--disable_think)
 
 IFS=',' read -ra GPU_LIST <<< "$GPU"
 NGPU=${#GPU_LIST[@]}
@@ -358,6 +366,7 @@ else
   echo "    gpu        : ${GPU} (tensor_parallel_size=${NGPU})"
 fi
 echo "    sampling   : t=${TEMPERATURE} top_p=${TOP_P} rep=${REPETITION_PENALTY} seed=${SEED} max_tokens=${MAX_TOKENS}"
+echo "    thinking   : $([[ "$NO_THINK" == "1" ]] && echo 'OFF (enable_thinking=False)' || echo 'mac dinh cua chat template')"
 echo "    so cau     : $([[ "$NUM_TEST_SAMPLE" == "-1" ]] && echo "ca test set" || echo "${NUM_TEST_SAMPLE} cau dau")"
 echo "    vllm       : gpu_mem=${GPU_MEM_UTIL} prefix_cache=$([[ "$PREFIX_CACHING" == 1 ]] && echo on || echo off) logprobs=$([[ "$LOGPROBS" == 1 ]] && echo on || echo off) max_model_len=${MAX_MODEL_LEN:-auto}"
 echo "    output     : Eval/${OUTPUT_ROOT}/<task>/${RUN_TAG}"
@@ -453,9 +462,10 @@ SUMMARY_JSON="${ROOT_DIR}/Eval/${OUTPUT_ROOT}/summary.json"
 
 if [[ "$DRY_RUN" != "1" ]]; then
   log "Ket qua"
-  META="$(printf '{"tag":"%s","model":"%s","decoding":"%s","temperature":%s,"top_p":%s,"repetition_penalty":%s,"seed":%s,"max_tokens":%s,"num_test_sample":%s,"prompt_type":"%s"}' \
+  META="$(printf '{"tag":"%s","model":"%s","decoding":"%s","temperature":%s,"top_p":%s,"repetition_penalty":%s,"seed":%s,"max_tokens":%s,"num_test_sample":%s,"prompt_type":"%s","enable_thinking":%s}' \
     "$RUN_TAG" "$MODEL" "$([[ "$TEMPERATURE" == "0" ]] && echo greedy || echo sampling)" \
-    "$TEMPERATURE" "$TOP_P" "$REPETITION_PENALTY" "$SEED" "$MAX_TOKENS" "$NUM_TEST_SAMPLE" "$PROMPT_TYPE")"
+    "$TEMPERATURE" "$TOP_P" "$REPETITION_PENALTY" "$SEED" "$MAX_TOKENS" "$NUM_TEST_SAMPLE" "$PROMPT_TYPE" \
+    "$([[ "$NO_THINK" == "1" ]] && echo false || echo true)")"
 
   python3 - "$ROOT_DIR/Eval/$OUTPUT_ROOT" "$SUMMARY_JSON" "$META" <<'PYSUM'
 import json, sys, glob, os, re, datetime

@@ -120,9 +120,11 @@ def parse_args():
     parser.add_argument("--no_gradient_checkpointing", action="store_true")
     parser.add_argument("--deepseek", action="store_true",
                         help="Chat template DeepSeek R1 (template tu chen <think>). Bo di = template Qwen/ChatML.")
-    parser.add_argument("--think_prefix", default="none", choices=["none", "plain", "special"],
-                        help="Chi ap dung cho nhanh Qwen. none = khong chen <think> (khop voi "
-                             "prompt luc eval); plain = chen <think> dang text thuong; "
+    parser.add_argument("--think_prefix", default="none", choices=["none", "off", "plain", "special"],
+                        help="Chi ap dung cho nhanh Qwen. none = khong chen gi sau '<|im_start|>assistant\\n'; "
+                             "off = TAT thinking mode Qwen3 (apply_chat_template(enable_thinking=False), template "
+                             "tu chen khoi rong '<think>\\n\\n</think>\\n\\n' - eval.sh --no-think phai khop); "
+                             "plain = chen <think> dang text thuong; "
                              "special = chen va them token dac biet + resize embedding (ban goc, can full finetune)")
     parser.add_argument("--segment_mode", default=DEFAULT_MODE, choices=sorted(SEGMENT_PATTERNS))
     parser.add_argument("--mask", action="store_true")
@@ -153,6 +155,8 @@ model, tokenizer = FastLanguageModel.from_pretrained(
     full_finetuning = not args.use_lora,
 )
 
+# Tham so them cho apply_chat_template (template Jinja nhan bien tu kwargs).
+chat_kwargs = {}
 if not args.deepseek:
     # Chat template ChatML (Qwen). apply_chat_template(add_generation_prompt=True)
     # ket thuc bang "<|im_start|>assistant\n" - day cung la prefix ma
@@ -160,9 +164,17 @@ if not args.deepseek:
     if args.think_prefix == "special":
         tokenizer.add_special_tokens({"additional_special_tokens": ["<think>", "</think>", "<|reason_pad|>"]})
         model.resize_token_embeddings(len(tokenizer))
-    think_str = "" if args.think_prefix == "none" else "<think>\n"
     instruction_template = "<|im_start|>user"
-    response_template = "<|im_start|>assistant\n" + think_str
+    if args.think_prefix == "off":
+        # Qwen3: enable_thinking=False -> template tu them khoi think rong sau
+        # "<|im_start|>assistant\n"; response (trace text tran) noi ngay sau do.
+        # Qwen2.5 khong co bien nay -> probe ben duoi bao loi thay vi train sai.
+        chat_kwargs = {"enable_thinking": False}
+        think_str = ""
+        response_template = "<|im_start|>assistant\n<think>\n\n</think>\n\n"
+    else:
+        think_str = "" if args.think_prefix == "none" else "<think>\n"
+        response_template = "<|im_start|>assistant\n" + think_str
 else:
     # Template cua DeepSeek R1 tu chen "<think>\n" sau <｜Assistant｜>.
     think_str = ""
@@ -174,7 +186,7 @@ else:
 # prefix ta mong doi. Sai --deepseek/--think_prefix se lo ra ngay tai buoc nay
 # thay vi tao ra label sai am tham.
 _probe = tokenizer.apply_chat_template(
-    [{"role": "user", "content": "probe"}], tokenize=False, add_generation_prompt=True
+    [{"role": "user", "content": "probe"}], tokenize=False, add_generation_prompt=True, **chat_kwargs
 )
 if not (_probe + think_str).endswith(response_template):
     raise SystemExit(
@@ -261,8 +273,9 @@ def formatting_prompts_func(examples):
         input_str = tokenizer.apply_chat_template(
             messages,
             tokenize=False,
-            add_generation_prompt=True
-        )   
+            add_generation_prompt=True,
+            **chat_kwargs,
+        )
         full_text = input_str + think_str + output
 
         full_tokens = tokenizer(
