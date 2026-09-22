@@ -186,8 +186,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--trans-grad-log-interval", type=int,
-        help="every N optimizer steps log ||grad L_NLL|| vs lambda*||grad L_trans|| on the LoRA "
-        "params (two extra backward passes on one microbatch; default 50, 0 = off)",
+        help="on every Nth optimizer step log ||dL_NLL/dH|| vs lambda*||dL_trans/dH|| at the "
+        "transition layer (tensor hooks in the real backward, no extra passes; default 50, 0 = off)",
     )
     args = parser.parse_args()
 

@@ -31,7 +31,7 @@ bash scripts/trans/build_trans_qwen3-8b.sh vanilla
 #   loss_trans / trans_cos      should fall / rise; trans_cos must clear trans_copy_cos
 #   trans_raw_step_cos -> 1     step representations collapsing
 #   trans_ztilde_norm -> 0      step-specific part vanishing
-#   grad_trans_ratio            lambda*||grad L_trans|| / ||grad L_NLL|| on LoRA; persistently > 0.3-0.5 => lower lambda
+#   grad_trans_ratio            lambda*||dL_trans/dH|| / ||dL_NLL/dH|| at the transition layer; persistently > 0.3-0.5 => lower lambda
 bash scripts/trans/train_trans_qwen3-8b.sh vanilla 0.3                 # config 4
 # bash scripts/trans/train_trans_qwen3-8b.sh vanilla 0.1               # config 3
 # bash scripts/trans/train_trans_qwen3-8b.sh spectral 0.3              # config 5 (best lambda)

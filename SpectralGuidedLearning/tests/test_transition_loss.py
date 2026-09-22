@@ -142,3 +142,36 @@ def test_collator_pads_transition_fields_with_minus_one():
     assert batch["num_steps"].tolist() == [2, 1]
     # plain masked records are untouched
     assert "step_id" not in collator([{"input_ids": [1, 2], "loss_mask": [1, 1]}])
+
+
+def test_hidden_grad_probe_splits_nll_and_transition_shares():
+    """The probe must recover ||dL_NLL/dH|| and ||dL_trans/dH|| from one backward pass."""
+    from transition_trainer import _HiddenGradProbe
+
+    torch.manual_seed(1)
+    hidden, step_id, step_end, pairs = _sequence([4, 5, 6, 3])
+    base = hidden.detach().clone().requires_grad_(True)
+    hidden = (base * 1.0).unsqueeze(0)  # [1, T, d] non-leaf, like a captured layer output
+    head = nn.Linear(D, 3)
+    predictor = TransitionPredictor(D, hidden=8)
+
+    metrics = {}
+    probe = _HiddenGradProbe(lambda key, value: metrics.__setitem__(key, value))
+    loss_nll = head(hidden).pow(2).mean()  # "layers above" path, touches every position
+    loss_trans, _ = transition_loss(
+        hidden[0], step_id, step_end, pairs, predictor, source_grad_hook=probe.source_hook(0)
+    )
+    hidden.register_hook(probe.hidden_hook)
+    (loss_nll + 0.3 * loss_trans).backward()
+
+    # reference: separate backward passes on fresh copies
+    ref = base.detach().clone().requires_grad_(True)
+    head(ref).pow(2).mean().backward()
+    g_nll = ref.grad.norm()
+    ref2 = base.detach().clone().requires_grad_(True)
+    (0.3 * transition_loss(ref2, step_id, step_end, pairs, predictor)[0]).backward()
+    g_trans = ref2.grad.norm()
+
+    assert abs(metrics["grad_nll_hidden"] - float(g_nll)) < 1e-4
+    assert abs(metrics["grad_trans_hidden"] - float(g_trans)) < 1e-4
+    assert abs(metrics["grad_trans_ratio"] - float(g_trans / g_nll)) < 1e-3

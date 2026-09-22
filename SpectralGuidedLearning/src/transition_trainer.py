@@ -9,7 +9,6 @@ and logs the diagnostics the method spec asks for.
 import json
 import os
 from collections import defaultdict
-from contextlib import contextmanager
 
 import torch
 from transformers import TrainerCallback
@@ -19,19 +18,6 @@ from transition_loss import HiddenStateCapture, TransitionPredictor, find_decode
 PREDICTOR_FILE = "trans_predictor.pt"
 PREDICTOR_ATTR = "trans_predictor"
 TRANS_INPUT_KEYS = ("step_id", "step_end", "pair_src", "num_steps")
-
-# Entry points into DeepSpeed's backward epilogue (the ZeRO gradient reduction), muted around the
-# grad-norm probe on whichever of the engine/optimizer owns them; see _backward_hooks_muted.
-BACKWARD_EPILOGUE_METHODS = ("_backward_epilogue", "run_grad_acc_post_hooks")
-
-
-def _noop(*args, **kwargs):
-    return None
-
-
-def _scalar_state(obj):
-    """The object's plain-scalar attributes -- DeepSpeed keeps its backward state machine in these."""
-    return {k: v for k, v in obj.__dict__.items() if v is None or isinstance(v, (bool, int, float, str))}
 
 
 def attach_predictor(model, hidden: int) -> TransitionPredictor:
@@ -65,6 +51,46 @@ class PredictorCheckpointCallback(TrainerCallback):
             torch.save(self.predictor.state_dict(), path)
 
 
+class _HiddenGradProbe:
+    """||dL_NLL/dH|| vs lambda*||dL_trans/dH|| at the transition layer, from the real backward.
+
+    A separate backward per term is not an option under DeepSpeed (its output hooks treat any
+    autograd pass through the logits as *the* backward and run the ZeRO reduce epilogue), so the
+    split is read off tensor hooks instead: the source states see only the transition term, the
+    layer output H sees both, and the NLL share is the difference. The ratio at H stands in for
+    the LoRA-parameter ratio of every layer <= the transition layer (their gradients are linear in
+    dL/dH); with max_grad_norm=1 and batch 1, a ratio persistently above ~0.3-0.5 means the
+    auxiliary term is crowding out the NLL update: lower lambda.
+    """
+
+    def __init__(self, add_metric):
+        self._add_metric = add_metric
+        self._trans = []  # (example index, positions [P], grad [P, d]) per example
+
+    def source_hook(self, example: int):
+        def hook(positions, grad):
+            self._trans.append((example, positions, grad))
+
+        return hook
+
+    def hidden_hook(self, grad):
+        # ||g - s||^2 = ||g||^2 - 2<g_pos, s> + ||s||^2 with s the transition share scattered at
+        # the source positions: no full-size copy of the [B, T, d] gradient is needed.
+        total_sq = grad.float().pow(2).sum()
+        trans_sq = grad.new_zeros((), dtype=torch.float32)
+        cross = grad.new_zeros((), dtype=torch.float32)
+        for example, positions, share in self._trans:
+            share = share.float()
+            trans_sq += share.pow(2).sum()
+            cross += (grad[example, positions].float() * share).sum()
+        nll_sq = (total_sq - 2 * cross + trans_sq).clamp_min(0.0)
+        g_nll, g_trans = float(nll_sq.sqrt()), float(trans_sq.sqrt())
+        self._add_metric("grad_nll_hidden", g_nll)
+        self._add_metric("grad_trans_hidden", g_trans)
+        self._add_metric("grad_trans_ratio", g_trans / max(g_nll, 1e-12))
+        self._trans.clear()
+
+
 class TransitionLossMixin:
     """Mix in *before* MaskedSFTTrainer: `class TransitionSFTTrainer(TransitionLossMixin, MaskedSFTTrainer)`.
 
@@ -74,9 +100,9 @@ class TransitionLossMixin:
         trans_lr: learning rate of the predictor's param group (no weight decay).
         trans_lambda_warmup: ramp lambda linearly from 0 over the LR warmup steps.
         trans_shuffle_targets: the shuffled-target control.
-        trans_grad_log_interval: every N optimizer steps, measure ||grad L_NLL|| and
-            lambda*||grad L_trans|| on the LoRA parameters (two extra backward passes on that
-            one microbatch; 0 disables).
+        trans_grad_log_interval: on every Nth optimizer step, measure ||dL_NLL/dH|| and
+            lambda*||dL_trans/dH|| at the transition layer's hidden state H (tensor hooks in the
+            real backward, no extra passes; 0 disables).
     """
 
     def __init__(self, *args, **kwargs):
@@ -94,12 +120,8 @@ class TransitionLossMixin:
             raise ValueError(f"--trans-layer {self.trans_layer} out of range for {len(layers)} layers")
         self._capture = HiddenStateCapture(layers[self.trans_layer])
         self._predictor = predictor_of(self.model)
-        self._lora_params = [
-            p for n, p in self.model.named_parameters() if p.requires_grad and PREDICTOR_ATTR not in n
-        ]
         self._metric_sums = defaultdict(float)
         self._metric_counts = defaultdict(int)
-        self._grad_logged_step = -1
         self.add_callback(PredictorCheckpointCallback(self._predictor))
 
     # ---- optimizer: predictor in its own group (own LR, no weight decay) ----
@@ -144,6 +166,7 @@ class TransitionLossMixin:
         )
         hidden = self._capture.take()  # [B, T, d]
 
+        probe = self._grad_probe() if self.model.training else None
         losses, stats_list = [], []
         for b in range(hidden.size(0)):
             step_end = trans_inputs["step_end"][b]
@@ -155,10 +178,13 @@ class TransitionLossMixin:
                 pair_src[pair_src >= 0],
                 self._predictor,
                 shuffle_targets=self.trans_shuffle_targets,
+                source_grad_hook=probe.source_hook(b) if probe else None,
             )
             losses.append(loss_b)
             stats_list.append(stats_b)
         loss_trans = torch.stack(losses).mean()
+        if probe:
+            hidden.register_hook(probe.hidden_hook)
 
         # The NLL is already sum/Z over the whole optimizer step (model_accepts_loss_kwargs), so
         # Trainer does not divide by the accumulation count; L_trans is a per-microbatch mean and
@@ -172,8 +198,6 @@ class TransitionLossMixin:
             # loss_nll here is one microbatch's share of the step-level sum/Z; scaling by the
             # accumulation count puts it on the same per-step scale as loss_trans and `loss`.
             self._record(loss_nll * accumulation, loss_trans, stats_list, lam)
-            if self._should_log_grads():
-                self._log_grad_norms(loss_nll, loss_trans_scaled)
         return (loss, outputs) if return_outputs else loss
 
     # ---- diagnostics ----
@@ -192,84 +216,15 @@ class TransitionLossMixin:
             self._metric_sums[key] += value
             self._metric_counts[key] += 1
 
-    def _should_log_grads(self) -> bool:
+    def _grad_probe(self):
         interval = self.trans_grad_log_interval
-        step = self.state.global_step
-        if interval <= 0 or step % interval != 0 or step == self._grad_logged_step:
-            return False
-        self._grad_logged_step = step
-        return True
+        if interval <= 0 or self.state.global_step % interval != 0:
+            return None
+        return _HiddenGradProbe(self._add_metric)
 
-    @contextmanager
-    def _backward_hooks_muted(self):
-        """Hide the diagnostic backward passes from DeepSpeed.
-
-        DeepSpeedEngine.forward() hooks its own output, so *any* backward reaching the loss runs
-        the engine's backward prologue and queues its epilogue -- the ZeRO reduction -- even when
-        the backward is torch.autograd.grad(loss, params), which returns the gradients instead of
-        accumulating them into .grad. The per-parameter reduce hooks sit on grad accumulation and
-        so never fire for the probe, leaving the ipg buckets empty for the epilogue to reduce:
-        "IndexError: list index out of range" in reduce_ipg_grads.
-
-        Muting the epilogue is only half of it. The prologue leaves the engine mid-backward
-        (backward_active_depth) with its post-backward callback marked as queued, which would make
-        Trainer's real backward skip queueing its own, so the scalars holding that state machine
-        are rolled back too: the probe has to look like it never happened. A no-op without
-        DeepSpeed, where nothing hooks the graph.
-        """
-        engine = next(
-            (obj for obj in (getattr(self, "deepspeed", None), self.model_wrapped)
-             if hasattr(obj, "_backward_epilogue")),
-            None,
-        )
-        if engine is None:  # DDP or single GPU: nothing hooks the graph, nothing to undo
-            yield
-            return
-        objects = [obj for obj in (engine, getattr(engine, "optimizer", None)) if obj is not None]
-        saved = [(obj, _scalar_state(obj)) for obj in objects]
-        muted = [(obj, name) for obj in objects for name in BACKWARD_EPILOGUE_METHODS if hasattr(obj, name)]
-
-        for obj, name in muted:
-            setattr(obj, name, _noop)
-        try:
-            yield
-        finally:
-            for obj, name in muted:
-                obj.__dict__.pop(name, None)  # back to the class method
-            for obj, state in saved:
-                obj.__dict__.update(state)
-
-    def _log_grad_norms(self, loss_nll, loss_trans_scaled):
-        """||grad L_NLL|| vs lambda*||grad L_trans|| on the LoRA parameters, one microbatch.
-
-        Plain autograd on the live graph (retain_graph so Trainer's real backward still runs);
-        it never touches .grad, so the per-parameter reduction hooks (which sit on grad
-        accumulation) stay out of it, and _backward_hooks_muted holds off the engine-level ones.
-        With max_grad_norm=1 and batch 1, a ratio persistently above ~0.3-0.5 means the auxiliary
-        term is eating the NLL update: lower lambda.
-        """
-        params = [p for p in self._lora_params if p.requires_grad]
-
-        def norm_of(loss):
-            grads = torch.autograd.grad(loss, params, retain_graph=True, allow_unused=True)
-            squares = [(g.float() ** 2).sum() for g in grads if g is not None]
-            return float(torch.stack(squares).sum().sqrt()) if squares else 0.0
-
-        try:
-            with self._backward_hooks_muted():
-                g_nll = norm_of(loss_nll)
-                g_trans = norm_of(loss_trans_scaled) if loss_trans_scaled.requires_grad else 0.0
-        except Exception as exc:  # a diagnostic is never worth taking the run down for
-            self.trans_grad_log_interval = 0
-            if self.is_world_process_zero():
-                print(f"grad-norm diagnostic failed ({type(exc).__name__}: {exc}); disabled")
-            return
-        self._metric_sums["grad_nll_lora"] += g_nll
-        self._metric_counts["grad_nll_lora"] += 1
-        self._metric_sums["grad_trans_lora"] += g_trans
-        self._metric_counts["grad_trans_lora"] += 1
-        self._metric_sums["grad_trans_ratio"] += g_trans / max(g_nll, 1e-12)
-        self._metric_counts["grad_trans_ratio"] += 1
+    def _add_metric(self, key: str, value: float) -> None:
+        self._metric_sums[key] += value
+        self._metric_counts[key] += 1
 
     def log(self, logs, *args, **kwargs):
         # Rank-local means over the microbatches since the previous log line (DeepSpeed prints

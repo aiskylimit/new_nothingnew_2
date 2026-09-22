@@ -91,6 +91,7 @@ def transition_loss(
     pair_src: torch.Tensor,
     predictor: nn.Module,
     shuffle_targets: bool = False,
+    source_grad_hook=None,
 ) -> tuple[torch.Tensor, TransitionStats]:
     """L_trans for one sequence.
 
@@ -101,6 +102,9 @@ def transition_loss(
         pair_src: [P] long, source step indices of the kept transitions.
         predictor: TransitionPredictor (fp32).
         shuffle_targets: replace z~_{i+1} by a random other step of the same sequence (control).
+        source_grad_hook: optional fn(positions [P], grad [P, d]) run during backward with the
+            gradient reaching the source states -- only L_trans flows through them, so this is
+            the transition term's contribution to dL/dH at those positions.
 
     Returns:
         (loss, stats). With no scorable pair the loss is a zero that still touches the predictor,
@@ -116,7 +120,10 @@ def transition_loss(
     targets = F.normalize(z_tilde, dim=-1)
 
     tgt_index = shuffled_targets(pair_src, num_steps) if shuffle_targets else pair_src + 1
-    source = hidden[step_end[pair_src]].float()  # [P, d], gradient flows into LoRA
+    positions = step_end[pair_src]
+    source = hidden[positions].float()  # [P, d], gradient flows into LoRA
+    if source_grad_hook is not None:
+        source.register_hook(lambda grad: source_grad_hook(positions, grad.detach()))
     pred = F.normalize(predictor(source), dim=-1)
     cos = (pred * targets[tgt_index]).sum(-1)
     loss = (1.0 - cos).mean()
