@@ -13,6 +13,7 @@ read -ra GPUS <<< "${GPUS:-0 1}"
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 export TOKENIZERS_PARALLELISM=false
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
+export VLLM_LOGGING_LEVEL="${VLLM_LOGGING_LEVEL:-WARNING}"
 # Offline server: benchmarks.py resolves aime24/aime25/math500/amc12 from here (see download.txt).
 export BENCH_DATA_ROOT="${BENCH_DATA_ROOT-/mnt/local/_data/aiskylimit_new_nothingnew_2}"
 
@@ -46,6 +47,8 @@ N_SAMPLES=3
 # MAX_TOKENS=32768 and max_model_len follows, so the two can never drift apart.
 MAX_TOKENS="${MAX_TOKENS:-4096}"
 MAX_MODEL_LEN="${MAX_TOKENS}"
+# Problems per generate() call; finished ones are written after each batch, so a stop keeps them.
+BATCH_SIZE="${BATCH_SIZE:-64}"
 GPU_MEM_UTIL=0.9
 SEED=42
 CHAT_TEMPLATE=true
@@ -67,20 +70,21 @@ OPTS+=" --top-p ${TOP_P}"
 OPTS+=" --repetition-penalty ${REPETITION_PENALTY}"
 OPTS+=" --n-samples ${N_SAMPLES}"
 OPTS+=" --max-tokens ${MAX_TOKENS}"
+OPTS+=" --batch-size ${BATCH_SIZE}"
 OPTS+=" --max-model-len ${MAX_MODEL_LEN}"
 OPTS+=" --gpu-memory-utilization ${GPU_MEM_UTIL}"
 [[ "${ENFORCE_EAGER}" == true ]] && OPTS+=" --enforce-eager" || OPTS+=" --no-enforce-eager"
 OPTS+=" --seed ${SEED}"
 [[ "${CHAT_TEMPLATE}" == true ]] && OPTS+=" --chat-template" || OPTS+=" --no-chat-template"
 [[ "${ENABLE_THINKING}" == true ]] && OPTS+=" --enable-thinking" || OPTS+=" --no-enable-thinking"
-# Checkpoint type is inferred from the name: a "lora" in the path or tag is loaded as a LoRA
-# adapter on the base model; anything else (e.g. the full-FT SFT checkpoint) loads directly.
-if [[ "${MODEL}" == *lora* || "${TAG}" == *lora* ]]; then
-  OPTS+=" --base-model ${BASE_MODEL}"
+# Always passed: the base model supplies the chat template / tokenizer, and is what a LoRA
+# adapter is loaded onto. Checkpoint type comes from the checkpoint itself -- an adapter_config.json
+# means a LoRA adapter, anything else (e.g. the full-FT SFT checkpoint) loads directly.
+OPTS+=" --base-model ${BASE_MODEL}"
+if [[ -f "${MODEL}/adapter_config.json" ]]; then
   OPTS+=" --lora-adapter"
   OPTS+=" --lora-r ${LORA_R}"
 else
-  OPTS+=" --base-model ${BASE_MODEL}"   # for chat template / tokenizer; harmless for full-FT
   OPTS+=" --no-lora-adapter"
 fi
 OPTS+=" --results-dir ${RESULTS_DIR}"
