@@ -1,6 +1,6 @@
 #2 -0
 #ssft_8b
-#v1
+#v2
 
 # cd P-ALIGN
 nvidia-smi
