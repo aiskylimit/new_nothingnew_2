@@ -1,7 +1,4 @@
-#d
-#datasets
---hf-dataset simplescaling/s1K-1.1 /mnt/local/_data/@PROJECT@/s1K-1.1
-
+#1 +60
 #iwc
 #v1
 
