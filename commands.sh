@@ -5,7 +5,7 @@
 ls -d /mnt/local/_models/aiskylimit_new_nothingnew_2/DeepSeek-R1-Distill-Qwen-1.5B \
       /mnt/local/_data/aiskylimit_new_nothingnew_2/{s1K-1.1,aime24,aime25,MATH-500,aimo-validation-amc} \
       /mnt/local/uvenvs/spectral_guided_learning{,_train}
-# cd SegmentSelectiveSFT && GPU=0 bash commands.sh
+cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
