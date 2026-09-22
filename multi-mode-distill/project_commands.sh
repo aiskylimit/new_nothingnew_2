@@ -34,7 +34,7 @@ python tools/process_data_ultraInteract.py \
     --dev-num "$DEV_NUM" --seed "$SEED"
 
 MAG_WEIGHT="${MAG_WEIGHT:-2.0}"
-GRAM_WEIGHT="${GRAM_WEIGHT:-2.0}"
+GRAM_WEIGHT="${GRAM_WEIGHT:-10.0}"
 MENGER_WEIGHT="${MENGER_WEIGHT:-1.0}"
 MENGER_EPS="${MENGER_EPS:-1.0e-6}"
 
@@ -89,7 +89,7 @@ printf '\n[full 1/2] Train Qwen: CE + KD + geometry (mag=%s, gram=%s)\n' "$MAG_W
 : > "$CHECKPOINT_FILE"
 CUDA_DEVICES=4,5,6,7 DATA_DIR="$QWEN_DATA_DIR" \
     SAVE_PATH="$QWEN_RESULTS_ROOT/full_mag${MAG_WEIGHT}_gram${GRAM_WEIGHT}" \
-    KD_RATIO="${CE_KD_RATIO:-0.5}" GEOMETRY=10 CKA=0 \
+    KD_RATIO="${CE_KD_RATIO:-0.5}" GEOMETRY=1 CKA=0 \
     MAG_WEIGHT="$MAG_WEIGHT" GRAM_WEIGHT="$GRAM_WEIGHT" \
     FINAL_CHECKPOINT_FILE="$CHECKPOINT_FILE" \
     bash scripts/qwen/train_v2_qwen2.5_14b_to_1.5b.sh "$@"
