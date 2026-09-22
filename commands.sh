@@ -1,4 +1,4 @@
-#1 +60
+#2 -0-10
 #multi-mode-distill
 #v1
 
@@ -56,7 +56,7 @@ export NCCL_DEBUG=WARN
 # bash project_commands.sh
 
 
-cd ./multi-mode-distill
-# bash ./project_commands_opsd_ablation.sh
-# bash ./project_commands_ablation.sh
-bash ./project_commands.sh
+# cd ./multi-mode-distill
+# # bash ./project_commands_opsd_ablation.sh
+# # bash ./project_commands_ablation.sh
+# bash ./project_commands.sh
