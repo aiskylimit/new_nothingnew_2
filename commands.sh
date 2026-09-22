@@ -1,4 +1,7 @@
-#i spectral_guided_learning.txt
+#d
+#datasets
+--hf-dataset simplescaling/s1K-1.1 /mnt/local/_data/@PROJECT@/s1K-1.1
+
 #iwc
 #v1
 
