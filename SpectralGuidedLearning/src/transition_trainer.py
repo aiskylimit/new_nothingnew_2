@@ -9,6 +9,7 @@ and logs the diagnostics the method spec asks for.
 import json
 import os
 from collections import defaultdict
+from contextlib import contextmanager
 
 import torch
 from transformers import TrainerCallback
@@ -18,6 +19,19 @@ from transition_loss import HiddenStateCapture, TransitionPredictor, find_decode
 PREDICTOR_FILE = "trans_predictor.pt"
 PREDICTOR_ATTR = "trans_predictor"
 TRANS_INPUT_KEYS = ("step_id", "step_end", "pair_src", "num_steps")
+
+# Entry points into DeepSpeed's backward epilogue (the ZeRO gradient reduction), muted around the
+# grad-norm probe on whichever of the engine/optimizer owns them; see _backward_hooks_muted.
+BACKWARD_EPILOGUE_METHODS = ("_backward_epilogue", "run_grad_acc_post_hooks")
+
+
+def _noop(*args, **kwargs):
+    return None
+
+
+def _scalar_state(obj):
+    """The object's plain-scalar attributes -- DeepSpeed keeps its backward state machine in these."""
+    return {k: v for k, v in obj.__dict__.items() if v is None or isinstance(v, (bool, int, float, str))}
 
 
 def attach_predictor(model, hidden: int) -> TransitionPredictor:
@@ -186,13 +200,53 @@ class TransitionLossMixin:
         self._grad_logged_step = step
         return True
 
+    @contextmanager
+    def _backward_hooks_muted(self):
+        """Hide the diagnostic backward passes from DeepSpeed.
+
+        DeepSpeedEngine.forward() hooks its own output, so *any* backward reaching the loss runs
+        the engine's backward prologue and queues its epilogue -- the ZeRO reduction -- even when
+        the backward is torch.autograd.grad(loss, params), which returns the gradients instead of
+        accumulating them into .grad. The per-parameter reduce hooks sit on grad accumulation and
+        so never fire for the probe, leaving the ipg buckets empty for the epilogue to reduce:
+        "IndexError: list index out of range" in reduce_ipg_grads.
+
+        Muting the epilogue is only half of it. The prologue leaves the engine mid-backward
+        (backward_active_depth) with its post-backward callback marked as queued, which would make
+        Trainer's real backward skip queueing its own, so the scalars holding that state machine
+        are rolled back too: the probe has to look like it never happened. A no-op without
+        DeepSpeed, where nothing hooks the graph.
+        """
+        engine = next(
+            (obj for obj in (getattr(self, "deepspeed", None), self.model_wrapped)
+             if hasattr(obj, "_backward_epilogue")),
+            None,
+        )
+        if engine is None:  # DDP or single GPU: nothing hooks the graph, nothing to undo
+            yield
+            return
+        objects = [obj for obj in (engine, getattr(engine, "optimizer", None)) if obj is not None]
+        saved = [(obj, _scalar_state(obj)) for obj in objects]
+        muted = [(obj, name) for obj in objects for name in BACKWARD_EPILOGUE_METHODS if hasattr(obj, name)]
+
+        for obj, name in muted:
+            setattr(obj, name, _noop)
+        try:
+            yield
+        finally:
+            for obj, name in muted:
+                obj.__dict__.pop(name, None)  # back to the class method
+            for obj, state in saved:
+                obj.__dict__.update(state)
+
     def _log_grad_norms(self, loss_nll, loss_trans_scaled):
         """||grad L_NLL|| vs lambda*||grad L_trans|| on the LoRA parameters, one microbatch.
 
         Plain autograd on the live graph (retain_graph so Trainer's real backward still runs);
-        it never touches .grad, so DeepSpeed's reduction hooks (which sit on grad accumulation)
-        stay out of it. With max_grad_norm=1 and batch 1, a ratio persistently above ~0.3-0.5
-        means the auxiliary term is eating the NLL update: lower lambda.
+        it never touches .grad, so the per-parameter reduction hooks (which sit on grad
+        accumulation) stay out of it, and _backward_hooks_muted holds off the engine-level ones.
+        With max_grad_norm=1 and batch 1, a ratio persistently above ~0.3-0.5 means the auxiliary
+        term is eating the NLL update: lower lambda.
         """
         params = [p for p in self._lora_params if p.requires_grad]
 
@@ -201,8 +255,15 @@ class TransitionLossMixin:
             squares = [(g.float() ** 2).sum() for g in grads if g is not None]
             return float(torch.stack(squares).sum().sqrt()) if squares else 0.0
 
-        g_nll = norm_of(loss_nll)
-        g_trans = norm_of(loss_trans_scaled) if loss_trans_scaled.requires_grad else 0.0
+        try:
+            with self._backward_hooks_muted():
+                g_nll = norm_of(loss_nll)
+                g_trans = norm_of(loss_trans_scaled) if loss_trans_scaled.requires_grad else 0.0
+        except Exception as exc:  # a diagnostic is never worth taking the run down for
+            self.trans_grad_log_interval = 0
+            if self.is_world_process_zero():
+                print(f"grad-norm diagnostic failed ({type(exc).__name__}: {exc}); disabled")
+            return
         self._metric_sums["grad_nll_lora"] += g_nll
         self._metric_counts["grad_nll_lora"] += 1
         self._metric_sums["grad_trans_lora"] += g_trans
