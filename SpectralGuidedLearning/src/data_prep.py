@@ -31,18 +31,32 @@ RESPONSE_MODES = ("long_cot", "answer")
 def build_prompt(tokenizer, problem: str, chat_template: bool, enable_thinking: bool) -> str:
     """Plain-text continuation prompt (base models) or chat-templated prompt (instruct models).
 
-    enable_thinking is only meaningful for models whose template defines it (e.g. Qwen3); a
-    tokenizer without that concept just ignores the extra kwarg passed to its jinja template.
+    Templates that define enable_thinking (e.g. Qwen3) honour the kwarg; ones that ignore it
+    but hard-code an open `<think>` (R1-Distill) are closed by close_open_thinking(), so
+    --no-enable-thinking means the same thing for every student.
     """
     if not chat_template:
         return PROMPT_TEMPLATE.format(problem=problem)
     instruction = PROMPT_TEMPLATE.format(problem=problem)
-    return tokenizer.apply_chat_template(
+    prompt = tokenizer.apply_chat_template(
         [{"role": "user", "content": instruction}],
         tokenize=False,
         add_generation_prompt=True,
         enable_thinking=enable_thinking,
     )
+    return prompt if enable_thinking else close_open_thinking(prompt)
+
+
+def close_open_thinking(prompt: str) -> str:
+    """Close a thinking block the template opened but the run asked not to use.
+
+    R1-Distill's template hard-codes a trailing `<think>` and ignores `enable_thinking` (only
+    Qwen3-style templates define it), so --no-enable-thinking would otherwise still hand the
+    model an open thinking block. Closing it at once renders the prompt the way the non-thinking
+    templates already render it (`... </think>\n\n`), which is also what answer_only_response()
+    is wrapped for. A prompt with no open block is returned unchanged.
+    """
+    return f"{prompt}</think>\n\n" if prompt.rstrip().endswith("<think>") else prompt
 
 
 def reconcile_thinking_markers(prompt: str, response: str) -> str:
@@ -179,7 +193,7 @@ def iter_samples(config: dict):
             # answer outside it; reconcile_thinking_markers handles the opener.
             solution = row.get("solution") or row.get("response") or row.get("output")
             answer = row.get("answer")
-            if solution and config.get("enable_thinking", True):
+            if solution:
                 ans = str(answer).strip() if answer not in (None, "") else ""
                 tail = f"\n\nThe final answer is \\boxed{{{ans}}}." if ans else ""
                 response = f"{solution.strip()}\n</think>{tail}"

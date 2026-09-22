@@ -6,7 +6,8 @@
 # Comment out any line you don't want to run.
 #
 # The r1-qwen-1.5b / r1-qwen-7b scripts are still in scripts/ but are out of the driver:
-# they train on LIMO and are not part of the P-ALIGN comparison.
+# r1-qwen-1.5b now trains on s1K-1.1 too (its own driver: project_commands_r1-qwen-1.5b.sh),
+# r1-qwen-7b still trains on LIMO; neither is part of the P-ALIGN comparison.
 set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"

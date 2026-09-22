@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
-# Phase 6: eval a DeepSeek-R1-Distill-Qwen-1.5B LoRA adapter with vLLM, Pass@1. Default = spectral ckpt;
-# pass a checkpoint path + tag to eval another (e.g. the vanilla baseline).
+# Phase 6: eval a DeepSeek-R1-Distill-Qwen-1.5B checkpoint with vLLM, following P-ALIGN's
+# eval protocol (P-ALIGN/src/test.py + its project_commands.sh cmd_eval): AIME25/AIME24/AMC12/
+# MATH500, chat template with thinking OFF, n=3, T=0.6, top_p=0.9, repetition_penalty=1.05,
+# max_tokens=4096 -> Pass@1 and Pass@3.
+# Default = the SFT Long-CoT (vanilla) checkpoint; pass a path + tag to eval another arm.
 #   ./scripts/eval/eval_r1-qwen-1.5b.sh
-#   ./scripts/eval/eval_r1-qwen-1.5b.sh checkpoints/vanilla-r1-qwen-1.5b vanilla-r1-qwen-1.5b
+#   ./scripts/eval/eval_r1-qwen-1.5b.sh checkpoints/spectral-r1-qwen-1.5b spectral-r1-qwen-1.5b
+#   ENABLE_THINKING=true MAX_TOKENS=32768 ./scripts/eval/eval_r1-qwen-1.5b.sh   # thinking-mode eval
 set -euo pipefail
 
 read -ra GPUS <<< "${GPUS:-0 1}"
@@ -26,24 +30,33 @@ export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p "${BASE_PATH}/logs"
 
 LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
-MODEL="${BASE_PATH}/checkpoints/spectral-r1-qwen-1.5b"
+MODEL="${BASE_PATH}/checkpoints/vanilla-r1-qwen-1.5b"
 BASE_MODEL="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-1.5B"
-TAG="spectral-r1-qwen-1.5b"
+TAG="vanilla-r1-qwen-1.5b"
 [[ -n "${1:-}" ]] && MODEL="$1"
 [[ -n "${2:-}" ]] && TAG="$2"
 BENCHMARKS="math500,aime24,aime25,amc12"
+# P-ALIGN test.py sampling, verbatim.
 TEMPERATURE=0.6
 TOP_P=0.9
-N_SAMPLES=1
-MAX_TOKENS=30720
-MAX_MODEL_LEN=32768
+REPETITION_PENALTY=1.05
+N_SAMPLES=3
+# One window for prompt + output, as test.py builds it (max_model_len = max_tokens). Two sizes
+# only: 4096 for the non-thinking eval (no trace to fit), 32768 for a thinking one -- set
+# MAX_TOKENS=32768 and max_model_len follows, so the two can never drift apart.
+MAX_TOKENS="${MAX_TOKENS:-4096}"
+MAX_MODEL_LEN="${MAX_TOKENS}"
 GPU_MEM_UTIL=0.9
 SEED=42
 CHAT_TEMPLATE=true
-ENABLE_THINKING=true
+# Thinking OFF, as in test.py. R1-Distill's template ignores enable_thinking and hard-codes an
+# open <think>, so evaluate.py closes that block (data_prep.close_open_thinking) -- without it
+# the model would still emit a full thinking trace. For a thinking eval set ENABLE_THINKING=true
+# AND MAX_TOKENS=32768; 4096 would cut the trace off mid-way.
+ENABLE_THINKING="${ENABLE_THINKING:-false}"
 ENFORCE_EAGER=true
 LORA_R=16
-RESULTS_DIR="${BASE_PATH}/results"
+RESULTS_DIR="${RESULTS_DIR:-${BASE_PATH}/results}"
 
 OPTS=""
 OPTS+=" --model ${MODEL}"
@@ -51,6 +64,7 @@ OPTS+=" --tag ${TAG}"
 OPTS+=" --benchmarks ${BENCHMARKS}"
 OPTS+=" --temperature ${TEMPERATURE}"
 OPTS+=" --top-p ${TOP_P}"
+OPTS+=" --repetition-penalty ${REPETITION_PENALTY}"
 OPTS+=" --n-samples ${N_SAMPLES}"
 OPTS+=" --max-tokens ${MAX_TOKENS}"
 OPTS+=" --max-model-len ${MAX_MODEL_LEN}"
@@ -60,7 +74,7 @@ OPTS+=" --seed ${SEED}"
 [[ "${CHAT_TEMPLATE}" == true ]] && OPTS+=" --chat-template" || OPTS+=" --no-chat-template"
 [[ "${ENABLE_THINKING}" == true ]] && OPTS+=" --enable-thinking" || OPTS+=" --no-enable-thinking"
 # Checkpoint type is inferred from the name: a "lora" in the path or tag is loaded as a LoRA
-# adapter on the base model; anything else (e.g. the spectral full-FT checkpoint) loads directly.
+# adapter on the base model; anything else (e.g. the full-FT SFT checkpoint) loads directly.
 if [[ "${MODEL}" == *lora* || "${TAG}" == *lora* ]]; then
   OPTS+=" --base-model ${BASE_MODEL}"
   OPTS+=" --lora-adapter"

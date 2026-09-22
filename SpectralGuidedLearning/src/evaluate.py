@@ -15,13 +15,16 @@ import yaml
 import palign_grader
 from answer_scoring import score_generation
 from benchmarks import BENCHMARKS
+from data_prep import close_open_thinking
 
 
 def build_prompts(model_path: str, records: list[dict], config: dict) -> list[str]:
     """Wrap each benchmark's plain instruction into a chat-templated prompt when requested.
 
     Instruct/hybrid-thinking models need the chat template so generation starts from the
-    assistant turn as trained, rather than continuing raw text like a base model.
+    assistant turn as trained, rather than continuing raw text like a base model. Prompts are
+    built exactly as data_prep.build_prompt() builds them at train time, including how
+    enable_thinking=False is rendered (see close_open_thinking).
     """
     if not config.get("chat_template"):
         return [record["prompt"] for record in records]
@@ -29,15 +32,17 @@ def build_prompts(model_path: str, records: list[dict], config: dict) -> list[st
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(config.get("base_model") or model_path)
-    return [
+    enable_thinking = config.get("enable_thinking", True)
+    prompts = [
         tokenizer.apply_chat_template(
             [{"role": "user", "content": record["prompt"]}],
             tokenize=False,
             add_generation_prompt=True,
-            enable_thinking=config.get("enable_thinking", True),
+            enable_thinking=enable_thinking,
         )
         for record in records
     ]
+    return prompts if enable_thinking else [close_open_thinking(prompt) for prompt in prompts]
 
 
 def generate(model_path: str, records: list[dict], config: dict):
