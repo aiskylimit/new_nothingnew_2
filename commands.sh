@@ -1,7 +1,8 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew2/SegmentSelectiveSFT/Eval/outputs_qwen3_8b_sel_r16_ep3_4k/ 
+#1 +60
 #ssft_8b
 #v2
 
+tree /mnt/local/aiskylimit_new_nothingnew2/SegmentSelectiveSFT
 # cd P-ALIGN
 nvidia-smi
 # cd SpectralGuidedLearning && GPUS=0 bash project_commands2.sh
