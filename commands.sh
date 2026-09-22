@@ -1,8 +1,11 @@
-#2 -0-10
-#iwc
+#1 +60
+#sft
 #v1
 
-# nvidia-smi
+ls -d /mnt/local/_models/aiskylimit_new_nothingnew_2/DeepSeek-R1-Distill-Qwen-1.5B \
+      /mnt/local/_data/aiskylimit_new_nothingnew_2/{s1K-1.1,aime24,aime25,MATH-500,aimo-validation-amc} \
+      /mnt/local/uvenvs/spectral_guided_learning{,_train}
+cd SpectralGuidedLearning && GPUS=0 bash project_commands_r1-qwen-1.5b.sh
 # cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
@@ -20,6 +23,10 @@ export HF_HUB_OFFLINE=1
 export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
 export NCCL_DEBUG=WARN
+
+# SFT Long CoT -- DeepSeek-R1-Distill-Qwen-1.5B (s1K-1.1, full fine-tuning, eval thinking-off @4k):
+# data -> train -> eval -> compare. Comment out once the run is done.
+cd SpectralGuidedLearning && GPUS=0 bash project_commands_r1-qwen-1.5b.sh
 
 
 # cd ./sdxl_q3_offline_b200_2gpu
