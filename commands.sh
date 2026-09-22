@@ -1,4 +1,4 @@
-#1 +60
+#2 -0
 #ssft_8b
 #v1
 
@@ -8,7 +8,7 @@
 # cd SpectralGuidedLearning && GPUS=0 bash project_commands2.sh
 # cd SegmentSelectiveSFT && GPU=1 bash commands.sh
 # nvidia-smi
-cd SegmentSelectiveSFT && GPU=0 bash commands.sh
+# cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
