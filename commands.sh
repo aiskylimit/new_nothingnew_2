@@ -1,4 +1,4 @@
-#2 -0-10
+#i multi-mode-distill-eval.txt
 #ssft_8b
 #v1
 
