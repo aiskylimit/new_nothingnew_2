@@ -1,4 +1,7 @@
-#2 -0-10
+#d
+#models
+--hf deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-1.5B
+
 #iwc
 #v1
 
