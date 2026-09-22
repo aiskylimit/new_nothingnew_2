@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew2/SegmentSelectiveSFT/Eval/outputs_qwen3_8b_sel_r16_ep3_4k/summary.json
+#2 /mnt/local/aiskylimit_new_nothingnew2/SegmentSelectiveSFT/Eval/outputs_qwen3_8b_sel_r16_ep3_4k/ 
 #ssft_8b
 #v2
 
