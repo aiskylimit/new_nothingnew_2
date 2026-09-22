@@ -242,8 +242,8 @@ for t, desc in runs:
     if summ is not None:
         accs = summ.get("tasks", {})
         print(hdr % ("acc (mau dau tien)",
-                     *["%.1f" % accs[x] if isinstance(accs.get(x), (int, float)) else "-" for x in tasks],
-                     "%.1f" % summ["average_acc"] if summ.get("average_acc") is not None else "-"))
+                     *["%.2f" % accs[x] if isinstance(accs.get(x), (int, float)) else "-" for x in tasks],
+                     "%.2f" % summ["average_acc"] if summ.get("average_acc") is not None else "-"))
     if pk is not None:
         by_task = {r["task"]: r for r in pk.get("tasks", [])}
         for k in pk.get("k", []):

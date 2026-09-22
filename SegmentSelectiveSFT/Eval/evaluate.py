@@ -70,7 +70,7 @@ def evaluate(data_name, prompt_type, samples: list=None, file_path: str=None, ma
 
     # output mean of each column of scores
     col_means= np.array(score_mat).mean(axis=0)
-    mean_score = list(np.round(col_means * 100, decimals=1))
+    mean_score = list(np.round(col_means * 100, decimals=2))  # 2 chu so thap phan, khop pass_at_k.py
 
     result_json = {
         "num_samples": len(samples),
@@ -87,7 +87,7 @@ def evaluate(data_name, prompt_type, samples: list=None, file_path: str=None, ma
             if sample['type'] not in type_scores:
                 type_scores[sample['type']] = []
             type_scores[sample['type']].append(sample['score'][-1])
-        type_scores = {k: np.round(np.array(v).mean() * 100, decimals=1) for k, v in type_scores.items()}
+        type_scores = {k: np.round(np.array(v).mean() * 100, decimals=2) for k, v in type_scores.items()}
         type_scores = {k: v for k, v in sorted(type_scores.items(), key=lambda item: item[0])}
         result_json['type_acc'] = type_scores
 

@@ -510,11 +510,11 @@ else:
         sub = "full" if r["num_test_sample"] == -1 else r["num_test_sample"]
         t = r["time_use_in_second"]
         print(hdr % (r["task"], sub, r["n_sampling"],
-                     "%.1f" % r["acc"] if isinstance(r["acc"], (int, float)) else r["acc"],
+                     "%.2f" % r["acc"] if isinstance(r["acc"], (int, float)) else r["acc"],
                      r["num_samples"],
                      "%d:%02d" % (t // 60, t % 60) if isinstance(t, (int, float)) else "-"))
     if accs:
-        print(hdr % ("TRUNG BINH", "", "", "%.1f" % (sum(accs) / len(accs)), "", ""))
+        print(hdr % ("TRUNG BINH", "", "", "%.2f" % (sum(accs) / len(accs)), "", ""))
 print()
 print("  JSON: %s" % out_path)
 PYSUM
