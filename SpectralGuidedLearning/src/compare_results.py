@@ -29,15 +29,17 @@ def load_summaries(results_dir: Path) -> tuple[dict[str, dict[str, dict[str, flo
     return models, samples
 
 
-METHODS = ("vanilla", "spectral")
+# Model tracks (scripts/*/<phase>_<track>.sh); a tag is "<method>-<track>", where method may itself
+# carry dashes ("iwc-stable", "trans-vanilla-l0.3"), so the split is anchored on the track suffix.
+TRACKS = ("qwen3-8b", "qwen25-7b", "r1-qwen-1.5b", "r1-qwen-7b")
 
 
 def split_tag(tag: str) -> tuple[str, str] | None:
-    """"spectral-r1-qwen-1.5b" -> ("spectral", "r1-qwen-1.5b"); None if no known method prefix."""
-    for method in METHODS:
-        prefix = f"{method}-"
-        if tag.startswith(prefix):
-            return method, tag[len(prefix) :]
+    """"spectral-r1-qwen-1.5b" -> ("spectral", "r1-qwen-1.5b"); None if no known track suffix."""
+    for track in TRACKS:
+        suffix = f"-{track}"
+        if tag.endswith(suffix) and len(tag) > len(suffix):
+            return tag[: -len(suffix)], track
     return None
 
 
@@ -84,8 +86,8 @@ def format_table(models: dict[str, dict[str, dict[str, float]]], metric: str) ->
         if "vanilla" not in by_method:
             continue
         base_scores = models[by_method["vanilla"]]
-        for method in ("spectral",):
-            if method not in by_method:
+        for method in by_method:
+            if method == "vanilla":
                 continue
             new_scores = models[by_method[method]]
             deltas = []

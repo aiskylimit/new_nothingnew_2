@@ -1,5 +1,5 @@
-#2 -0-5
-#multi-mode-distill
+#i spectral_guided_learning.txt
+#iwc
 #v1
 
 # tree SegmentSelectiveSFT
@@ -14,7 +14,7 @@
 # bash project_commands.sh
 # nvidia-smi
 # cd SpectralGuidedLearning && GPUS=0 bash scripts/eval/reeval_all.sh
-
+cd SpectralGuidedLearning && GPUS="0 1" bash project_commands_trans.sh
 # kill -9 155157 155158
 
 # cd ./offline_rlsd_sdpo_b200

@@ -2,6 +2,10 @@
 
 Shared by both the vanilla and spectral SFT launchers (scripts/qwen3/{sft,spectral}/) --
 only the loss mask in the dataset differs. Settings come from CLI flags or --config.
+
+--trans-lambda > 0 adds the next-step representation objective (L = L_NLL + lambda * L_trans,
+see transition_loss.py) on top of whichever NLL mask the data carries; the data then needs the
+step fields written by build_trans_dataset.py. Off by default, so every existing arm is unchanged.
 """
 
 import argparse
@@ -23,6 +27,8 @@ from data_collator import MaskedSFTCollator
 from masked_dataset import MaskedSFTDataset, VolumeCommitCallback
 from masked_loss import masked_cross_entropy
 from training_utils import compensate_global_token_mean, set_training_seed
+from transition_loss import default_transition_layer, find_decoder_layers
+from transition_trainer import TRANS_INPUT_KEYS, TransitionLossMixin, attach_predictor
 
 
 class MaskedSFTTrainer(Trainer):
@@ -42,6 +48,8 @@ class MaskedSFTTrainer(Trainer):
     def compute_loss(self, model, inputs, return_outputs=False, num_items_in_batch=None, **kwargs):
         labels = inputs.pop("labels")
         token_weights = inputs.pop("loss_weights", None)
+        for key in TRANS_INPUT_KEYS:  # step structure of a *-trans.jsonl is inert without --trans-lambda
+            inputs.pop(key, None)
         outputs = model(**inputs)
         loss = masked_cross_entropy(
             outputs.logits, labels, denominator=num_items_in_batch, token_weights=token_weights
@@ -56,6 +64,10 @@ class MaskedSFTTrainer(Trainer):
             num_processes=self.accelerator.num_processes,
         )
         return (loss, outputs) if return_outputs else loss
+
+
+class TransitionSFTTrainer(TransitionLossMixin, MaskedSFTTrainer):
+    """MaskedSFTTrainer + lambda * L_trans (SFT + L_trans, or SGL + L_trans with a spectral mask)."""
 
 
 def build_training_arguments(config: dict) -> TrainingArguments:
@@ -148,6 +160,35 @@ def main() -> None:
     parser.add_argument("--lora-alpha", type=int)
     parser.add_argument("--lora-dropout", type=float)
     parser.add_argument("--lora-target-modules", help="comma-separated module names")
+    # Next-step representation prediction (L_trans). Only --trans-lambda switches it on.
+    parser.add_argument(
+        "--trans-lambda", type=float,
+        help="weight lambda of L_trans (0/unset = plain masked SFT). Needs a dataset with the step "
+        "fields from build_trans_dataset.py",
+    )
+    parser.add_argument(
+        "--trans-layer", type=int,
+        help="0-based decoder layer whose output feeds source and target (default: round(2/3 * depth), "
+        "24 for Qwen3-8B's 36 layers)",
+    )
+    parser.add_argument("--trans-hidden", type=int, help="predictor bottleneck width (default 1024)")
+    parser.add_argument(
+        "--trans-lr", type=float,
+        help="learning rate of the predictor's own param group, no weight decay (default 2e-4)",
+    )
+    parser.add_argument(
+        "--trans-lambda-warmup", action=argparse.BooleanOptionalAction,
+        help="ramp lambda linearly from 0 over the LR warmup steps (default on)",
+    )
+    parser.add_argument(
+        "--trans-shuffle-targets", action=argparse.BooleanOptionalAction,
+        help="control arm: target is a random other step of the same trace instead of step i+1",
+    )
+    parser.add_argument(
+        "--trans-grad-log-interval", type=int,
+        help="every N optimizer steps log ||grad L_NLL|| vs lambda*||grad L_trans|| on the LoRA "
+        "params (two extra backward passes on one microbatch; default 50, 0 = off)",
+    )
     args = parser.parse_args()
 
     config = yaml.safe_load(Path(args.config).read_text()) if args.config else {}
@@ -177,8 +218,16 @@ def main() -> None:
         "lora_alpha": args.lora_alpha,
         "lora_dropout": args.lora_dropout,
         "lora_target_modules": args.lora_target_modules,
+        "trans_lambda": args.trans_lambda,
+        "trans_layer": args.trans_layer,
+        "trans_hidden": args.trans_hidden,
+        "trans_lr": args.trans_lr,
+        "trans_lambda_warmup": args.trans_lambda_warmup,
+        "trans_shuffle_targets": args.trans_shuffle_targets,
+        "trans_grad_log_interval": args.trans_grad_log_interval,
     }
     config.update({key: value for key, value in overrides.items() if value is not None})
+    use_trans = bool(config.get("trans_lambda"))
 
     missing = [key for key in ("model_name", "data_path", "output_dir") if key not in config]
     if missing:
@@ -195,6 +244,14 @@ def main() -> None:
         config["epochs"] = 1
 
     print(f"{len(dataset)} samples, {dataset.supervised_token_count():,} supervised tokens")
+    if use_trans:
+        missing_fields = [r.get("id") for r in dataset.records if "step_id" not in r][:5]
+        if missing_fields:
+            parser.error(
+                f"--trans-lambda needs step fields (build_trans_dataset.py); records without them: {missing_fields}..."
+            )
+        pairs = sum(len(r["pair_src"]) for r in dataset.records)
+        print(f"L_trans: {pairs:,} transition pairs over {len(dataset)} samples")
 
     model = AutoModelForCausalLM.from_pretrained(
         config["model_name"],
@@ -223,6 +280,30 @@ def main() -> None:
         model.enable_input_require_grads()
         model.print_trainable_parameters()
 
+    trainer_cls, trainer_kwargs = MaskedSFTTrainer, {}
+    if use_trans:
+        num_layers = len(find_decoder_layers(model))
+        config.setdefault("trans_layer", default_transition_layer(num_layers))
+        config.setdefault("trans_hidden", 1024)
+        config.setdefault("trans_lr", 2e-4)
+        config.setdefault("trans_lambda_warmup", True)
+        config.setdefault("trans_shuffle_targets", False)
+        config.setdefault("trans_grad_log_interval", 50)
+        predictor = attach_predictor(model, config["trans_hidden"])
+        print(
+            f"L_trans: lambda={config['trans_lambda']} layer={config['trans_layer']}/{num_layers} "
+            f"predictor {sum(p.numel() for p in predictor.parameters()):,} params lr={config['trans_lr']} "
+            f"warmup={config['trans_lambda_warmup']} shuffle_targets={config['trans_shuffle_targets']}"
+        )
+        trainer_cls = TransitionSFTTrainer
+        trainer_kwargs = {
+            key: config[key]
+            for key in (
+                "trans_lambda", "trans_layer", "trans_lr", "trans_lambda_warmup",
+                "trans_shuffle_targets", "trans_grad_log_interval",
+            )
+        }
+
     # On Modal, commit the volume after each epoch's save so an interrupted run keeps finished epochs.
     callbacks = []
     commit_volume = os.environ.get("MODAL_COMMIT_VOLUME")
@@ -230,7 +311,7 @@ def main() -> None:
         callbacks.append(VolumeCommitCallback(commit_volume))
         print(f"per-epoch volume commits enabled (volume: {commit_volume})")
 
-    trainer = MaskedSFTTrainer(
+    trainer = trainer_cls(
         model=model,
         args=build_training_arguments(config),
         train_dataset=dataset,
@@ -239,6 +320,7 @@ def main() -> None:
         # end — otherwise intermediate checkpoints aren't loadable by vLLM (evaluate.py) on their own.
         processing_class=tokenizer,
         callbacks=callbacks,
+        **trainer_kwargs,
     )
 
     # --resume: pick up the last checkpoint in output_dir if one is present (a re-run after a crash),
@@ -252,6 +334,10 @@ def main() -> None:
         if last:
             print(f"--resume: continuing from {last}")
             resume_from = last
+            if use_trans:
+                # DeepSpeed's checkpoint restores it too (trainable submodule); this covers the
+                # non-DeepSpeed path and any checkpoint whose engine state was pruned.
+                print(f"--resume: predictor {'loaded' if trainer.load_predictor(last) else 'NOT found'} in {last}")
         else:
             print("--resume: no existing checkpoint found, starting fresh")
 
@@ -278,6 +364,9 @@ def main() -> None:
                         "warmup_ratio": config.get("warmup_ratio"),
                         "seed": config.get("seed", 42),
                         "use_lora": bool(config.get("use_lora")),
+                        "trans_lambda": config.get("trans_lambda"),
+                        "trans_layer": config.get("trans_layer"),
+                        "trans_shuffle_targets": config.get("trans_shuffle_targets"),
                     },
                     "final_metrics": result.metrics,
                     "log_history": trainer.state.log_history,
@@ -297,6 +386,9 @@ def main() -> None:
         # LoRA adapter on top of the base model.
         trainer.save_model(config["output_dir"])
     tokenizer.save_pretrained(config["output_dir"])
+    if use_trans:
+        # Not needed at inference (evaluate.py/vLLM read only the adapter); kept for continued training.
+        trainer.save_predictor(config["output_dir"])
 
     # evidence for the paper's "fewer supervised tokens" claim, recorded next to the checkpoint
     (Path(config["output_dir"]) / "run-summary.json").write_text(
@@ -309,6 +401,8 @@ def main() -> None:
                 "seed": config.get("seed", 42),
                 "train_runtime_s": result.metrics.get("train_runtime"),
                 "final_train_loss": result.metrics.get("train_loss"),
+                "trans_lambda": config.get("trans_lambda"),
+                "trans_pairs": sum(len(r["pair_src"]) for r in dataset.records) if use_trans else None,
             },
             indent=2,
         )
