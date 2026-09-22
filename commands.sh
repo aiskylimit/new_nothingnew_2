@@ -1,6 +1,6 @@
 #2 -0-10
 #ssft_8b
-#v2
+#v1
 
 # tree SegmentSelectiveSFT
 # cd P-ALIGN
