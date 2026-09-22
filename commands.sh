@@ -1,4 +1,4 @@
-#i multi-mode-distill-eval.txt
+#i reasoning-velocity-distill.txt
 #ssft_8b
 #v1
 
