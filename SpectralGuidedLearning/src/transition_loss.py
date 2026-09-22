@@ -29,7 +29,10 @@ class TransitionPredictor(nn.Module):
         self.down = nn.Linear(hidden, d_model)
 
     def forward(self, s: torch.Tensor) -> torch.Tensor:
-        return self.down(F.gelu(self.up(self.norm(s))))
+        # DeepSpeed bf16 casts every submodule (this one included) to bf16 while the source
+        # states arrive as fp32; follow the weights' dtype and hand back fp32 for the cosine.
+        s = s.to(self.up.weight.dtype)
+        return self.down(F.gelu(self.up(self.norm(s)))).float()
 
 
 @dataclass
