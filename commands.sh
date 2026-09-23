@@ -1,9 +1,9 @@
-#1 +30
+#2 -0-10
 #p-align
 #v1
 
 # cd SegmentSelectiveSFT && bash commands.sh
-cd P-ALIGN && CUDA_VISIBLE_DEVICES=1 bash project_commands_r1_1.5b.sh
+# cd P-ALIGN && CUDA_VISIBLE_DEVICES=1 bash project_commands_r1_1.5b.sh
 # cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
