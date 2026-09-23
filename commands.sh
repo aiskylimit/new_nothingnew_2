@@ -1,8 +1,8 @@
-#1 +50
+#2 -0-10
 #sft
 #v1
 
-cd SegmentSelectiveSFT && bash commands.sh
+# cd SegmentSelectiveSFT && bash commands.sh
 # nvidia-smi
 # cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
