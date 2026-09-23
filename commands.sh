@@ -1,5 +1,5 @@
-#2 -0-10
-#sft
+#1 +120
+#rivad
 #v1
 
 # cd SegmentSelectiveSFT && bash commands.sh
@@ -52,8 +52,8 @@ export NCCL_DEBUG=WARN
 # bash project_commands.sh
 
 
-# cd ./multi-mode-distill
-# bash ./run_gemma.sh
+cd ./multi-mode-distill
+bash ./run_gemma.sh
 # bash ./project_commands.sh
 # # # bash ./project_commands_opsd_ablation.sh
 # # # bash ./project_commands_ablation.sh

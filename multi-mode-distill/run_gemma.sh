@@ -7,7 +7,7 @@ BASE_PATH="$PWD"
 
 export ASSET_ROOT="${ASSET_ROOT:-/mnt/local/aiskylimit_new_nothing/reasoning_velocity_distill}"
 
-DATA_ROOT="${DATA_ROOT:-$BASE_PATH}"
+DATA_ROOT="${DATA_ROOT:-/mnt/local/aiskylimit_new_nothing/reasoning_velocity_distill}"
 VENV_PATH="${VENV_PATH:-/mnt/local/uvenvs/reasoning-velocity-distill}"
 source "$VENV_PATH/bin/activate"
 export PYTHONPATH="$BASE_PATH${PYTHONPATH:+:$PYTHONPATH}"
