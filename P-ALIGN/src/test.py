@@ -104,15 +104,28 @@ def split_list(lst, batch_size):
     return [lst[i:i + batch_size] for i in range(0, len(lst), batch_size)]
 
 
-def apply_chat(tokenizer, messages):
+EMPTY_THINK = "<think>\n\n</think>\n\n"
+
+
+def apply_chat(tokenizer, messages, force_empty_think=False):
     kwargs = dict(tokenize=False, add_generation_prompt=True)
     try:
-        return tokenizer.apply_chat_template(messages, enable_thinking=False, **kwargs)
+        text = tokenizer.apply_chat_template(messages, enable_thinking=False, **kwargs)
     except TypeError:
-        return tokenizer.apply_chat_template(messages, **kwargs)
+        text = tokenizer.apply_chat_template(messages, **kwargs)
+    if text.endswith(EMPTY_THINK):
+        return text
+    # Templates without enable_thinking (e.g. DeepSeek-R1-Distill) open "<think>\n" in the
+    # generation prompt; close it empty so the model answers directly (non-thinking mode).
+    stripped = text.rstrip()
+    if stripped.endswith("<think>"):
+        return stripped[: -len("<think>")] + EMPTY_THINK
+    if force_empty_think:
+        return text + EMPTY_THINK
+    return text
 
 
-def process_data(json_filename, file_name, llm, batch_size, tokenizer, sampling_params):
+def process_data(json_filename, file_name, llm, batch_size, tokenizer, sampling_params, force_empty_think=False):
     data = []
     with jsonlines.open(json_filename) as infile:
         for item in infile:
@@ -124,12 +137,18 @@ def process_data(json_filename, file_name, llm, batch_size, tokenizer, sampling_
                 "prompt_ori": f"Please reason step by step, and put your final answer within \\boxed{{}}.{item[problem_key]}",
                 "answer": item[answer_key],
             })
-    texts = [apply_chat(tokenizer, [{"role": "user", "content": d["prompt_ori"]}]) for d in data]
+    texts = [
+        apply_chat(tokenizer, [{"role": "user", "content": d["prompt_ori"]}], force_empty_think)
+        for d in data
+    ]
+    # The rendered template already carries BOS where the model needs it (DeepSeek);
+    # pass token ids so vLLM does not prepend a second one.
+    prompts = [{"prompt_token_ids": tokenizer.encode(t, add_special_tokens=False)} for t in texts]
     out_dir = os.path.dirname(file_name)
     if out_dir:
         os.makedirs(out_dir, exist_ok=True)
     results = []
-    for batch in tqdm(split_list(texts, batch_size), desc=json_filename):
+    for batch in tqdm(split_list(prompts, batch_size), desc=json_filename):
         for output in llm.generate(batch, sampling_params):
             results.append([o.text for o in output.outputs])
     with open(file_name, "w", encoding="utf-8") as f:
@@ -149,6 +168,8 @@ def main():
     p.add_argument("--top_p", type=float, default=0.9)
     p.add_argument("--repetition_penalty", type=float, default=1.05)
     p.add_argument("--max_tokens", type=int, default=4096)
+    p.add_argument("--force_empty_think", action="store_true",
+                   help="append an empty <think></think> block even if the chat template does not open one")
     args = p.parse_args()
     if len(args.input_files) != len(args.output_files):
         raise ValueError("input_files and output_files length must match")
@@ -161,7 +182,7 @@ def main():
     )
     llm = _make_llm(args.model, args.max_tokens)
     for inp, out in zip(args.input_files, args.output_files):
-        process_data(inp, out, llm, args.batch_size, tokenizer, sampling_params)
+        process_data(inp, out, llm, args.batch_size, tokenizer, sampling_params, args.force_empty_think)
 
 
 if __name__ == "__main__":

@@ -5,10 +5,10 @@ import json
 from pathlib import Path
 
 BENCH = [
-    ("AIME25", "output/result/aime25_scored.jsonl"),
-    ("AIME24", "output/result/aime24_scored.jsonl"),
-    ("AMC12", "output/result/amc12_scored.jsonl"),
-    ("MATH500", "output/result/math500_scored.jsonl"),
+    ("AIME25", "aime25_scored.jsonl"),
+    ("AIME24", "aime24_scored.jsonl"),
+    ("AMC12", "amc12_scored.jsonl"),
+    ("MATH500", "math500_scored.jsonl"),
 ]
 
 
@@ -33,11 +33,12 @@ def metrics(path: Path):
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--out", default="output/eval_results.txt")
+    p.add_argument("--result_dir", default="output/result")
     args = p.parse_args()
     lines = []
     p1s, p3s = [], []
     for name, rel in BENCH:
-        path = Path(rel)
+        path = Path(args.result_dir) / rel
         if not path.exists():
             raise SystemExit(f"missing {path}")
         p1, p3, n = metrics(path)
