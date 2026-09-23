@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SegmentSelectiveSFT/Eval/outputs_r1_1p5b_sel_ft_ep3_nothink_palign_4k/summary.json
+#i p-align.txt
 #ssft
 #v1
 
