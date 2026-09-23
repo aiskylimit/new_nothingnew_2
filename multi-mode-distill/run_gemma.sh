@@ -3,27 +3,30 @@ set -euo pipefail
 
 BASE_PATH="${BASE_PATH:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)}"
 cd "$BASE_PATH"
+BASE_PATH="$PWD"
 
-ASSET_ROOT="${ASSET_ROOT:-$BASE_PATH}"
+export ASSET_ROOT="${ASSET_ROOT:-/mnt/local/aiskylimit_new_nothing/reasoning_velocity_distill}"
+
+DATA_ROOT="${DATA_ROOT:-$BASE_PATH}"
 VENV_PATH="${VENV_PATH:-/mnt/local/uvenvs/reasoning-velocity-distill}"
 source "$VENV_PATH/bin/activate"
+export PYTHONPATH="$BASE_PATH${PYTHONPATH:+:$PYTHONPATH}"
+export TOKENIZERS_PARALLELISM=false
 
-RAW_DATA="$ASSET_ROOT/data/raw/google/gemma-2-9b-it/generated_train.jsonl"
-CKPT="$ASSET_ROOT/models/google_gemma-2-2b-it"
-TEACHER_CKPT="$ASSET_ROOT/models/google_gemma-2-9b-it"
-EVAL_DATA_DIR="$ASSET_ROOT/data/eval"
-PROCESSED_DATA_ROOT="$ASSET_ROOT/processed_data/ultraInteract-v2"
-DATA_DIR="$PROCESSED_DATA_ROOT/models/$(basename -- "$CKPT")"
+# Training data and models are local to this project; eval data is shared.
+RAW_DATA="${RAW_DATA:-$DATA_ROOT/data/raw/google/gemma-2-9b-it/generated_train.jsonl}"
+CKPT="${CKPT:-$DATA_ROOT/models/google_gemma-2-2b-it}"
+TEACHER_CKPT="${TEACHER_CKPT:-$DATA_ROOT/models/google_gemma-2-9b-it}"
+PROCESSED_DATA_ROOT="${PROCESSED_DATA_ROOT:-$DATA_ROOT/processed_data/ultraInteract-v2}"
+DATA_DIR="${DATA_DIR:-$PROCESSED_DATA_ROOT/models/$(basename -- "$CKPT")}"
+EVAL_DATA_DIR="${EVAL_DATA_DIR:-$ASSET_ROOT/data/eval}"
 GEMMA_RESULTS_ROOT="${GEMMA_RESULTS_ROOT:-$BASE_PATH/results/gemma-2-2b-it-distill}"
-
-RUN_NAME="${RUN_NAME:-geo${GEOMETRY:-1}_cka${CKA:-0}_menger${MENGER_WEIGHT:-0.0}}"
-SAVE_PATH="${SAVE_PATH:-$GEMMA_RESULTS_ROOT/$RUN_NAME}"
 
 MAX_LENGTH="${MAX_LENGTH:-1024}"
 MAX_PROMPT_LENGTH="${MAX_PROMPT_LENGTH:-512}"
 DEV_NUM="${DEV_NUM:-512}"
 SEED="${SEED:-10}"
-CUDA_DEVICES="${CUDA_DEVICES:-0,1}"
+CUDA_DEVICES="${CUDA_DEVICES:-4,5,6,7}"
 
 # uv venv --python 3.11 "$VENV_PATH"
 # source "$VENV_PATH/bin/activate"
@@ -33,7 +36,7 @@ CUDA_DEVICES="${CUDA_DEVICES:-0,1}"
 # hf download VoCuc/UltraInteract-Infer \
 #     google/gemma-2-9b-it/generated_train.jsonl \
 #     --repo-type dataset \
-#     --local-dir "$ASSET_ROOT/data/raw"
+#     --local-dir "$DATA_ROOT/data/raw"
 # hf download google/gemma-2-2b-it --local-dir "$CKPT"
 # hf download google/gemma-2-9b-it --local-dir "$TEACHER_CKPT"
 
@@ -53,8 +56,7 @@ CUDA_DEVICES="${CUDA_DEVICES:-0,1}"
 #     https://raw.githubusercontent.com/huggingface/evaluate/v0.4.6/metrics/code_eval/execute.py \
 #     --output "$EVAL_DATA_DIR/code_eval/execute.py"
 
-PYTHONPATH="$BASE_PATH${PYTHONPATH:+:$PYTHONPATH}" \
-python "$BASE_PATH/tools/process_data_ultraInteract.py" \
+"$VENV_PATH/bin/python" "$BASE_PATH/tools/process_data_ultraInteract.py" \
     --base-path "$BASE_PATH" \
     --data-dir "$RAW_DATA" \
     --processed-data-dir "$PROCESSED_DATA_ROOT" \
@@ -69,8 +71,10 @@ python "$BASE_PATH/tools/process_data_ultraInteract.py" \
 KD_LOSS="${KD_LOSS:-sfkl}"
 KD_RATIO="${KD_RATIO:-0.5}"
 SKEW_ALPHA="${SKEW_ALPHA:-0.1}"
-GEOMETRY="${GEOMETRY:-1}"
 CKA="${CKA:-0}"
+DEFAULT_GEOMETRY=1
+if [[ "$CKA" == 1 ]]; then DEFAULT_GEOMETRY=0; fi
+GEOMETRY="${GEOMETRY:-$DEFAULT_GEOMETRY}"
 MAG_WEIGHT="${MAG_WEIGHT:-2.0}"
 GRAM_WEIGHT="${GRAM_WEIGHT:-10.0}"
 CKA_WEIGHT="${CKA_WEIGHT:-1.0}"
@@ -78,6 +82,8 @@ MENGER_WEIGHT="${MENGER_WEIGHT:-0.0}"
 MENGER_EPS="${MENGER_EPS:-1.0e-6}"
 DISTILL_TOP_K="${DISTILL_TOP_K:-5120}"
 DISTILL_TEMPERATURE="${DISTILL_TEMPERATURE:-1.0}"
+RUN_NAME="${RUN_NAME:-geo${GEOMETRY}_cka${CKA}_menger${MENGER_WEIGHT}}"
+SAVE_PATH="${SAVE_PATH:-$GEMMA_RESULTS_ROOT/$RUN_NAME}"
 CHECKPOINT_FILE="$(mktemp)"
 
 trap 'rm -f -- "$CHECKPOINT_FILE"' EXIT
@@ -109,7 +115,6 @@ LORA_PATH="$(<"$CHECKPOINT_FILE")"
 printf '\n[%s 2/2] Evaluate checkpoint: %s\n' "$RUN_NAME" "$LORA_PATH"
 CUDA_DEVICES="$CUDA_DEVICES" LORA_PATH="$LORA_PATH" MODEL_PATH="$CKPT" \
     BASE_PATH="$BASE_PATH" ASSET_ROOT="$ASSET_ROOT" \
-    EVAL_VENV_PATH="$VENV_PATH" EVAL_PYTHON="$VENV_PATH/bin/python" \
     EVAL_DATA_DIR="$EVAL_DATA_DIR" \
     SAVE_PATH="$(dirname -- "$LORA_PATH")" \
     EVAL_MAX_LORA_RANK="${EVAL_MAX_LORA_RANK:-${LORA_R:-16}}" \
