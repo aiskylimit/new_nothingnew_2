@@ -3,8 +3,10 @@
 # Every response token supervised (all-ones mask from data_r1-qwen-1.5b.sh), FULL fine-tuning
 # with src/train_sft.py (HF Trainer, no LoRA) in the main env (spectral_guided_learning.txt) --
 # no Unsloth, so no separate train venv. Runs under torchrun on every GPU in GPUS; GRAD_ACC is
-# derived so the effective batch stays 8 regardless of GPU count. Hyperparameters are unchanged
-# from the Unsloth version (lr 1e-5 -> 1e-6 cosine, 3 epochs, eff. batch 8, adamw_torch).
+# derived so the effective batch stays 32 regardless of GPU count. Hyperparameters follow the
+# P-ALIGN training setup: 3 epochs, eff. batch 32 (bs1 x ga32 on 1 GPU), lr 5e-5, cosine to 0 with
+# warmup_ratio 0.1, AdamW (0.9, 0.999, eps 1e-8), weight_decay 0, max_grad_norm 1.0 (the last
+# three are the Trainer defaults train_sft.py keeps), max_seq_len 32768.
 # Optional: DS_CONFIG=configs/deepspeed/ds_config_zero2_offload.json for extra memory headroom.
 set -euo pipefail
 
@@ -45,13 +47,13 @@ MODEL_NAME="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-1.5B"
 DATA_PATH="${BASE_PATH}/data/r1-qwen-1.5b/train-vanilla.jsonl"
 OUTPUT_DIR="${BASE_PATH}/checkpoints/vanilla-r1-qwen-1.5b"
 EPOCHS=3
-LR=1.0e-5              # full-FT lr (LoRA would use 5e-5); matched to the spectral arm
-MIN_LR=1.0e-6
+LR=5.0e-5
+MIN_LR=0               # min_lr_rate 0 -> cosine_with_min_lr is exactly plain cosine-with-warmup
 WARMUP_RATIO=0.1
 BATCH_SIZE=1
-EFFECTIVE_BATCH=8
+EFFECTIVE_BATCH=32
 (( EFFECTIVE_BATCH % GPUS_PER_NODE == 0 )) || { echo "GPU count ${GPUS_PER_NODE} must divide ${EFFECTIVE_BATCH}" >&2; exit 2; }
-GRAD_ACC=$((EFFECTIVE_BATCH / (BATCH_SIZE * GPUS_PER_NODE)))   # bs1 x ga x n GPU = effective batch 8
+GRAD_ACC=$((EFFECTIVE_BATCH / (BATCH_SIZE * GPUS_PER_NODE)))   # bs1 x ga x n GPU = effective batch 32
 ATTN=sdpa             # train_sft.py uses the Trainer default optimizer (adamw_torch), as before
 LOG_INTERVAL=5
 SEED=42

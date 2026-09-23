@@ -49,7 +49,7 @@ MAX_TOKENS="${MAX_TOKENS:-4096}"
 MAX_MODEL_LEN="${MAX_TOKENS}"
 # Problems per generate() call; finished ones are written after each batch, so a stop keeps them.
 BATCH_SIZE="${BATCH_SIZE:-64}"
-GPU_MEM_UTIL=0.9
+GPU_MEM_UTIL=0.8       # P-ALIGN test.py
 SEED=42
 CHAT_TEMPLATE=true
 # Thinking OFF, as in test.py. R1-Distill's template ignores enable_thinking and hard-codes an

@@ -13,7 +13,7 @@ BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 
 # Which GPU(s) each phase runs on (space-separated ids). Training runs torchrun over the whole
-# list (effective batch fixed at 8, so 1/2/4/8 GPUs); eval uses the whole list too.
+# list (effective batch fixed at 32, so 1/2/4/8 GPUs); eval uses the whole list too.
 CUDA_GPUS="${CUDA_VISIBLE_DEVICES:-}"
 export GPUS="${GPUS:-${CUDA_GPUS:+${CUDA_GPUS//,/ }}}"
 export GPUS="${GPUS:-0}"
