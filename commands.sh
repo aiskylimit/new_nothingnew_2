@@ -1,4 +1,4 @@
-#1 +60
+#2 -0-10
 #spectral
 #v1
 
@@ -7,7 +7,7 @@
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
-cd SpectralGuidedLearning && GPUS=1 bash project_commands_spectral_r1-qwen-1.5b.sh
+# cd SpectralGuidedLearning && GPUS=1 bash project_commands_spectral_r1-qwen-1.5b.sh
 # kill -9 155157 155158
 
 # cd ./offline_rlsd_sdpo_b200
