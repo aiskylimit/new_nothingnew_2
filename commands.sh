@@ -1,7 +1,8 @@
-#i spectral_guided_learning.txt
+#1 +50
 #sft
 #v1
 
+cd SegmentSelectiveSFT && bash commands.sh
 # nvidia-smi
 # cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh

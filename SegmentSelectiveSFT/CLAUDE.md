@@ -78,6 +78,7 @@ bash train.sh --epochs 5 --lr 1e-5 --gpu 1
 bash train.sh --lora-r 16 --lora-alpha 16 --target-modules "q_proj,v_proj"   # checkpoint dir gets _lora_r16; pass the same --lora-r to eval.sh
 bash train.sh --grad-accum 16 --ckpt-suffix _bs16   # batch isn't in the dir name; suffix keeps a new run from rotating out the old checkpoints (pass the same --ckpt-suffix to eval.sh)
 bash train.sh --no-grad-checkpoint  # faster, more VRAM
+bash train.sh --model deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --full-finetune   # --deepseek template auto-on
 bash train.sh --dry-run             # print commands only
 
 # LoRA checkpoints are adapters — merge before eval (train env, CPU is fine)
@@ -169,6 +170,11 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   trained one way must be evaluated the same way — `train.sh` appends `_nothink` to the checkpoint dir
   and `eval.sh --no-think` looks for that suffix (and adds `_nothink` to the default tag) so the two
   cannot be mixed by accident.
+- **DeepSeek-R1 models need the DeepSeek chat template** (`<｜User｜>...<｜Assistant｜><think>\n`), not
+  ChatML. `train.sh` passes `train_mask.py --deepseek` automatically when the model basename contains
+  `DeepSeek-R1` (`--deepseek` / `--no-deepseek` / `DEEPSEEK=0|1` override) and refuses `--think-prefix` other
+  than `none` with it. Eval needs no flag: `math_eval.py --apply_chat_template` uses the template saved with the
+  checkpoint, and its `"qwen" in path` stop-token check still matches `DeepSeek-R1-Distill-Qwen-*` (151643 = R1 EOS).
 - **A sample whose labels are all `-100` yields `nan` loss and poisons the run.** This happens when
   `max_seq_length` truncates away the response. `train_mask.py` drops such samples in `.map()` and
   reports the count; it does not crash.
@@ -221,7 +227,7 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
   (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships `train.jsonl`, `solution_segments.jsonl` (934 rows, `paragraph` split) **and** `solutions_selected.jsonl` (same rows + `selected_spans_ids` from the earlier R1-Distill IG run; 17 rows select nothing and fall back to the 3 default segments), so no attribution stage runs on the server unless that last file is missing; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
   `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
-  `commands.sh` is the command sheet for that server; it currently **only evaluates** the existing selective-SFT checkpoint (LoRA r=16, 3 epochs on `Qwen/Qwen3-8B`, dir `..._lora_r16/checkpoint-<step>-merged`, no retrain) **with Qwen3 thinking turned off** at `max_tokens 4096`: `eval.sh --model <merged> --no-think --max-tokens 4096 --tag qwen3_8b_sel_r16_ep3_nothink_4k` -> `pass_at_k.py` -> printed table (acc + pass@1/pass@3, 2 decimals) that also shows the earlier thinking-default run on the same checkpoint (`outputs_qwen3_8b_sel_r16_ep3_4k`) for comparison. Note the deliberate train/eval mismatch: that checkpoint was trained with `--think_prefix none`, so the empty think block appears only at eval time; `--model` is passed explicitly because `eval.sh --selective --no-think` would look for a `_nothink` dir. `EVAL_MAX_TOKENS=32768 bash commands.sh` re-runs at 32k under tag `..._nothink_32k`. Commands for the base model with thinking off and for retraining with `--think-prefix off` sit commented under `[Tham khao]`.
+  `commands.sh` is the command sheet for that server; it currently runs **selective SFT with full finetuning on `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`** (3 epochs, lr 3e-5 from upstream `run_train.sh`, batch 1 x 32, seq 32768, `--deepseek` chat template) on the shipped `solutions_selected.jsonl`, then evaluates the latest `..._epoch3_lr3e-5_len32768/checkpoint-<step>` directly (no merge) at `max_tokens 32768` under tag `r1_1p5b_sel_ft_ep3_32k` -> `pass_at_k.py` -> printed table (acc + pass@1/pass@3, 2 decimals) that also shows the base model (`outputs_r1_1p5b_base_32k`) if evaluated. `SKIP_TRAIN=1` evaluates the existing checkpoint without retraining (train.sh never skips on its own); `EVAL_MAX_TOKENS` changes the eval length and tag. Base-model eval and the `--full-sft` baseline sit commented under `[Tham khao]`.
 
 ## Defaults worth knowing
 

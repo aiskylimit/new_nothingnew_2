@@ -1,106 +1,144 @@
-# commands.sh - CHI EVAL checkpoint Selective SFT da co (Qwen3-8B, LoRA r16, 3 epoch) voi THINKING TAT,
-# max_tokens 4096, tren server offline. Khong train lai.
+# commands.sh - Selective SFT FULL FINETUNING tren DeepSeek-R1-Distill-Qwen-1.5B (khong LoRA), roi eval,
+# tren server offline.
 # Chay:  cd SegmentSelectiveSFT && bash commands.sh
 # Moi duong dan tuong doi ben duoi (data/, SelectiveSFT/, Eval/) tinh tu repo root; dong cd duoi day
 # bao dam dieu do ke ca khi goi tu thu muc khac.
 #
-# THINKING TAT luc eval: eval.sh --no-think -> math_eval.py --disable_think ->
-# apply_chat_template(enable_thinking=False): prompt ket thuc bang "<|im_start|>assistant\n<think>\n\n</think>\n\n"
-# nen model khong tu mo <think> nua, chi sinh mot luong duy nhat roi \boxed{}.
-# LUU Y: checkpoint nay (..._lora_r16, khong _nothink) duoc train voi template mac dinh (--think_prefix none,
-# khong chen khoi think), nen prompt luc eval KHAC prompt luc train o dung khoi think rong do. Day la eval
-# lech dieu kien co chu y - de so voi run cu cung checkpoint, cung 4096 nhung thinking mac dinh
-# (outputs_qwen3_8b_sel_r16_ep3_4k). Muon khop hoan toan thi train lai voi train.sh --think-prefix off.
-# Chi dung env ssft_eval (vllm 0.10.2 + torch 2.8.0) <- ../ssft_eval.txt; KHONG dung ssft_train.
+# Luong:  data/s1k/solutions_selected.jsonl (tai san, da co selected_spans_ids tu IG R1-Distill-7B)
+#         -> train.sh --full-finetune (env ssft_train) -> checkpoint-<moi nhat> (weight day du, KHONG merge)
+#         -> eval.sh --model <ckpt> (env ssft_eval) -> pass_at_k.py -> bang ket qua (acc + pass@1/pass@3).
 #
-# Luong:  checkpoint-<moi nhat>-merged (da merge tu run truoc) -> eval.sh --no-think --max-tokens 4096
-#         -> pass_at_k.py -> bang ket qua (acc + pass@1 + pass@3), in kem run cu de doi chieu.
+# Chat template: R1-Distill dung template DeepSeek (<｜User｜>...<｜Assistant｜><think>\n), khong phai ChatML.
+# train.sh tu bat --deepseek khi ten model chua "DeepSeek-R1" -> train_mask.py probe template va dung ngay neu
+# khong khop. Luc eval, math_eval.py --apply_chat_template dung chinh template luu kem checkpoint nen prompt
+# eval ket thuc bang "<｜Assistant｜><think>\n" giong het luc train.
+# Attribution (IG) van la cua R1-Distill-7B nhu paper (upstream run_train.sh cung train 1.5B tren data
+# ..._7B_J50) -> khong chay lai stage ig.
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
-# Dung ngay khi mot buoc loi (setup check thieu goi, khong co checkpoint, vLLM OOM...)
+# Dung ngay khi mot buoc loi (setup check thieu goi, khong co checkpoint, OOM...)
 set -eo pipefail
 
 PROJECT=aiskylimit_new_nothingnew_2          # = @PROJECT@ trong downloads.txt
-# Qwen/Qwen3-8B (downloads.txt): max_position_embeddings 40960.
-MODEL_DIR=/mnt/local/_models/$PROJECT/Qwen3-8B
+# deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B (downloads.txt): max_position_embeddings 131072.
+MODEL_DIR=/mnt/local/_models/$PROJECT/DeepSeek-R1-Distill-Qwen-1.5B
+# baesad/s1K-1.1-deepseek-cot: train.jsonl, solution_segments.jsonl, solutions_selected.jsonl
+DATA_DIR=/mnt/local/_data/$PROJECT/s1k
 # Benchmark eval tai ve dang HF dataset (downloads.txt):
 #   $EVAL_DATA_ROOT/aime24  aime25  MATH-500  aimo-validation-amc
 # prepare_eval_data.py chuyen thanh data/<task>/test.jsonl (question + answer).
 EVAL_DATA_ROOT=/mnt/local/_data/$PROJECT
 
-# GPU cho eval (eval.sh export CUDA_VISIBLE_DEVICES=$GPU). Mot so: "1" = chi GPU 1.
-# Nhieu GPU: GPU=0,1,2,3 + them --data-parallel vao EVAL_ARGS (1 task / GPU, nhanh hon TP).
-GPU=${GPU:-1}
+# GPU cho train va eval (train.sh / eval.sh export CUDA_VISIBLE_DEVICES=$GPU). Train chi dung 1 GPU.
+GPU=${GPU:-0}
 
-# Do dai sinh toi da luc eval. 4096 la ngan so voi trace s1K (trung binh ~6-7k token): cau nao chua
-# ra \boxed thi tinh sai -> acc thap hon that, nhung nhanh va so duoc voi run cu cung 4096.
-# Doi so nay thi tag tu doi theo (_4k/_8k/_32k) de khong tron output.
-EVAL_MAX_TOKENS=${EVAL_MAX_TOKENS:-4096}
+# Cau hinh train - lr 3e-5 lay tu upstream SelectiveSFT/run_train.sh (paper, R1-Distill-1.5B full FT);
+# 3 epoch nhu cac run khac cua fork. Doi so nao thi ten thu muc checkpoint doi theo.
+EPOCHS=${EPOCHS:-3}
+LR=${LR:-3e-5}
+MAX_SEQ_LENGTH=32768
+# SKIP_TRAIN=1: bo qua buoc train, eval checkpoint moi nhat da co (vd sau khi train xong, eval lai
+# voi max_tokens khac). train.sh KHONG tu bo qua khi da co checkpoint - chay lai la train lai tu dau.
+SKIP_TRAIN=${SKIP_TRAIN:-0}
+
+# Do dai sinh toi da luc eval. R1-Distill la model long-CoT: 4096 cat mat \boxed cua phan lon cau
+# -> acc thap gia. Mac dinh 32768 (= max_seq_length luc train). Tag tu doi theo (_4k/_32k).
+EVAL_MAX_TOKENS=${EVAL_MAX_TOKENS:-32768}
 LEN_TAG="$((EVAL_MAX_TOKENS / 1024))k"
 
 # Ten run - dung chung cho tag eval va thu muc outputs_<tag>. summary.json va pass_at_k.py
-# gom MOI *_metrics.json duoi outputs_<tag>, nen moi (max_tokens, thinking) phai co tag rieng.
-TAG=qwen3_8b_sel_r16_ep3_nothink_${LEN_TAG}
-OLD_TAG=qwen3_8b_sel_r16_ep3_${LEN_TAG}      # run cu, cung checkpoint, thinking mac dinh (chi de in doi chieu)
+# gom MOI *_metrics.json duoi outputs_<tag>, nen moi cau hinh phai co tag rieng.
+TAG=r1_1p5b_sel_ft_ep${EPOCHS}_${LEN_TAG}
+BASE_TAG=r1_1p5b_base_${LEN_TAG}             # base chua finetune (chi de in doi chieu, xem [Tham khao])
 
-# Thu muc checkpoint cua run truoc theo quy uoc train.sh: <model>_epoch<E>_lr<LR>_len<L>[_fullsft][_lora_r<R>]
-# (khong co _nothink vi train voi template mac dinh). Truyen thang --model <duong dan merged> cho eval.sh
-# vi eval.sh --selective --no-think se tim thu muc ..._nothink (khong ton tai).
-SEL_CKPT_DIR=SelectiveSFT/checkpoints/$(basename "$MODEL_DIR")_epoch3_lr5e-5_len32768_lora_r16
+# Thu muc checkpoint theo quy uoc train.sh: <model>_epoch<E>_lr<LR>_len<L>[_fullsft][_lora_r<R>][...]
+# Full finetune -> khong co _lora_r<R>.
+CKPT_DIR=SelectiveSFT/checkpoints/$(basename "$MODEL_DIR")_epoch${EPOCHS}_lr${LR}_len${MAX_SEQ_LENGTH}
 
 # =============================================================================
-# [1] CHECKPOINT - lay ban -merged moi nhat cua run truoc (khong train, khong merge)
+# [1] SELECTIVE SFT - env ssft_train, full finetuning
 # =============================================================================
+source /mnt/local/uvenvs/ssft_train/bin/activate
+bash setup.sh check --for train          # phai thay torch 2.9 / unsloth / peft / torchao<0.18
+
+mkdir -p data/s1k
+[[ -f data/s1k/solutions_selected.jsonl ]] || ln -sf "$DATA_DIR/solutions_selected.jsonl" data/s1k/solutions_selected.jsonl
+wc -l data/s1k/solutions_selected.jsonl  # 934 dong
+
+# Cau hinh train (ghi tuong minh):
+#   full finetuning toan bo 1.5B (unsloth full_finetuning=True), khong adapter
+#   effective batch = 1 per-device x 32 accum x 1 GPU = 32 mau/step -> ~30 step/epoch, 3 epoch ~ 88 step
+#   AdamW betas (0.9, 0.999) eps 1e-8 weight_decay 0.0, cosine + warmup_ratio 0.1
+#   max_seq_length 32768; segment = paragraph (moi doan "\n\n" = 1 segment), selective: chi hoc
+#   segment co trong selected_spans_ids (--mask --apply_all do train.sh them)
+#   gradient checkpointing: bat (mac dinh)
+# VRAM: 1.78B x 16 byte (weight + grad + 2 state AdamW fp32 + master) ~ 28 GB; logits 32768 x 152k vocab
+# fp32 ~ 20 GB (+ grad) -> peak co the ~ 70-80 GB. Neu OOM: --optim adamw_8bit.
+# KHONG giam --max-seq-length vi se cat mat response cua mau dai.
+TRAIN_ARGS=(
+  --offline --model "$MODEL_DIR" --gpu "$GPU"
+  --full-finetune --deepseek --selective
+  --data data/s1k/solutions_selected.jsonl
+  --epochs "$EPOCHS" --lr "$LR" --max-seq-length "$MAX_SEQ_LENGTH"
+  --batch-size 1 --grad-accum 32
+  --optim adamw_torch --weight-decay 0.0 --lr-scheduler cosine --warmup-ratio 0.1
+  --segment-mode paragraph
+)
+if [[ "$SKIP_TRAIN" != "1" ]]; then
+  bash train.sh "${TRAIN_ARGS[@]}" --dry-run   # in lenh truoc, chua chay; kiem tra "template : DeepSeek R1"
+  bash train.sh "${TRAIN_ARGS[@]}"             # log: logs/train.log (ghi de moi lan chay)
+fi
+
+# Full finetuning luu thang weight day du -> KHONG can merge_lora.py.
 # '|| true': duoi set -o pipefail, ls khong khop gi lam ca pipeline loi -> set -e giet script
 # truoc khi kip in dong bao ben duoi.
-CKPT=$(ls -1d "$SEL_CKPT_DIR"/checkpoint-*-merged 2>/dev/null | sed 's#.*/checkpoint-##; s#-merged$##' | sort -n | tail -1 || true)
-[[ -n "$CKPT" ]] || { echo "Khong thay checkpoint-*-merged trong $SEL_CKPT_DIR - merge o env ssft_train:"; \
-  echo "  cd SelectiveSFT && python merge_lora.py --adapter ../$SEL_CKPT_DIR/checkpoint-<step> --base_model $MODEL_DIR"; exit 1; }
-MERGED="$SEL_CKPT_DIR/checkpoint-$CKPT-merged"
-[[ -f "$MERGED/config.json" ]] || { echo "Thieu $MERGED/config.json"; exit 1; }
-echo "checkpoint eval: $MERGED"
-ls "$MERGED"                                        # phai co config.json + model*.safetensors
+CKPT=$(ls -1d "$CKPT_DIR"/checkpoint-* 2>/dev/null | sed 's#.*/checkpoint-##' | grep -E '^[0-9]+$' | sort -n | tail -1 || true)
+[[ -n "$CKPT" ]] || { echo "Khong thay checkpoint-* trong $CKPT_DIR - xem logs/train.log"; exit 1; }
+MODEL_CKPT="$CKPT_DIR/checkpoint-$CKPT"
+[[ -f "$MODEL_CKPT/config.json" ]] || { echo "Thieu $MODEL_CKPT/config.json"; exit 1; }
+echo "checkpoint moi nhat: $MODEL_CKPT"
+ls "$MODEL_CKPT"                                   # phai co config.json + model*.safetensors + tokenizer
+deactivate
 
 # =============================================================================
-# [2] EVAL - env ssft_eval, thinking tat, max_tokens = $EVAL_MAX_TOKENS
+# [2] EVAL - env ssft_eval (KHONG dung ssft_train)
 # =============================================================================
 # Thiet lap: t=0.6, top_p=0.9, repetition_penalty=1.05, k=3 mau/cau cho MOI benchmark
-# (aime24 aime25 amc12 math500) - giu y het run cu de chi khac moi thinking.
+# (aime24 aime25 amc12 math500) - giong cac run truoc de so duoc.
 # amc12 = AI-MO/aimo-validation-amc (83 cau AMC12 2022-2023).
-# vLLM: max_model_len tu lay 40960 tu config Qwen3-8B; stop_token_ids <|im_end|>=151645 /
-# <|endoftext|>=151643 giong Qwen2.5 (math_eval.py bat theo "qwen" trong ten).
+# vLLM: max_model_len tu lay 131072 tu config; stop_token_ids bat theo "qwen" trong duong dan
+# (DeepSeek-R1-Distill-Qwen-...) -> 151643 = <｜end▁of▁sentence｜> cua R1-Distill, dung EOS.
 source /mnt/local/uvenvs/ssft_eval/bin/activate
-bash setup.sh check --for eval           # phai thay vllm 0.10.2 / torch 2.8.0 / latex2sympy
+bash setup.sh check --for eval           # phai thay vllm / torch / latex2sympy
 python prepare_eval_data.py --data-root "$EVAL_DATA_ROOT"   # bo qua task da co test.jsonl
 wc -l data/aime24/test.jsonl data/aime25/test.jsonl data/amc12/test.jsonl data/math500/test.jsonl
 
 EVAL_ARGS=(
-  --offline --gpu "$GPU" --no-think
-  --model "$(realpath "$MERGED")" --tag "$TAG"
+  --offline --gpu "$GPU"
+  --model "$(realpath "$MODEL_CKPT")" --tag "$TAG"
   --tasks "aime24 aime25 amc12 math500" --n-sampling 3
   --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --max-tokens "$EVAL_MAX_TOKENS"
 )
 # eval.sh resumable: task da co *_metrics.json thi bo qua (--overwrite de cham lai). Cuoi eval.sh tu
-# tong hop: ghi Eval/outputs_$TAG/summary.json (acc + pass@1/pass@3, "enable_thinking": false) va in bang.
-bash eval.sh "${EVAL_ARGS[@]}" --dry-run  # in lenh truoc, chua chay; kiem tra dong "thinking : OFF"
+# tong hop: ghi Eval/outputs_$TAG/summary.json (acc + pass@1/pass@3) va in bang.
+bash eval.sh "${EVAL_ARGS[@]}" --dry-run  # in lenh truoc, chua chay
 bash eval.sh "${EVAL_ARGS[@]}"
 
-# "acc" trong summary.json chi tinh MAU DAU TIEN moi cau (evaluate.py: mean_score[0]); eval.sh
-# cung ghi san pass@1 / pass@3 (k = 1 va n_sampling) vao summary.json["pass_at_k"]. pass_at_k.py
-# tinh lai voi k tuy y + AVG macro qua 4 bo (ghi <root>/pass_at_k.json), cung cong thuc:
+# "acc" trong summary.json chi tinh MAU DAU TIEN moi cau (evaluate.py: mean_score[0]); pass_at_k.py
+# tinh pass@1 / pass@3 khong chech + AVG macro qua 4 bo (ghi <root>/pass_at_k.json):
 (cd Eval && python pass_at_k.py "outputs_$TAG" --k 1 3)
 
 # =============================================================================
 # [3] KET QUA - in bang tong hop ra man hinh (doc lai summary.json + pass_at_k.json)
 # =============================================================================
-# In ca run cu (thinking mac dinh, cung checkpoint + max_tokens) neu co, de doi chieu.
+# In ca base chua finetune (tag $BASE_TAG) neu da eval, de doi chieu.
 # Chay rieng buoc nay (khong eval lai) khi chi muon xem lai ket qua: copy khoi python ben duoi,
-# truyen 4 tham so <MODEL_DIR> <TAG> <OLD_TAG> <EVAL_MAX_TOKENS>. Moi so lam tron 2 chu so thap phan.
-python - "$MODEL_DIR" "$TAG" "$OLD_TAG" "$EVAL_MAX_TOKENS" <<'PY'
+# truyen 4 tham so <MODEL_DIR> <TAG> <BASE_TAG> <EVAL_MAX_TOKENS>. Moi so lam tron 2 chu so thap phan.
+python - "$MODEL_DIR" "$TAG" "$BASE_TAG" "$EVAL_MAX_TOKENS" <<'PY'
 import json, os, sys
-model_dir, tag, old_tag, max_tokens = sys.argv[1:5]
-runs = [(tag, "selective SFT LoRA r16, 3 epoch, thinking OFF (enable_thinking=False)"),
-        (old_tag, "cung checkpoint, thinking mac dinh (run cu)")]
+model_dir, tag, base_tag, max_tokens = sys.argv[1:5]
+runs = [(tag, "selective SFT full finetune"),
+        (base_tag, "base chua finetune")]
 tasks = ["aime24", "aime25", "amc12", "math500"]
 
 def load(path):
@@ -117,7 +155,7 @@ hdr = "  %-32s %8s %8s %8s %8s %8s"
 for t, desc in runs:
     root = os.path.join("Eval", "outputs_" + t)
     summ = load(os.path.join(root, "summary.json"))
-    # pass@k: summary.json (eval.sh tu tinh) hoac pass_at_k.json (pass_at_k.py, cho k tuy y)
+    # pass@k: pass_at_k.json (pass_at_k.py, k tuy y) hoac summary.json (eval.sh tu tinh)
     pk = load(os.path.join(root, "pass_at_k.json")) or (summ or {}).get("pass_at_k")
     if summ is None and pk is None:
         print("  [%s] %s: chua co ket qua (%s)" % (t, desc, root))
@@ -148,14 +186,12 @@ deactivate
 # =============================================================================
 # [Tham khao] Cac lenh khac (khong chay trong file nay)
 # =============================================================================
-# Eval 32k thay vi 4096 (tag tu thanh ..._nothink_32k):
-# EVAL_MAX_TOKENS=32768 bash commands.sh
-# Base Qwen3-8B chua finetune, thinking tat (non-thinking mode chinh thuc cua Qwen3):
-# BASE_MODEL="$MODEL_DIR" bash eval.sh --offline --gpu "$GPU" --no-think --base --tag qwen3_8b_base_nothink_${LEN_TAG} \
+# Base R1-Distill-1.5B chua finetune, cung thiet lap eval (tag $BASE_TAG, bang [3] tu in kem):
+# source /mnt/local/uvenvs/ssft_eval/bin/activate
+# BASE_MODEL="$MODEL_DIR" bash eval.sh --offline --gpu "$GPU" --base --tag r1_1p5b_base_32k \
 #   --tasks "aime24 aime25 amc12 math500" --n-sampling 3 --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 \
-#   --max-tokens "$EVAL_MAX_TOKENS"
-# Train lai voi thinking tat de train/eval khop hoan toan (env ssft_train; checkpoint ..._lora_r16_nothink):
-# bash train.sh --offline --model "$MODEL_DIR" --gpu "$GPU" --selective --data data/s1k/solutions_selected.jsonl \
-#   --segment-mode paragraph --lora-r 16 --lora-alpha 16 --lora-dropout 0.05 --epochs 3 --lr 5e-5 \
-#   --max-seq-length 32768 --batch-size 1 --grad-accum 32 --think-prefix off
-# roi merge va: BASE_MODEL="$MODEL_DIR" bash eval.sh --no-think --selective --lora-r 16 ... (eval.sh tu tim ..._nothink)
+#   --max-tokens 32768
+# Baseline full-CoT SFT (khong mask, checkpoint ..._fullsft, log logs/train_fullsft.log):
+# bash train.sh "${TRAIN_ARGS[@]}" --full-sft
+# Eval 4096 thay vi 32k (tag tu thanh ..._4k):
+# SKIP_TRAIN=1 EVAL_MAX_TOKENS=4096 bash commands.sh
