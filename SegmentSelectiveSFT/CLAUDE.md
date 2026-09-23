@@ -172,9 +172,19 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   cannot be mixed by accident.
 - **DeepSeek-R1 models need the DeepSeek chat template** (`<｜User｜>...<｜Assistant｜><think>\n`), not
   ChatML. `train.sh` passes `train_mask.py --deepseek` automatically when the model basename contains
-  `DeepSeek-R1` (`--deepseek` / `--no-deepseek` / `DEEPSEEK=0|1` override) and refuses `--think-prefix` other
-  than `none` with it. Eval needs no flag: `math_eval.py --apply_chat_template` uses the template saved with the
-  checkpoint, and its `"qwen" in path` stop-token check still matches `DeepSeek-R1-Distill-Qwen-*` (151643 = R1 EOS).
+  `DeepSeek-R1` (`--deepseek` / `--no-deepseek` / `DEEPSEEK=0|1` override); only `--think-prefix none|off` is
+  allowed with it. The R1 template ignores `enable_thinking`, so "thinking off" for R1 means closing its
+  `<think>\n` into an empty `<think>\n\n</think>\n\n`: `train_mask.py --deepseek --think_prefix off` appends
+  `\n</think>\n\n` (label `-100`) and `math_eval.py --disable_think` rewrites a prompt ending in `<think>` the
+  same way (verified identical strings/tokens with the real 1.5B tokenizer). Both sides tokenize the rendered
+  template with `add_special_tokens=False` (math_eval passes `prompt_token_ids` to vLLM) so R1's BOS is never
+  doubled; Qwen has no BOS, so this is a no-op there. The `"qwen" in path` stop-token check still matches
+  `DeepSeek-R1-Distill-Qwen-*` (151643 = R1 EOS).
+- **Prompt wording is a train/eval contract too.** `train_mask.py --prompt_style default` (`<question>\nPlease
+  reason step by step, ...\boxed{}.`) pairs with eval `--prompt-type deepseek-longcot` (default);
+  `--prompt_style palign` (`Please reason step by step, ...\boxed{}.<question>`, as in P-ALIGN) pairs with
+  `eval.sh --prompt-type palign`. `train.sh --prompt-style palign` appends `_palign` to the checkpoint dir, after
+  `_nothink`. Attribution (`grad_analyze.py`) always uses the default wording.
 - **A sample whose labels are all `-100` yields `nan` loss and poisons the run.** This happens when
   `max_seq_length` truncates away the response. `train_mask.py` drops such samples in `.map()` and
   reports the count; it does not crash.
@@ -227,7 +237,7 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
   (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships `train.jsonl`, `solution_segments.jsonl` (934 rows, `paragraph` split) **and** `solutions_selected.jsonl` (same rows + `selected_spans_ids` from the earlier R1-Distill IG run; 17 rows select nothing and fall back to the 3 default segments), so no attribution stage runs on the server unless that last file is missing; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
   `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
-  `commands.sh` is the command sheet for that server; it currently runs **selective SFT with full finetuning on `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`** (3 epochs, lr 3e-5 from upstream `run_train.sh`, batch 1 x 32, seq 32768, `--deepseek` chat template) on the shipped `solutions_selected.jsonl`, then evaluates the latest `..._epoch3_lr3e-5_len32768/checkpoint-<step>` directly (no merge) at `max_tokens 32768` under tag `r1_1p5b_sel_ft_ep3_32k` -> `pass_at_k.py` -> printed table (acc + pass@1/pass@3, 2 decimals) that also shows the base model (`outputs_r1_1p5b_base_32k`) if evaluated. `SKIP_TRAIN=1` evaluates the existing checkpoint without retraining (train.sh never skips on its own); `EVAL_MAX_TOKENS` changes the eval length and tag. Base-model eval and the `--full-sft` baseline sit commented under `[Tham khao]`.
+  `commands.sh` is the command sheet for that server; it currently runs **selective SFT with full finetuning on `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`** following a fixed hyperparameter table (its LoRA rows do not apply): 3 epochs, batch 1 x 32, seq 32768, lr 5e-5, max_grad_norm 1.0, AdamW (0.9, 0.999, 1e-8) wd 0, cosine warmup 0.1. Prompt and thinking mode match `../P-ALIGN/src/test.py` (`--force_empty_think`): P-ALIGN wording (`--prompt-style palign` / `--prompt-type palign`) and thinking off on both sides (`--think-prefix off` / `--no-think`); dir `..._epoch3_lr5e-5_len32768_nothink_palign`. The latest checkpoint is evaluated directly (no merge) with n=3 t=0.6 top_p=0.9 rep 1.05, `max_tokens 4096`, `max_model_len 4096`, 1 GPU, `gpu_mem 0.8`, tag `r1_1p5b_sel_ft_ep3_nothink_palign_4k` -> `pass_at_k.py` (with n=3, pass@1 = correct/(3N), pass@3 = any correct) -> printed table (also shows the base model if evaluated). `SKIP_TRAIN=1` evaluates without retraining (train.sh never skips on its own); `EVAL_MAX_TOKENS` changes eval length, `max_model_len` and tag. Base-model eval and the `--full-sft` baseline sit commented under `[Tham khao]`.
 
 ## Defaults worth knowing
 

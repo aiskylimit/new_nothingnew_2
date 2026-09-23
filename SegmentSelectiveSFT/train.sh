@@ -28,6 +28,7 @@
 #   bash train.sh --full-sft               # baseline: SFT tren TOAN BO long CoT (khong mask)
 #   bash train.sh --think-prefix off       # Qwen3: tat thinking (enable_thinking=False), checkpoint co hau to _nothink
 #   bash train.sh --model deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --full-finetune   # tu bat --deepseek
+#   bash train.sh --prompt-style palign    # prompt kieu P-ALIGN, checkpoint co hau to _palign (eval: --prompt-type palign)
 #   bash train.sh --optim adamw_8bit       # tiet kiem VRAM optimizer state
 #   bash train.sh --reinstall              # cai lai dependency
 #   bash train.sh --skip-setup             # bo qua buoc dung env
@@ -88,10 +89,13 @@ WARMUP_RATIO="${WARMUP_RATIO:-0.1}"
 
 # --- Segmentation / prompt ---
 SEGMENT_MODE="${SEGMENT_MODE:-paragraph}"  # paragraph = chia theo "\n\n"
-THINK_PREFIX="${THINK_PREFIX:-none}"       # none | off (Qwen3 enable_thinking=False) | plain | special; xem train_mask.py
+THINK_PREFIX="${THINK_PREFIX:-none}"       # none | off (Qwen3 enable_thinking=False / R1 khoi think rong) | plain | special; xem train_mask.py
 # Chat template DeepSeek R1 (<｜User｜>...<｜Assistant｜><think>\n) thay vi ChatML cua Qwen.
 # auto = bat khi ten model chua "DeepSeek-R1" (vd DeepSeek-R1-Distill-Qwen-1.5B); 1/0 = ep bat/tat.
 DEEPSEEK="${DEEPSEEK:-auto}"
+# default = "<cau hoi>\nPlease reason ... \boxed{}." ; palign = "Please reason ... \boxed{}.<cau hoi>"
+# (nhu P-ALIGN src/test.py). Luc eval phai dung eval.sh --prompt-type tuong ung (deepseek-longcot / palign).
+PROMPT_STYLE="${PROMPT_STYLE:-default}"
 # 0 = selective SFT (chi hoc segment duoc chon) - mac dinh, dung cua paper.
 # 1 = long-CoT SFT thuong: hoc toan bo response. Checkpoint/log rieng,
 #     khong de len ban selective.
@@ -134,6 +138,7 @@ while [[ $# -gt 0 ]]; do
     --segment-mode)    SEGMENT_MODE="$2"; shift 2 ;;
     --think-prefix)    THINK_PREFIX="$2"; shift 2 ;;
     --deepseek)        DEEPSEEK=1; shift ;;
+    --prompt-style)    PROMPT_STYLE="$2"; shift 2 ;;
     --no-deepseek)     DEEPSEEK=0; shift ;;
     --full-sft)        FULL_SFT=1; shift ;;
     --selective)       FULL_SFT=0; shift ;;
@@ -141,7 +146,7 @@ while [[ $# -gt 0 ]]; do
     --reinstall)       REINSTALL=1; shift ;;
     --offline)         HF_OFFLINE=1; shift ;;
     --dry-run)         DRY_RUN=1; shift ;;
-    -h|--help)         sed -n '2,34p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help)         sed -n '2,35p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "Tham so khong hop le: $1 (xem --help)" >&2; exit 2 ;;
   esac
 done
@@ -261,9 +266,9 @@ if [[ "$DEEPSEEK" == "auto" ]]; then
     *)             DEEPSEEK=0 ;;
   esac
 fi
-# --think_prefix chi ap dung cho nhanh Qwen/ChatML; template R1 tu chen "<think>\n".
-[[ "$DEEPSEEK" == "1" && "$THINK_PREFIX" != "none" ]] && \
-  die "--think-prefix ${THINK_PREFIX} khong dung duoc voi template DeepSeek R1 (chi 'none')"
+# Template R1 tu chen "<think>\n": chi 'none' (thinking) hoac 'off' (dong khoi think rong, nhu P-ALIGN).
+[[ "$DEEPSEEK" == "1" && "$THINK_PREFIX" != "none" && "$THINK_PREFIX" != "off" ]] && \
+  die "--think-prefix ${THINK_PREFIX} khong dung duoc voi template DeepSeek R1 (chi 'none' hoac 'off')"
 
 EXTRA_ARGS=()
 [[ "$DEEPSEEK"        == "1" ]] && EXTRA_ARGS+=(--deepseek)
@@ -310,7 +315,12 @@ if [[ "$THINK_PREFIX" == "off" ]]; then
   CKPT_SUFFIX="${CKPT_SUFFIX}_nothink"
   LOG_NAME="${LOG_NAME}_nothink"
 fi
-# Hau to nguoi dung dat (--ckpt-suffix) di sau cung: [_fullsft][_lora_r<R>][_nothink][<suffix>]
+# Doi prompt -> checkpoint khac, khong de len ban prompt mac dinh.
+if [[ "$PROMPT_STYLE" == "palign" ]]; then
+  CKPT_SUFFIX="${CKPT_SUFFIX}_palign"
+  LOG_NAME="${LOG_NAME}_palign"
+fi
+# Hau to nguoi dung dat (--ckpt-suffix) di sau cung: [_fullsft][_lora_r<R>][_nothink][_palign][<suffix>]
 CKPT_SUFFIX="${CKPT_SUFFIX}${CKPT_SUFFIX_EXTRA}"
 LOG_NAME="${LOG_NAME}${CKPT_SUFFIX_EXTRA}"
 LOG_FILE="${LOG_DIR}/${LOG_NAME}.log"
@@ -331,6 +341,7 @@ echo "    batch      : ${BATCH_SIZE} x ${GRAD_ACCUM} accum (effective $((BATCH_S
 echo "    optim      : ${OPTIM} betas=(${ADAM_BETA1}, ${ADAM_BETA2}) eps=${ADAM_EPSILON} wd=${WEIGHT_DECAY}"
 echo "    scheduler  : ${LR_SCHEDULER} warmup_ratio=${WARMUP_RATIO}"
 echo "    segment    : ${SEGMENT_MODE} (think_prefix=${THINK_PREFIX})"
+echo "    prompt     : ${PROMPT_STYLE}"
 echo "    template   : $([[ "$DEEPSEEK" == 1 ]] && echo "DeepSeek R1 (--deepseek)" || echo "ChatML (Qwen)")"
 echo "    group_by_len : $([[ "$GROUP_BY_LENGTH" == 1 ]] && echo on || echo off)"
 echo "    grad_ckpt    : $([[ "$NO_GRAD_CKPT" == 1 ]] && echo off || echo on)"
@@ -356,6 +367,7 @@ echo
     --warmup_ratio "${WARMUP_RATIO}" \
     --segment_mode "${SEGMENT_MODE}" \
     --think_prefix "${THINK_PREFIX}" \
+    --prompt_style "${PROMPT_STYLE}" \
     ${TUNE_ARGS[@]+"${TUNE_ARGS[@]}"} \
     ${EXTRA_ARGS[@]+"${EXTRA_ARGS[@]}"} \
     ${MASK_ARGS[@]+"${MASK_ARGS[@]}"} ) 2>&1 | tee "${LOG_FILE}"

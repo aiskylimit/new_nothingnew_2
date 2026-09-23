@@ -20,6 +20,7 @@
 #   bash eval.sh --lora-r 16               # checkpoint train voi r khac mac dinh (64)
 #   bash eval.sh --ckpt-suffix _bs16       # checkpoint train voi --ckpt-suffix _bs16
 #   bash eval.sh --no-think                # Qwen3: tat thinking (enable_thinking=False) - khop train.sh --think-prefix off
+#   bash eval.sh --prompt-type palign      # prompt kieu P-ALIGN - khop train.sh --prompt-style palign
 #   bash eval.sh --full-sft                # eval checkpoint baseline full-CoT
 #   bash eval.sh --model /duong/dan/checkpoint-250
 #   bash eval.sh --model /duong/dan/checkpoint-250 --tag sel_ep5
@@ -111,6 +112,7 @@ while [[ $# -gt 0 ]]; do
     --lora-r)          LORA_R="$2"; shift 2 ;;
     --ckpt-suffix)     CKPT_SUFFIX="$2"; shift 2 ;;
     --no-think)        NO_THINK=1; shift ;;
+    --prompt-type)     PROMPT_TYPE="$2"; shift 2 ;;
     --full-finetune)   USE_LORA=0; shift ;;
     --epochs)          EPOCHS="$2"; shift 2 ;;
     --lr)              LR="$2"; shift 2 ;;
@@ -136,7 +138,7 @@ while [[ $# -gt 0 ]]; do
     --reinstall)       REINSTALL=1; shift ;;
     --offline)         HF_OFFLINE=1; shift ;;
     --dry-run)         DRY_RUN=1; shift ;;
-    -h|--help)         sed -n '2,32p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help)         sed -n '2,36p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "Tham so khong hop le: $1 (xem --help)" >&2; exit 2 ;;
   esac
 done
@@ -367,6 +369,7 @@ else
 fi
 echo "    sampling   : t=${TEMPERATURE} top_p=${TOP_P} rep=${REPETITION_PENALTY} seed=${SEED} max_tokens=${MAX_TOKENS}"
 echo "    thinking   : $([[ "$NO_THINK" == "1" ]] && echo 'OFF (enable_thinking=False)' || echo 'mac dinh cua chat template')"
+echo "    prompt     : ${PROMPT_TYPE}"
 echo "    so cau     : $([[ "$NUM_TEST_SAMPLE" == "-1" ]] && echo "ca test set" || echo "${NUM_TEST_SAMPLE} cau dau")"
 echo "    vllm       : gpu_mem=${GPU_MEM_UTIL} prefix_cache=$([[ "$PREFIX_CACHING" == 1 ]] && echo on || echo off) logprobs=$([[ "$LOGPROBS" == 1 ]] && echo on || echo off) max_model_len=${MAX_MODEL_LEN:-auto}"
 echo "    output     : Eval/${OUTPUT_ROOT}/<task>/${RUN_TAG}"

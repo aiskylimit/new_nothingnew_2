@@ -121,11 +121,16 @@ def parse_args():
     parser.add_argument("--deepseek", action="store_true",
                         help="Chat template DeepSeek R1 (template tu chen <think>). Bo di = template Qwen/ChatML.")
     parser.add_argument("--think_prefix", default="none", choices=["none", "off", "plain", "special"],
-                        help="Chi ap dung cho nhanh Qwen. none = khong chen gi sau '<|im_start|>assistant\\n'; "
+                        help="none = khong chen gi sau '<|im_start|>assistant\\n'; "
                              "off = TAT thinking mode Qwen3 (apply_chat_template(enable_thinking=False), template "
-                             "tu chen khoi rong '<think>\\n\\n</think>\\n\\n' - eval.sh --no-think phai khop); "
+                             "tu chen khoi rong '<think>\\n\\n</think>\\n\\n'; voi --deepseek thi dong khoi think R1 thanh rong "
+                             "nhu vay - eval.sh --no-think phai khop); plain/special chi cho nhanh Qwen; "
                              "plain = chen <think> dang text thuong; "
                              "special = chen va them token dac biet + resize embedding (ban goc, can full finetune)")
+    parser.add_argument("--prompt_style", default="default", choices=["default", "palign"],
+                        help="default = '<cau hoi>\\nPlease reason ... \\boxed{}.' (eval: --prompt_type deepseek-longcot); "
+                             "palign = 'Please reason ... \\boxed{}.<cau hoi>' nhu P-ALIGN src/test.py "
+                             "(eval: --prompt_type palign)")
     parser.add_argument("--segment_mode", default=DEFAULT_MODE, choices=sorted(SEGMENT_PATTERNS))
     parser.add_argument("--mask", action="store_true")
     parser.add_argument("--apply_all", action="store_true")
@@ -177,9 +182,16 @@ if not args.deepseek:
         response_template = "<|im_start|>assistant\n" + think_str
 else:
     # Template cua DeepSeek R1 tu chen "<think>\n" sau <｜Assistant｜>.
-    think_str = ""
     instruction_template = "<｜begin▁of▁sentence｜><｜User｜>"
-    response_template = "<｜Assistant｜><think>\n"
+    if args.think_prefix == "off":
+        # Non-thinking nhu P-ALIGN (LLaMA-Factory deepseekr1 + enable_thinking false): dong khoi
+        # think rong ngay sau prompt (label -100), trace hoc sau "</think>\n\n".
+        # Phai khop math_eval.py --disable_think (eval.sh --no-think).
+        think_str = "\n</think>\n\n"
+        response_template = "<｜Assistant｜><think>\n\n</think>\n\n"
+    else:
+        think_str = ""
+        response_template = "<｜Assistant｜><think>\n"
 
 # Mask bam theo offset ky tu nen khong con do chuoi token cua response_template
 # nua; doi lai kiem tra mot lan o day rang chat template dung la ket thuc bang
@@ -266,9 +278,12 @@ def formatting_prompts_func(examples):
     input_ids_list = []
     labels_list = []
     for prompt, output, segment_id in zip(questions, outputs, segments_ids):
-        messages = [
-            {"role": "user", "content": prompt + "\nPlease reason step by step, and put your final answer within \\boxed{}."},
-        ]
+        if args.prompt_style == "palign":
+            # math_eval.py strip() ca prompt -> khoang trang cuoi cau hoi bi bo; rstrip de khop.
+            content = "Please reason step by step, and put your final answer within \\boxed{}." + prompt.rstrip()
+        else:
+            content = prompt + "\nPlease reason step by step, and put your final answer within \\boxed{}."
+        messages = [{"role": "user", "content": content}]
   
         input_str = tokenizer.apply_chat_template(
             messages,
@@ -278,8 +293,11 @@ def formatting_prompts_func(examples):
         )
         full_text = input_str + think_str + output
 
+        # Chat template da chen BOS khi model can (DeepSeek R1); add_special_tokens=True se them
+        # BOS thu hai. Qwen khong co BOS nen khong doi. Eval (math_eval.py) cung encode nhu vay.
         full_tokens = tokenizer(
             full_text,
+            add_special_tokens=False,
             truncation=True,
             max_length=args.max_seq_length,
             return_offsets_mapping=True,

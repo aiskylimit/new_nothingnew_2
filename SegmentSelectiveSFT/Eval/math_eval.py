@@ -18,6 +18,9 @@ from data_loader import load_data
 from python_executor import PythonExecutor
 from model_utils import load_hf_lm_and_tokenizer, generate_completions
 
+# Khoi think rong: Qwen3 enable_thinking=False tu chen; DeepSeek-R1 thi math_eval tu dong lai (--disable_think).
+EMPTY_THINK = "<think>\n\n</think>\n\n"
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -296,7 +299,16 @@ def main(llm, tokenizer, data_name, args):
                 for prompt in input_prompts
             ]
 
-    
+        if args.disable_think:
+            # Template khong co bien enable_thinking (DeepSeek-R1-Distill) van mo "<think>\n" sau
+            # <｜Assistant｜> -> dong lai rong de model tra loi thang, nhu P-ALIGN src/test.py.
+            # Phai khop train_mask.py --deepseek --think_prefix off.
+            input_prompts = [
+                p if p.endswith(EMPTY_THINK) or not p.rstrip().endswith("<think>")
+                else p.rstrip()[: -len("<think>")] + EMPTY_THINK
+                for p in input_prompts
+            ]
+
     print(input_prompts[0])
     remain_prompts = input_prompts
     remain_prompts = [(i, prompt) for i, prompt in enumerate(remain_prompts)]
@@ -331,8 +343,15 @@ def main(llm, tokenizer, data_name, args):
         # get all outputs
         prompts = [item[1] for item in current_prompts]
         if args.use_vllm:
+            # Chat template da chen BOS khi model can (DeepSeek); truyen token ids de vLLM
+            # khong them BOS thu hai. Qwen khong co BOS nen ket qua khong doi.
+            vllm_prompts = prompts
+            if tokenizer is not None:
+                vllm_prompts = [
+                    {"prompt_token_ids": tokenizer.encode(p, add_special_tokens=False)} for p in prompts
+                ]
             outputs = llm.generate(
-                prompts,
+                vllm_prompts,
                 SamplingParams(
                     temperature=args.temperature,
                     top_p=args.top_p,
