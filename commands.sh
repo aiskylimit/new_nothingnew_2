@@ -4,7 +4,7 @@
 
 # cd SegmentSelectiveSFT && bash commands.sh
 # nvidia-smi
-cd SegmentSelectiveSFT && GPU=0 bash commands.sh
+# cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
