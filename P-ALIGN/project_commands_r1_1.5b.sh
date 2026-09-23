@@ -55,6 +55,8 @@ MODEL="${MODEL:-$OUTPUT_DIR}"
 RESULT_DIR="${RESULT_DIR:-output/result_r1_1.5b}"
 EVAL_OUT="${EVAL_OUT:-output/eval_results_r1_1.5b.txt}"
 DEEPSPEED="${DEEPSPEED:-}"
+# vLLM reserves this fraction of the whole GPU at eval; lower it (e.g. 0.3) if the GPU is shared
+GPU_MEM="${GPU_MEM:-0.8}"
 NPROC_PER_NODE="${NPROC_PER_NODE:-1}"
 NNODES="${NNODES:-1}"
 RANK="${RANK:-0}"
@@ -133,6 +135,7 @@ cmd_eval() {
     --top_p 0.9 \
     --repetition_penalty 1.05 \
     --max_tokens 4096 \
+    --gpu_memory_utilization "$GPU_MEM" \
     --force_empty_think
   for f in "${OUT[@]}"; do
     python src/evaluation.py --input_path "$f" --output_path "${f%.jsonl}_scored.jsonl"

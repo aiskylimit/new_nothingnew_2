@@ -80,11 +80,11 @@ else:
             pass
 
 
-def _make_llm(model, max_model_len):
+def _make_llm(model, max_model_len, gpu_memory_utilization=0.8):
     """Create a vLLM instance using FlashAttention."""
     kwargs = dict(
         model=model,
-        gpu_memory_utilization=0.8,
+        gpu_memory_utilization=gpu_memory_utilization,
         max_model_len=max_model_len,
         trust_remote_code=True,
         tensor_parallel_size=1,
@@ -168,6 +168,8 @@ def main():
     p.add_argument("--top_p", type=float, default=0.9)
     p.add_argument("--repetition_penalty", type=float, default=1.05)
     p.add_argument("--max_tokens", type=int, default=4096)
+    p.add_argument("--gpu_memory_utilization", type=float, default=0.8,
+                   help="fraction of total GPU memory vLLM may take; lower it when the GPU is shared")
     p.add_argument("--force_empty_think", action="store_true",
                    help="append an empty <think></think> block even if the chat template does not open one")
     args = p.parse_args()
@@ -180,7 +182,7 @@ def main():
         n=args.n, temperature=args.temperature, top_p=args.top_p,
         repetition_penalty=args.repetition_penalty, max_tokens=args.max_tokens,
     )
-    llm = _make_llm(args.model, args.max_tokens)
+    llm = _make_llm(args.model, args.max_tokens, args.gpu_memory_utilization)
     for inp, out in zip(args.input_files, args.output_files):
         process_data(inp, out, llm, args.batch_size, tokenizer, sampling_params, args.force_empty_think)
 
