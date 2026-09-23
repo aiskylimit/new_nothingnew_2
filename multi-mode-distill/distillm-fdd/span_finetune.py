@@ -166,6 +166,9 @@ def get_distil_loss(args, teacher_logits, no_model_batch, logits):
     if args.model_parallel:
         raise NotImplementedError
     else:
+        shared_vocab_size = min(teacher_logits.size(-1), logits.size(-1))
+        teacher_logits = teacher_logits[..., :shared_vocab_size]
+        logits = logits[..., :shared_vocab_size]
         if "sfkl" in args.type:
             distil_loss = skewed_forward_kl(logits, teacher_logits, no_model_batch, lam=args.skew_alpha)
         elif "srkl" in args.type:
@@ -188,16 +191,17 @@ def compute_token_weights(hidden_state, attention_mask):
     K = hidden_state / std
     scores = torch.matmul(Q, K.transpose(-1, -2)) / (hidden_state.size(-1) ** 0.5)
 
-    mask = attention_mask.unsqueeze(1).expand(-1, scores.size(-2), -1)
-    scores = scores.masked_fill(mask == 0, float('-inf'))
+    key_mask = attention_mask.unsqueeze(1).bool().expand(-1, scores.size(-2), -1)
     diag_mask = torch.eye(scores.size(-1), device=scores.device, dtype=torch.bool)
-    scores = scores.masked_fill(diag_mask.unsqueeze(0), float('-inf'))
+    valid_mask = key_mask & ~diag_mask.unsqueeze(0)
+    scores = scores.masked_fill(~valid_mask, torch.finfo(scores.dtype).min)
 
     attn_weights = F.softmax(scores, dim=-1)  # [1, L, L]
-    attn_weights = attn_weights * mask
-    attn_weights = attn_weights / attn_weights.sum(dim=-1, keepdim=True)
+    attn_weights = attn_weights * valid_mask
+    attn_weights = attn_weights / attn_weights.sum(dim=-1, keepdim=True).clamp_min(1e-5)
+    attn_weights = attn_weights * attention_mask.unsqueeze(-1)
 
-    token_weights = attn_weights.mean(dim=1).squeeze(0)  # [L]
+    token_weights = attn_weights.mean(dim=1)  # [B, L]
     return token_weights.detach()
 
 def prepare_span_indices_and_weights(t_layer_weights, s_layer_weights, 
@@ -207,8 +211,7 @@ def prepare_span_indices_and_weights(t_layer_weights, s_layer_weights,
 
     max_spans = max(len(s) for s in spans_offsets)
     if max_spans == 0:
-        print(f"No spans found in the batch.")
-        return torch.tensor(0.0, device=device)
+        return None
 
     # (B_size, max_spans)
     padded_span_starts = torch.zeros(B_size, max_spans, dtype=torch.long, device=device)
@@ -223,14 +226,16 @@ def prepare_span_indices_and_weights(t_layer_weights, s_layer_weights,
             padded_span_ends[i, :num_spans_i] = spans_i[:, 1]
             padded_span_mask[i, :num_spans_i] = True
     
-    if offsets_mapping.shape[1] != SeqLen:
-        current_offsets_mapping = offsets_mapping[:, :SeqLen, :]
-    else:
-        current_offsets_mapping = offsets_mapping
+    offset_len = min(offsets_mapping.shape[1], SeqLen)
+    current_offsets_mapping = torch.zeros(
+        B_size, SeqLen, 2, dtype=offsets_mapping.dtype, device=device)
+    current_offsets_mapping[:, :offset_len] = offsets_mapping[:, :offset_len].to(device)
+    valid_offset_mask = torch.zeros(B_size, SeqLen, dtype=torch.bool, device=device)
+    valid_offset_mask[:, :offset_len] = True
 
     # (B_size, SeqLen, 1)
-    offsets_start_expanded = current_offsets_mapping[..., 0].unsqueeze(2).to(device)
-    offsets_end_expanded = current_offsets_mapping[..., 1].unsqueeze(2).to(device)
+    offsets_start_expanded = current_offsets_mapping[..., 0].unsqueeze(2)
+    offsets_end_expanded = current_offsets_mapping[..., 1].unsqueeze(2)
     
     # (B_size, 1, max_spans)
     span_starts_expanded = padded_span_starts.unsqueeze(1)
@@ -242,11 +247,11 @@ def prepare_span_indices_and_weights(t_layer_weights, s_layer_weights,
     attention_mask_expanded = attention_mask.unsqueeze(2).bool()
     span_mask_expanded = padded_span_mask.unsqueeze(1) 
 
-    final_token_to_span_map = token_in_span_map & attention_mask_expanded & span_mask_expanded
+    final_token_to_span_map = (token_in_span_map & attention_mask_expanded &
+                               valid_offset_mask.unsqueeze(2) & span_mask_expanded)
 
     if not final_token_to_span_map.any():
-        print(f"No valid tokens found for any spans in the batch.")
-        return torch.tensor(0.0, device=device)
+        return None
 
     nonzero_indices = final_token_to_span_map.nonzero(as_tuple=False)
     
@@ -297,9 +302,12 @@ def get_span_loss(projectors, attention_mask, s_hidden_states, t_hidden_states,
     t_layer_weights = torch.stack(t_layer_weights)  # (num_layers, B, SeqLen)
     s_layer_weights = torch.stack(s_layer_weights)  # (num_layers, B, SeqLen)
 
-    (All_Indices, T_Token_Weights_all, S_Token_Weights_all, 
-     Span_IDs, Max_Spans, Batch_ID_for_Spans) =  prepare_span_indices_and_weights(t_layer_weights, s_layer_weights, 
-                                                                                  attention_mask, offsets_mapping, spans_offsets)
+    prepared = prepare_span_indices_and_weights(
+        t_layer_weights, s_layer_weights, attention_mask, offsets_mapping, spans_offsets)
+    if prepared is None:
+        return s_hidden_states[student_layer_mapping[0]].sum() * 0.0
+    (All_Indices, T_Token_Weights_all, S_Token_Weights_all,
+     Span_IDs, Max_Spans, Batch_ID_for_Spans) = prepared
     final_loss = 0.0
     for i, (s_idx, t_idx, projector) in enumerate(zip(student_layer_mapping, teacher_layer_mapping, projectors)):
         s_hidden = s_hidden_states[s_idx]
@@ -440,7 +448,7 @@ def filter_overlapping_spans(spans):
     filtered = []
     words = []
     if not sorted_spans:
-        return filtered
+        return filtered, words
 
     current_span = sorted_spans[0]
     for next_span in sorted_spans[1:]:
@@ -520,7 +528,8 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
 
     sampler = DistributedSampler(dataset["train"], shuffle=True, drop_last=True, rank=dp_rank, num_replicas=dp_world_size)
     train_dataloader = DataLoader(
-        dataset['train'], sampler=sampler, batch_size=args.batch_size, collate_fn=dataset["train"].collate)
+        dataset['train'], sampler=sampler, batch_size=args.batch_size,
+        drop_last=True, collate_fn=dataset["train"].collate)
     
     if "pt_train" in dataset:
         pt_sampler = DistributedSampler(dataset["pt_train"], shuffle=True, drop_last=True, rank=dp_rank, num_replicas=dp_world_size)
@@ -531,7 +540,7 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
         
     student_generator = SampleGenerator(args, tokenizer)
 
-    step, global_step = 1, 1
+    step, global_step = 0, 0
     total_loss, total_distil_loss, total_time = 0.0, 0.0, 0.0
     
     adaptive_threshold = args.init_threshold if "adaptive" in args.type else None
@@ -544,6 +553,7 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
 
         model.train()
         for it, (model_batch, no_model_batch, gen_data) in enumerate(train_dataloader):
+            step += 1
             dataset["train"].move_to_device(model_batch, no_model_batch, gen_data, device)
             
             if args.lm_data_dir is not None:
@@ -561,14 +571,15 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
             st_time = time.time()
             
             # # sampling ratio:
-            samp_threshold = adaptive_threshold * (1 - global_step / args.total_iters)
+            current_global_step = min(global_step + 1, args.total_iters)
+            samp_threshold = adaptive_threshold * (1 - current_global_step / args.total_iters)
             if "adaptive" in args.type:
                 if args.replay_ratio == "constant":
                     samp_threshold = adaptive_threshold * 0.5
                 elif args.replay_ratio == "increasing":
-                    samp_threshold = adaptive_threshold * global_step / args.total_iters
+                    samp_threshold = adaptive_threshold * current_global_step / args.total_iters
                 else:
-                    samp_threshold = adaptive_threshold * (1 - global_step / args.total_iters)
+                    samp_threshold = adaptive_threshold * (1 - current_global_step / args.total_iters)
             
             # data generation
             if args.student_gen:
@@ -602,6 +613,8 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
             logits = outputs.logits
             if args.model_parallel:
                 raise NotImplementedError
+            elif teacher_model is not None and args.kd_ratio == 1.0:
+                lm_loss = logits.new_zeros(())
             else:
                 lm_loss = loss_func(logits.float().view(-1, logits.shape[-1]), no_model_batch["label"].view(-1))
             
@@ -632,8 +645,11 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
             else:
                 loss = lm_loss
                 
+            is_update_step = model.is_gradient_accumulation_boundary()
             model.backward(loss)
             model.step()
+            if is_update_step:
+                global_step += 1
              
             dist.all_reduce(loss, dist.ReduceOp.SUM, group=dp_group)
             global_loss = loss.item() / dp_world_size
@@ -672,7 +688,7 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
                 if step % mid_log_step == 0:
                     print_rank(get_log(global_loss, global_distil_loss, 0))
 
-            if global_step % args.log_interval == 0 and step % args.gradient_accumulation_steps == 0:
+            if is_update_step and global_step % args.log_interval == 0:
                 log_str = get_log(
                     total_loss / (args.log_interval * args.gradient_accumulation_steps),
                     total_distil_loss / (args.log_interval * args.gradient_accumulation_steps),
@@ -685,7 +701,8 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
                 total_loss, total_distil_loss, total_time = 0.0, 0.0, 0.0
             
             # Checkpointing
-            if args.save and args.save_interval and global_step % args.save_interval == 0 and step % args.gradient_accumulation_steps == 0:
+            if (is_update_step and args.save and args.save_interval and
+                    global_step % args.save_interval == 0):
                 save_dir_path = os.path.join(args.save, str(global_step))
                 if args.model_parallel:
                     raise NotImplementedError
@@ -698,7 +715,7 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
                 dist.barrier()
 
             # Evaluation
-            if args.eval_interval and global_step % args.eval_interval == 0 and step % args.gradient_accumulation_steps == 0:
+            if is_update_step and args.eval_interval and global_step % args.eval_interval == 0:
                 curr_avg_loss = evaluate(args, tokenizer, model, dataset["dev"], "dev", epoch, device, adaptive_threshold)
                 if "adaptive" in args.type:
                     if curr_avg_loss >= prev_avg_loss + args.loss_eps:
@@ -708,12 +725,10 @@ def finetune(args, tokenizer: AutoTokenizer, model: deepspeed.DeepSpeedEngine, o
                     
                 model.train()
                 
-            step += 1
-            if step % args.gradient_accumulation_steps == 0:
-                global_step += 1
-            
-            if global_step > args.total_iters:
+            if global_step >= args.total_iters:
                 break
+        if global_step >= args.total_iters:
+            break
             
     return model
 
@@ -878,6 +893,10 @@ def main():
         
         if args.eval_interval == -1:
             args.eval_interval = args.train_iters_per_epoch
+        # eval.sh discovers the final adapter from total_iters in args.json.
+        if dist.get_rank() == 0:
+            with open(os.path.join(args.save, "args.json"), "w") as f:
+                json.dump(vars(args), f)
     
     # get the model
     model = get_model(args, device)

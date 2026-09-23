@@ -45,17 +45,24 @@ class SampleGenerator():
             response_ids = full_ids[:, gen_data["input_ids"].size(1):]
             
             for i in range(len(input_ids)):
-                result_id = torch.cat(
-                    (input_ids[i][input_ids[i] != self.pad_id],
-                     response_ids[i][response_ids[i] != self.pad_id]),
-                )
-                input_id = input_ids[i][input_ids[i] != self.pad_id]
-                response_id = response_ids[i][response_ids[i] != self.pad_id]
-                
+                input_id = input_ids[i][gen_data["attention_mask"][i].bool()]
+                response_id = response_ids[i]
+                eos_positions = (response_id == self.tokenizer.eos_token_id).nonzero(as_tuple=False)
+                if eos_positions.numel() > 0:
+                    response_id = response_id[:eos_positions[0, 0] + 1]
+
+                # Match LMTrainDataset's causal shift: the input excludes the
+                # final target, and labels start at the last prompt position.
+                full_sequence = torch.cat((input_id, response_id))[:self.args.max_length]
+                result_id = full_sequence[:-1]
+                target_id = full_sequence[len(input_id):]
+
                 results["input_ids"][i, :len(result_id)] = result_id
-                results["position_ids"][i, :len(result_id)] = torch.arange(len(result_id))
-                results["no_model_batch"][i, len(input_id):len(result_id)] = response_id
-        results["attention_mask"] = torch.where(results["input_ids"] != self.pad_id, 1, 0)
+                results["attention_mask"][i, :len(result_id)] = 1
+                results["position_ids"][i, :len(result_id)] = torch.arange(
+                    len(result_id), device=result_id.device)
+                target_start = len(input_id) - 1
+                results["no_model_batch"][i, target_start:target_start + len(target_id)] = target_id
         results["attention_mask"] = results["attention_mask"].float()
         results["no_model_batch"] = results["no_model_batch"].long()
         return results
