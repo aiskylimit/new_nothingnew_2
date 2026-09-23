@@ -1,14 +1,14 @@
-#i p-align.txt
-#ssft
+#1 +60
+#spectral_guided_learning
 #v1
 
 # cd SegmentSelectiveSFT && bash commands.sh
-# nvidia-smi
+nvidia-smi
 # cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
-# cd SpectralGuidedLearning && GPUS=1 bash project_commands_r1-qwen-1.5b.sh
+cd SpectralGuidedLearning && GPUS=0 bash project_commands_spectral_r1-qwen-1.5b.sh
 # kill -9 155157 155158
 
 # cd ./offline_rlsd_sdpo_b200
