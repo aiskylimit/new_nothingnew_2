@@ -1,4 +1,9 @@
-#2 -3 +a
+#datasets
+--url https://huggingface.co/datasets/VoCuc/UltraInteract-Infer/resolve/main/google/gemma-2-9b-it/generated_train.jsonl /mnt/local/aiskylimit_new_nothing/multi-mode-distill/data/raw/google/gemma-2-9b-it/
+#models
+--hf google/gemma-2-9b-it /mnt/local/aiskylimit_new_nothing/multi-mode-distill/models/google_gemma-2-9b-it
+--hf google/gemma-2-2b-it /mnt/local/aiskylimit_new_nothing/multi-mode-distill/models/google_gemma-2-2b-it
+
 #spectral
 #v1
 
