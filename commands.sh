@@ -1,5 +1,5 @@
-#2 -0-10
-#spectral
+#1 +120
+#rivad
 #v1
 
 # nvidia-smi
@@ -51,7 +51,8 @@ export NCCL_DEBUG=WARN
 # bash project_commands.sh
 
 
-# cd ./multi-mode-distill
+cd ./multi-mode-distill
+bash ./run_gemma.sh
 # bash ./project_commands.sh
 # # # bash ./project_commands_opsd_ablation.sh
 # # # bash ./project_commands_ablation.sh
