@@ -1,4 +1,4 @@
-#1 +60
+#2 -0-10
 #p-align
 #v1
 
@@ -8,7 +8,7 @@ nvidia-smi
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
-cd P-ALIGN && GPUS=1 bash  project_commands_r1_1.5b.sh
+# cd P-ALIGN && GPUS=1 bash  project_commands_r1_1.5b.sh
 # kill -9 155157 155158
 
 # cd ./offline_rlsd_sdpo_b200
