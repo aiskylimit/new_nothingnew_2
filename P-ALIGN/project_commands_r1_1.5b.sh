@@ -11,7 +11,7 @@
 #   bash project_commands_r1_1.5b.sh eval       # needs trained weights (or MODEL=...)
 #
 # Eval base checkpoint only (skip train):
-#   MODEL=/mnt/local/aiskylimit_new_nothing/P-ALIGN/models/DeepSeek-R1-Distill-Qwen-1.5B \
+#   MODEL=/mnt/local/_models/aiskylimit_new_nothingnew_2/DeepSeek-R1-Distill-Qwen-1.5B \
 #     RESULT_DIR=output/result_r1_1.5b_base bash project_commands_r1_1.5b.sh eval
 #
 # Multi-GPU with DeepSpeed ZeRO-2 (shards optimizer state; use if a single GPU OOMs):
@@ -22,7 +22,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
 
 ASSET_ROOT="${ASSET_ROOT:-/mnt/local/aiskylimit_new_nothing/P-ALIGN}"
-MODEL_PATH="${MODEL_PATH:-$ASSET_ROOT/models/DeepSeek-R1-Distill-Qwen-1.5B}"
+MODEL_PATH="${MODEL_PATH:-/mnt/local/_models/aiskylimit_new_nothingnew_2/DeepSeek-R1-Distill-Qwen-1.5B}"
 DATA_DIR="${DATA_DIR:-$ROOT/data}"
 export PALIGN_ASSET_ROOT="$ASSET_ROOT"
 export PALIGN_DATA_DIR="$DATA_DIR"
