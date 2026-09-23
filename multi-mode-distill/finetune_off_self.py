@@ -1,3 +1,5 @@
+"""Adaptive OFF+SELF ablation of finetune.py, without ON-policy rollouts."""
+
 import time
 import os
 import copy
@@ -32,24 +34,107 @@ from utils import save_rank
 from utils import all_gather
 from utils import get_tokenizer, get_model
 
-from src.sampler import SampleGenerator
 from src.losses import forward_kl, reverse_kl, js_distance, tv_distance
 from src.losses import skewed_forward_kl, skewed_reverse_kl
 from src.menger import menger_loss_per_response
-from src.trajectory import (find_step_spans, reasoning_geometry_loss,
-                            reasoning_cka_loss, reasoning_token_velocity_loss)
+from src.trajectory import (reasoning_geometry_loss, reasoning_cka_loss,
+                            reasoning_token_velocity_loss)
 from src.modes import (align_response_logits,
                            validate_mode_args, require_shared_vocabulary,
                            geometry_enabled_for_mode, menger_enabled_for_mode,
                            token_velocity_enabled_for_mode)
 from src.self_distill import (make_reference_model, prepare_self_distill_batches,
                               refresh_reference_model)
-from src.opsd import (prepare_opsd_reference_batch, opsd_forward_kl,
-                      fixed_base_teacher_forward)
-from src.adaptive import (AdaptiveConfig, AdaptiveScheduler,
-                               OptimizerStepModeRouter)
+from src.adaptive import OptimizerStepModeRouter
 
 torch.set_num_threads(4)
+
+
+class OffSelfScheduler:
+    """Route each optimizer step between OFF and SELF using dev SELF loss."""
+
+    MODES = ("off_policy", "self_distill")
+
+    def __init__(self, args):
+        self.rho_self = args.rho_self_init
+        self.rho_self_max = args.rho_self_max
+        self.rho_self_increment = args.rho_self_increment
+        self.threshold = args.adaptive_deterioration_threshold
+        self.eps = args.adaptive_eps
+        self.rng = random.Random(args.seed)
+        self.ref_self_loss = None
+        self.counts = dict.fromkeys(self.MODES, 0)
+
+    @property
+    def rho_off(self):
+        return 1.0 - self.rho_self
+
+    def sample_mode(self, device=None):
+        distributed = dist.is_available() and dist.is_initialized()
+        mode_id = 0
+        if not distributed or dist.get_rank() == 0:
+            mode_id = int(self.rng.random() < self.rho_self)
+        if distributed:
+            routing_device = device if dist.get_backend() == "nccl" else "cpu"
+            decision = torch.tensor(mode_id, dtype=torch.long, device=routing_device)
+            dist.broadcast(decision, src=0)
+            mode_id = int(decision.item())
+        return self.MODES[mode_id]
+
+    def record_step(self, mode):
+        self.counts[mode] += 1
+
+    def on_evaluation(self, self_loss):
+        if not math.isfinite(self_loss):
+            raise FloatingPointError("Non-finite SELF dev discrepancy")
+        deterioration = None
+        updated = False
+        if self.ref_self_loss is None:
+            self.ref_self_loss = self_loss
+        else:
+            deterioration = (self_loss - self.ref_self_loss) / (abs(self.ref_self_loss) + self.eps)
+            if deterioration > self.threshold:
+                new_rho = min(self.rho_self + self.rho_self_increment, self.rho_self_max)
+                updated = new_rho > self.rho_self
+                self.rho_self = new_rho
+                self.ref_self_loss = self_loss
+            else:
+                self.ref_self_loss = min(self.ref_self_loss, self_loss)
+        return {
+            "scheduler/rho_off": self.rho_off,
+            "scheduler/rho_self": self.rho_self,
+            "scheduler/eval_self_loss": self_loss,
+            "scheduler/ref_self_loss": self.ref_self_loss,
+            "scheduler/self_deterioration": deterioration,
+            "scheduler/self_updated": updated,
+            "scheduler/off_steps": self.counts["off_policy"],
+            "scheduler/self_distill_steps": self.counts["self_distill"],
+        }
+
+
+def validate_off_self_args(args):
+    # validate_mode_args normalizes KD settings; the local scheduler validates
+    # only SELF parameters, independently of the three-mode ON parameters.
+    if args.adaptive_on_policy:
+        raise ValueError("OFF+SELF ablation does not use --dual-adaptive-exposure")
+    validate_mode_args(args)
+    if args.type != "kd" or args.distill_mode != "off_policy" or args.student_gen:
+        raise ValueError("OFF+SELF ablation requires --type kd without a fixed mode or --student-gen")
+    if not args.do_train or not args.teacher_model_path:
+        raise ValueError("OFF+SELF ablation requires --do-train and --teacher-model-path")
+    if not args.eval_interval or args.eval_interval < -1:
+        raise ValueError("OFF+SELF ablation requires positive --eval-interval (or -1 for each epoch)")
+    values = (args.rho_self_init, args.rho_self_max, args.rho_self_increment,
+              args.adaptive_deterioration_threshold, args.adaptive_eps)
+    if not all(math.isfinite(value) for value in values):
+        raise ValueError("OFF+SELF scheduler parameters must be finite")
+    if not 0 <= args.rho_self_init <= args.rho_self_max <= 1:
+        raise ValueError("Require 0 <= rho-self-init <= rho-self-max <= 1")
+    if args.rho_self_increment <= 0 or args.adaptive_deterioration_threshold < 0 or args.adaptive_eps <= 0:
+        raise ValueError("SELF increment and eps must be positive; threshold must be nonnegative")
+    if not 0 < args.t_max_prompt_length < args.t_max_length or args.t_max_length < args.max_length:
+        raise ValueError("SELF reference lengths must fit the full student response")
+    args.ablation_modes = list(OffSelfScheduler.MODES)
 
 
 @contextmanager
@@ -187,18 +272,18 @@ def prepare_dataset(args, tokenizer, teacher_tokenizer=None):
             args, tokenizer, args.data_dir, "train", args.train_num, args.train_ratio,
             teacher_tokenizer=teacher_tokenizer,
             with_teacher=args.teacher_model_path is not None,
-            distill_mode=args.distill_mode,
+            # SELF mode attaches context metadata needed by the mixed router.
+            distill_mode="self_distill",
             geometry=args.geometry or args.off_policy_geometry or args.cka,
         )
         print_rank("train num", len(data["train"]))
         if args.eval_interval:
-            adaptive = getattr(args, "adaptive_on_policy", False)
             dev_args = copy.copy(args)
             data["dev"] = LMTrainDataset(dev_args, tokenizer, args.data_dir, "valid",
                                         args.dev_num, args.dev_ratio,
                                         teacher_tokenizer=teacher_tokenizer,
-                                        with_teacher=adaptive,
-                                        distill_mode="off_policy" if adaptive else None)
+                                        with_teacher=True,
+                                        distill_mode="self_distill")
     if args.do_eval:
         data["test"] = LMTrainDataset(args, tokenizer, args.data_dir, "test",
                                      args.dev_num, args.dev_ratio, with_teacher=False)
@@ -254,8 +339,8 @@ def get_adaptive_discrepancy(args, teacher_logits, labels, student_logits):
     kd = _distil_loss_on_topk(args, teacher_topk, {"label": labels}, student_topk)
     if args.kd_loss not in ("fkl", "sfkl"):
         return kd
-    # Both forward losses optimize cross-entropy. On fresh ON trajectories,
-    # teacher entropy varies even when student and teacher match exactly.
+    # Both forward losses optimize cross-entropy. Teacher entropy varies
+    # even when student and reference match exactly.
     temperature = getattr(args, "distill_temperature", 1.0)
     teacher_logprobs = F.log_softmax(
         teacher_topk.float() / temperature, dim=-1)
@@ -271,8 +356,8 @@ def teacher_batch_for_response(args, student_batch):
     return teacher_batch
 
 
-def evaluate_adaptive_losses(args, tokenizer, model, teacher_model, reference_model, dataset, device):
-    """Token-weighted canonical SELF and deterministic ON discrepancies."""
+def evaluate_adaptive_losses(args, tokenizer, model, reference_model, dataset, device):
+    """Token-weighted canonical SELF discrepancy for adaptive routing."""
     if not dataset.with_teacher or not dataset.needs_self_distill_context:
         raise ValueError("Adaptive dev data must include canonical self-distillation steps")
     world_size, rank = dist.get_world_size(), dist.get_rank()
@@ -280,13 +365,10 @@ def evaluate_adaptive_losses(args, tokenizer, model, teacher_model, reference_mo
                                  rank=rank, num_replicas=world_size)
     dataloader = DataLoader(dataset, sampler=sampler, batch_size=args.eval_batch_size,
                             num_workers=args.num_workers, collate_fn=dataset.collate)
-    generator = SampleGenerator(args, tokenizer, do_sample=False)
-    # Sum of token losses and token counts for SELF, then ON.
-    stats = torch.zeros(4, dtype=torch.float64, device=device)
+    stats = torch.zeros(2, dtype=torch.float64, device=device)
     offset = 0
     was_training = model.training
     model.eval()
-    teacher_model.eval()
     reference_model.eval()
     try:
         with torch.no_grad():
@@ -295,42 +377,32 @@ def evaluate_adaptive_losses(args, tokenizer, model, teacher_model, reference_mo
                 rows = torch.arange(model_batch["input_ids"].shape[0], device=device) + offset
                 valid_rows = rows * world_size + rank < len(dataset)
                 offset += rows.numel()
-                for mode, start in (("self_distill", 0), ("on_policy", 2)):
-                    if mode == "self_distill":
-                        sample_ids = (rows * world_size + rank).tolist()
-                        rngs = [random.Random(args.self_distill_eval_seed + sample_id)
-                                for sample_id in sample_ids]
-                        student_batch, student_meta, teacher_batch, teacher_meta = prepare_self_distill_batches(
-                            args, tokenizer, model_batch, metadata, rngs)
-                        source_model = reference_model
-                    else:
-                        student_batch = generator.run_sample(model, gen_data)
-                        labels = student_batch.pop("no_model_batch")
-                        student_meta = {"label": labels}
-                        teacher_batch = teacher_batch_for_response(args, student_batch)
-                        teacher_meta = student_meta
-                        source_model = teacher_model
-                    student_logits = model(**student_batch, use_cache=False, return_dict=True).logits
-                    teacher_logits = source_model(**teacher_batch, use_cache=False, return_dict=True).logits
-                    aligned_student, aligned_teacher, response_labels = align_response_logits(
-                        student_logits, student_meta["label"], teacher_logits, teacher_meta["label"])
-                    keep = valid_rows[:, None].expand_as(student_meta["label"])
-                    keep = keep[student_meta["label"] != -100]
-                    count = keep.sum()
-                    if count:
-                        kd = get_adaptive_discrepancy(
-                            args, aligned_teacher[keep], response_labels[keep], aligned_student[keep])
-                        stats[start] += kd.double() * count
-                        stats[start + 1] += count
+                sample_ids = (rows * world_size + rank).tolist()
+                rngs = [random.Random(args.self_distill_eval_seed + sample_id)
+                        for sample_id in sample_ids]
+                student_batch, student_meta, teacher_batch, teacher_meta = prepare_self_distill_batches(
+                    args, tokenizer, model_batch, metadata, rngs)
+                student_logits = model(**student_batch, use_cache=False, return_dict=True).logits
+                teacher_logits = reference_model(**teacher_batch, use_cache=False, return_dict=True).logits
+                aligned_student, aligned_teacher, response_labels = align_response_logits(
+                    student_logits, student_meta["label"], teacher_logits, teacher_meta["label"])
+                keep = valid_rows[:, None].expand_as(student_meta["label"])
+                keep = keep[student_meta["label"] != -100]
+                count = keep.sum()
+                if count:
+                    kd = get_adaptive_discrepancy(
+                        args, aligned_teacher[keep], response_labels[keep], aligned_student[keep])
+                    stats[0] += kd.double() * count
+                    stats[1] += count
     finally:
         model.train(was_training)
     dist.all_reduce(stats, dist.ReduceOp.SUM)
-    if (stats[1] == 0).item() or (stats[3] == 0).item():
+    if (stats[1] == 0).item():
         raise ValueError("Adaptive dev evaluation has no response tokens")
-    losses = (stats[0] / stats[1], stats[2] / stats[3])
-    if not all(torch.isfinite(loss).item() for loss in losses):
+    loss = stats[0] / stats[1]
+    if not torch.isfinite(loss).item():
         raise FloatingPointError("Non-finite adaptive dev KD loss")
-    return tuple(loss.item() for loss in losses)
+    return loss.item()
 
 
 def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, teacher_model=None):
@@ -350,30 +422,22 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
         dataset["train"], sampler=sampler, batch_size=args.batch_size, drop_last=True,
         num_workers=args.num_workers, collate_fn=dataset["train"].collate)
 
-    adaptive = getattr(args, "adaptive_on_policy", False)
-    scheduler = AdaptiveScheduler(AdaptiveConfig.from_args(args), seed=getattr(args, "seed", 42)) if adaptive else None
-    if adaptive and (teacher_model is None or "dev" not in dataset or args.eval_interval < 1):
-        raise ValueError("Adaptive training requires a teacher, dev data, and positive eval_interval")
-    student_gen = adaptive or args.distill_mode in ("on_policy", "opsd")
-    student_generator = SampleGenerator(args, tokenizer) if student_gen else None
-    if teacher_model is not None:
-        teacher_model.requires_grad_(False)
-        teacher_model.eval()
-    reference_model = None
+    scheduler = OffSelfScheduler(args)
+    if teacher_model is None or "dev" not in dataset or args.eval_interval < 1:
+        raise ValueError("OFF+SELF training requires a teacher, dev data, and positive eval_interval")
+    teacher_model.requires_grad_(False)
+    teacher_model.eval()
     reference_eval_step = 0
-    if adaptive or args.distill_mode == "self_distill":
-        reference_model = make_reference_model(model.module)
-    if args.distill_mode == "opsd" and not callable(getattr(model.module, "disable_adapter", None)):
-        raise ValueError("OPSD fixed teacher requires a PEFT model with disable_adapter()")
+    reference_model = make_reference_model(model.module)
     context_rng = random.Random(args.seed + dp_rank)
 
     step, global_step = 1, 1
     mode_router = OptimizerStepModeRouter(scheduler, args.distill_mode)
     total_time, log_steps = 0.0, 0
     # loss, distil, lm, kl, magnitude, direction, CKA, Menger, context tokens,
-    # generated samples, token velocity magnitude, token velocity Gram
-    total_losses = torch.zeros(12, dtype=torch.float64, device=device)
-    log_modes = (*AdaptiveScheduler.MODES, "opsd")
+    # token velocity magnitude, token velocity Gram
+    total_losses = torch.zeros(11, dtype=torch.float64, device=device)
+    log_modes = OffSelfScheduler.MODES
     mode_kl_totals = dict.fromkeys(log_modes, 0.)
     mode_log_counts = dict.fromkeys(log_modes, 0)
 
@@ -388,52 +452,23 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
             st_time = time.time()
 
             selected_mode = mode_router.for_microbatch(device)
-            student_gen = selected_mode in ("on_policy", "opsd")
-            if selected_mode == "opsd":
-                source_model = model
-            elif selected_mode == "self_distill":
+            if selected_mode == "self_distill":
                 source_model = reference_model
             else:
                 source_model = teacher_model
-            use_geometry = source_model is not None and geometry_enabled_for_mode(args, selected_mode)
-            use_token_velocity = source_model is not None and token_velocity_enabled_for_mode(args, selected_mode)
+            use_geometry = geometry_enabled_for_mode(args, selected_mode)
+            use_token_velocity = token_velocity_enabled_for_mode(args, selected_mode)
             use_hidden = use_geometry or use_token_velocity
-            use_menger = source_model is not None and menger_enabled_for_mode(args, selected_mode)
-            data_source = "fresh_on_policy" if student_gen else "canonical"
+            use_menger = menger_enabled_for_mode(args, selected_mode)
+            data_source = "canonical"
 
             if selected_mode == "self_distill":
                 data_source = "canonical_context_subset"
-            elif selected_mode == "opsd":
-                data_source = "student_rollout_gold_conditioned_reference"
-
-            # Generate a fresh student trajectory only for modes that require one.
-            if student_gen:
-                if selected_mode == "on_policy":
-                    step_marker_ids = no_model_batch["step_marker_ids"]
-                if selected_mode == "opsd":
-                    opsd_records = no_model_batch["opsd_records"]
-                    opsd_solutions = no_model_batch["opsd_solutions"]
-                model_batch = student_generator.run_sample(model, gen_data)
-                labels = model_batch.pop("no_model_batch")
-                no_model_batch = {"label": labels, "loss_mask": (labels != -100).float()}
-                if selected_mode == "on_policy":
-                    no_model_batch["step_marker_ids"] = step_marker_ids
 
             # Prepare the reference batch on exactly the selected response tokens.
             if selected_mode == "self_distill":
                 model_batch, no_model_batch, t_model_batch, t_no_model_batch = prepare_self_distill_batches(
                     args, tokenizer, model_batch, no_model_batch, context_rng)
-            elif selected_mode == "on_policy":
-                if use_geometry:
-                    no_model_batch["step_spans"] = find_step_spans(
-                        model_batch["input_ids"], model_batch["attention_mask"],
-                        no_model_batch["label"], no_model_batch["step_marker_ids"])
-                t_model_batch = teacher_batch_for_response(args, model_batch)
-                t_no_model_batch = no_model_batch
-            elif selected_mode == "opsd":
-                t_model_batch, t_no_model_batch = prepare_opsd_reference_batch(
-                    args, tokenizer, model_batch, no_model_batch["label"],
-                    opsd_records, opsd_solutions)
             else:
                 t_model_batch = teacher_batch_for_response(args, model_batch)
                 t_no_model_batch = no_model_batch
@@ -446,9 +481,7 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
             logits = outputs.logits
             h_stu = (captured_hidden(student_capture) if use_menger else
                      outputs.hidden_states[-1] if use_hidden else None)
-            # Fresh ON-policy trajectories are optimized only through their
-            # teacher/reference objectives, without a next-token CE term.
-            use_lm_loss = not args.disable_lm_loss and selected_mode != "on_policy"
+            use_lm_loss = not args.disable_lm_loss
             lm_loss = logits.reshape(-1)[:0].sum()
             if use_lm_loss:
                 lm_loss = loss_func(
@@ -458,26 +491,19 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
             kl_loss = magnitude_loss = gram_loss = cka_loss = menger_loss = distil_loss = logits.reshape(-1)[:0].sum()
             token_mag_loss = token_gram_loss = distil_loss
             if source_model is not None:
-                if selected_mode == "opsd":
-                    teacher_outputs = fixed_base_teacher_forward(model, t_model_batch)
-                else:
-                    with torch.no_grad():
-                        with capture_last_hidden(source_model, use_menger) as teacher_capture:
-                            teacher_outputs = source_model(
-                                **t_model_batch, use_cache=False,
-                                output_hidden_states=use_hidden, return_dict=True)
+                with torch.no_grad():
+                    with capture_last_hidden(source_model, use_menger) as teacher_capture:
+                        teacher_outputs = source_model(
+                            **t_model_batch, use_cache=False,
+                            output_hidden_states=use_hidden, return_dict=True)
                 h_tea = (captured_hidden(teacher_capture) if use_menger else
                          teacher_outputs.hidden_states[-1] if use_hidden else None)
 
-                response_lengths = (no_model_batch["label"] != -100).sum(-1)
                 logits, teacher_logits, response_labels = align_response_logits(
                     logits, no_model_batch["label"], teacher_outputs.logits, t_no_model_batch["label"])
                 new_no_model_batch = {"label": response_labels}
 
-                kl_loss = (opsd_forward_kl(logits, teacher_logits, args.opsd_token_clip,
-                                           response_lengths)
-                           if selected_mode == "opsd" else
-                           get_distil_loss(args, teacher_logits, new_no_model_batch, logits))
+                kl_loss = get_distil_loss(args, teacher_logits, new_no_model_batch, logits)
                 distil_loss = kl_loss
                 if use_geometry:
                     if args.cka:
@@ -530,11 +556,9 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
 
             context_tokens = no_model_batch.get("self_distill_context_tokens") if selected_mode == "self_distill" else None
             context_count = context_tokens.sum() if context_tokens is not None else loss.new_zeros(())
-            fresh_count = loss.new_tensor(model_batch["input_ids"].shape[0] if student_gen else 0)
             global_losses = torch.stack((
                 loss, distil_loss, lm_loss, kl_loss, magnitude_loss, gram_loss, cka_loss,
-                menger_loss, context_count, fresh_count,
-                token_mag_loss, token_gram_loss)).detach().double()
+                menger_loss, context_count, token_mag_loss, token_gram_loss)).detach().double()
             dist.all_reduce(global_losses, dist.ReduceOp.SUM, group=dp_group)
             global_losses[:8] /= dp_world_size
             global_losses[-2:] /= dp_world_size
@@ -551,7 +575,7 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
             # Logging
             def get_log(log_losses, log_time, aggregate=False):
                 (log_loss, log_distil_loss, log_lm, log_kl, log_mag, log_dir,
-                 log_cka, log_menger, context, fresh,
+                 log_cka, log_menger, context,
                  log_token_mag, log_token_gram) = log_losses.tolist()
                 log_str = (
                     "train | epoch {:3d} | Iter: {:6d}/{:6d} | global iter: {:6d}/{:6d} | "
@@ -564,10 +588,10 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
                     optimizer.cur_scale if hasattr(optimizer, "cur_scale") else 0,
                     elapsed_time, log_time)
                 log_str += (
-                    f" | mode: {'adaptive' if adaptive and aggregate else selected_mode} | loss/lm: {log_lm:.6f} | loss/total: {log_loss:.6f}"
+                    f" | mode: {'off_self_adaptive' if aggregate else selected_mode} | loss/lm: {log_lm:.6f} | loss/total: {log_loss:.6f}"
                     f" | loss/mag: {log_mag:.6f} | loss/dir: {log_dir:.6f} | loss/cka: {log_cka:.6f}"
                     f" | loss/menger: {log_menger:.6f}"
-                    f" | data/source: {'mixed' if adaptive and aggregate else data_source} | data/on_policy_fresh_count: {fresh:.0f}"
+                    f" | data/source: {'mixed' if aggregate else data_source}"
                     f" | data/self_distill_context_tokens: {context:.0f}")
                 if args.token_velocity:
                     log_str += (f" | loss/token_velocity_mag: {log_token_mag:.6f}"
@@ -602,9 +626,9 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
                 evaluate(args, tokenizer, model, dataset["dev"], "dev", epoch, device,
                          global_step=global_step)
                 if scheduler:
-                    self_loss, on_loss = evaluate_adaptive_losses(
-                        args, tokenizer, model, teacher_model, reference_model, dataset["dev"], device)
-                    scheduler_log = scheduler.on_evaluation(self_loss, on_loss)
+                    self_loss = evaluate_adaptive_losses(
+                        args, tokenizer, model, reference_model, dataset["dev"], device)
+                    scheduler_log = scheduler.on_evaluation(self_loss)
                     scheduler_log["global_step"] = global_step
                     log_str = "scheduler | " + json.dumps(scheduler_log, sort_keys=True, allow_nan=False)
                     print_rank(log_str)
@@ -760,7 +784,7 @@ def main():
     args = get_args(default_type="kd")
     if args.load:
         raise ValueError("--load is unavailable without training-state checkpoints; start a new run with --model-path or --peft-path")
-    validate_mode_args(args)
+    validate_off_self_args(args)
     initialize(args)
     
     if dist.get_rank() == 0:

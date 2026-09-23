@@ -45,7 +45,8 @@ NUM_WORKERS="${NUM_WORKERS:-4}"
 DEV_NUM="${DEV_NUM:-512}"
 SEED="${SEED:-10}"
 
-# Dual adaptive across OFF, self-distillation, and ON-policy updates.
+# Select the standard three-mode run or the OFF+SELF ablation.
+FINETUNE_ENTRYPOINT="${FINETUNE_ENTRYPOINT:-finetune.py}"
 KD_LOSS="${KD_LOSS:-sfkl}"
 SKEW_ALPHA="${SKEW_ALPHA:-0.1}"
 KD_RATIO="${KD_RATIO:-0.5}"
@@ -53,8 +54,9 @@ MAG_WEIGHT="${MAG_WEIGHT:-1.0}"
 GRAM_WEIGHT="${GRAM_WEIGHT:-1.0}"
 CKA_WEIGHT="${CKA_WEIGHT:-1.0}"
 CKA="${CKA:-0}"
+TOKEN_VELOCITY="${TOKEN_VELOCITY:-0}"
 DEFAULT_GEOMETRY=1
-if [[ "$CKA" == 1 ]]; then DEFAULT_GEOMETRY=0; fi
+if [[ "$CKA" == 1 || "$TOKEN_VELOCITY" == 1 ]]; then DEFAULT_GEOMETRY=0; fi
 GEOMETRY="${GEOMETRY:-$DEFAULT_GEOMETRY}"
 DISTILL_TOP_K="${DISTILL_TOP_K:-5120}"
 DISTILL_TEMPERATURE="${DISTILL_TEMPERATURE:-1.0}"
@@ -73,11 +75,25 @@ case "$CKA" in
     0|1) ;;
     *) printf 'CKA must be 0 or 1\n' >&2; exit 2 ;;
 esac
+case "$TOKEN_VELOCITY" in
+    0|1) ;;
+    *) printf 'TOKEN_VELOCITY must be 0 or 1\n' >&2; exit 2 ;;
+esac
 if [[ "$GEOMETRY" == 1 && "$CKA" == 1 ]]; then
     printf 'GEOMETRY and CKA are mutually exclusive\n' >&2
     exit 2
 fi
-SAVE_PATH="${SAVE_PATH:-$BASE_PATH/results/${CKPT_NAME}-v2/adaptive_${KD_LOSS}_k${DISTILL_TOP_K}_geometry${GEOMETRY}_cka${CKA}_bs${BATCH_SIZE}_ga${GRAD_ACC}_lr${LR}_seed${SEED}}"
+if [[ "$TOKEN_VELOCITY" == 1 && ( "$GEOMETRY" == 1 || "$CKA" == 1 ) ]]; then
+    printf 'TOKEN_VELOCITY is mutually exclusive with GEOMETRY and CKA\n' >&2
+    exit 2
+fi
+RUN_TAG="adaptive"
+if [[ "$FINETUNE_ENTRYPOINT" == "finetune_off_self.py" ]]; then
+    RUN_TAG="off_self_adaptive"
+fi
+TOKEN_VELOCITY_TAG=""
+if [[ "$TOKEN_VELOCITY" == 1 ]]; then TOKEN_VELOCITY_TAG="_token_velocity1"; fi
+SAVE_PATH="${SAVE_PATH:-$BASE_PATH/results/${CKPT_NAME}-v2/${RUN_TAG}_${KD_LOSS}_k${DISTILL_TOP_K}_geometry${GEOMETRY}_cka${CKA}${TOKEN_VELOCITY_TAG}_bs${BATCH_SIZE}_ga${GRAD_ACC}_lr${LR}_seed${SEED}}"
 
 OPTS=()
 
@@ -96,7 +112,7 @@ OPTS+=(--weight-decay 1e-2 --clip-grad 1.0 --epochs "$EPOCHS")
 OPTS+=(--max-length "$MAX_LENGTH" --max-prompt-length "$MAX_PROMPT_LENGTH")
 OPTS+=(--t-max-length "$T_MAX_LENGTH" --t-max-prompt-length "$T_MAX_PROMPT_LENGTH")
 
-# Adaptive routing uses all three modes
+# Adaptive routing
 OPTS+=(--type kd)
 if [[ "$GEOMETRY" == 1 ]]; then
     OPTS+=(--geometry)
@@ -104,10 +120,20 @@ fi
 if [[ "$CKA" == 1 ]]; then
     OPTS+=(--cka)
 fi
-OPTS+=(--dual-adaptive-exposure --do-sample)
-OPTS+=(--rho-self-init "${RHO_SELF_INIT:-0.1}" --rho-on-init "${RHO_ON_INIT:-0.05}")
-OPTS+=(--rho-self-max "${RHO_SELF_MAX:-0.25}" --rho-on-max "${RHO_ON_MAX:-0.25}")
-OPTS+=(--rho-self-increment "${RHO_SELF_INCREMENT:-0.025}" --rho-on-increment "${RHO_ON_INCREMENT:-0.025}")
+if [[ "$TOKEN_VELOCITY" == 1 ]]; then
+    OPTS+=(--token-velocity)
+fi
+OPTS+=(--do-sample)
+if [[ "$FINETUNE_ENTRYPOINT" == "finetune_off_self.py" ]]; then
+    OPTS+=(--rho-self-init "${RHO_SELF_INIT:-0.1}")
+    OPTS+=(--rho-self-max "${RHO_SELF_MAX:-0.25}")
+    OPTS+=(--rho-self-increment "${RHO_SELF_INCREMENT:-0.025}")
+else
+    OPTS+=(--dual-adaptive-exposure)
+    OPTS+=(--rho-self-init "${RHO_SELF_INIT:-0.1}" --rho-on-init "${RHO_ON_INIT:-0.05}")
+    OPTS+=(--rho-self-max "${RHO_SELF_MAX:-0.25}" --rho-on-max "${RHO_ON_MAX:-0.25}")
+    OPTS+=(--rho-self-increment "${RHO_SELF_INCREMENT:-0.025}" --rho-on-increment "${RHO_ON_INCREMENT:-0.025}")
+fi
 OPTS+=(--adaptive-threshold "${ADAPTIVE_THRESHOLD:-${ADAPTIVE_DETERIORATION_THRESHOLD:-0.05}}")
 OPTS+=(--self-distill-eval-seed "${SELF_DISTILL_EVAL_SEED:-1234}")
 OPTS+=(--self-distill-context-drop-ratio "$SELF_DISTILL_CONTEXT_DROP_MAX")
@@ -135,7 +161,7 @@ export TF_CPP_MIN_LOG_LEVEL=3
 export PYTHONPATH="$BASE_PATH${PYTHONPATH:+:$PYTHONPATH}"
 export CODE_BASE=HF
 
-CMD=(torchrun "${DISTRIBUTED_ARGS[@]}" "$BASE_PATH/finetune.py" "${OPTS[@]}" "$@")
+CMD=(torchrun "${DISTRIBUTED_ARGS[@]}" "$BASE_PATH/$FINETUNE_ENTRYPOINT" "${OPTS[@]}" "$@")
 printf 'CUDA_VISIBLE_DEVICES=%s\n' "$CUDA_VISIBLE_DEVICES"
 printf 'Command: '
 printf '%q ' "${CMD[@]}"

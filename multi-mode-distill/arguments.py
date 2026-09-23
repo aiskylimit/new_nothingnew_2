@@ -207,6 +207,8 @@ def add_distillation_args(parser: argparse.ArgumentParser):
                        help="Enable magnitude/Gram velocity losses for off_policy, self_distill, and on_policy batches")
     group.add_argument("--cka", action="store_true",
                        help="Enable step-level linear CKA for off_policy, self_distill, and on_policy batches")
+    group.add_argument("--token-velocity", action="store_true",
+                       help="Use magnitude/Gram geometry of consecutive response-token velocities instead of step geometry or CKA")
     group.add_argument("--cka-weight", type=float, default=1.0,
                        help="Weight of CKA loss when --cka is enabled")
     group.add_argument("--menger-weight", type=float, default=0.0,

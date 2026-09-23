@@ -10,6 +10,11 @@ def geometry_enabled_for_mode(args, mode):
         args.off_policy_geometry and mode == "off_policy")
 
 
+def token_velocity_enabled_for_mode(args, mode):
+    return (getattr(args, "token_velocity", False)
+            and mode in ("off_policy", "self_distill", "on_policy"))
+
+
 def menger_enabled_for_mode(args, mode):
     """Menger distillation is defined for the three teacher/reference modes."""
     return (getattr(args, "menger_weight", 0.0) > 0
@@ -68,18 +73,23 @@ def validate_mode_args(args):
     if not math.isfinite(args.distill_temperature) or args.distill_temperature <= 0:
         raise ValueError("--distill-temperature must be finite and positive")
     args.cka = getattr(args, "cka", False)
+    args.token_velocity = getattr(args, "token_velocity", False)
     args.cka_weight = getattr(args, "cka_weight", 1.0)
     args.menger_weight = getattr(args, "menger_weight", 0.0)
     args.menger_eps = getattr(args, "menger_eps", 1.0e-6)
     uses_generation = args.distill_mode in ("on_policy", "opsd")
     if args.cka and (args.geometry or args.off_policy_geometry):
         raise ValueError("--cka conflicts with --geometry and --off-policy-geometry")
+    if args.token_velocity and (args.geometry or args.off_policy_geometry or args.cka):
+        raise ValueError("--token-velocity conflicts with --geometry, --off-policy-geometry, and --cka")
     if args.off_policy_geometry and args.distill_mode != "off_policy" and not args.geometry:
         raise ValueError("--off-policy-geometry applies only to off_policy")
     if args.geometry and args.distill_mode not in ("off_policy", "self_distill", "on_policy") and not adaptive:
         raise ValueError("--geometry applies to off_policy, self_distill, and on_policy only")
     if args.cka and args.distill_mode not in ("off_policy", "self_distill", "on_policy") and not adaptive:
         raise ValueError("--cka applies to off_policy, self_distill, and on_policy only")
+    if args.token_velocity and args.distill_mode not in ("off_policy", "self_distill", "on_policy") and not adaptive:
+        raise ValueError("--token-velocity applies to off_policy, self_distill, and on_policy only")
     if any(not math.isfinite(w) or w < 0 for w in (
             args.mag_weight, args.gram_weight, args.cka_weight, args.menger_weight)):
         raise ValueError("Geometry/CKA/Menger weights must be finite and nonnegative")
@@ -112,8 +122,8 @@ def validate_mode_args(args):
             raise ValueError("OPSD fixed teacher requires --peft lora")
         if args.teacher_model_path:
             raise ValueError("OPSD fixed teacher uses the student's base model; omit --teacher-model-path")
-        if args.geometry or args.off_policy_geometry or args.cka:
-            raise ValueError("OPSD ablation uses token divergence only; disable geometry and CKA")
+        if args.geometry or args.off_policy_geometry or args.cka or args.token_velocity:
+            raise ValueError("OPSD ablation uses token divergence only; disable geometry, CKA, and token velocity")
         if not args.disable_lm_loss:
             raise ValueError("OPSD ablation requires --disable-lm-loss")
         if args.kd_loss != "fkl":

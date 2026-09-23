@@ -240,6 +240,49 @@ def _pack_supervised_states(hidden, labels, width):
     return states
 
 
+def reasoning_token_velocity_loss(student_hidden, teacher_hidden,
+                                  student_labels, teacher_labels,
+                                  normalization="zscore", eps=1e-6):
+    """Compare geometry of consecutive response-token hidden-state differences.
+
+    A supervised label at position i names the token at input position i+1.
+    The last target has no input hidden state, so it is excluded on both sides.
+    """
+    if (student_hidden.ndim != 3 or teacher_hidden.ndim != 3
+            or student_hidden.shape[:2] != student_labels.shape
+            or teacher_hidden.shape[:2] != teacher_labels.shape):
+        raise ValueError("Token velocity hidden states and labels must align")
+    if student_hidden.shape[0] != teacher_hidden.shape[0]:
+        raise ValueError("Teacher/student batch sizes must match")
+    student_supervised = student_labels != -100
+    teacher_supervised = teacher_labels != -100
+    if (not torch.equal(student_supervised.sum(-1), teacher_supervised.sum(-1))
+            or not torch.equal(student_labels[student_supervised],
+                               teacher_labels[teacher_supervised])):
+        raise ValueError("Teacher/student response tokens must match")
+
+    # The final supervised token is only a next-token target, even when the
+    # sequence is padded and its label position is not the final tensor index.
+    student_visible = (student_supervised[:, :-1]
+                       & (student_supervised[:, :-1].long().cumsum(-1)
+                          < student_supervised.sum(-1, keepdim=True)))
+    teacher_visible = (teacher_supervised[:, :-1]
+                       & (teacher_supervised[:, :-1].long().cumsum(-1)
+                          < teacher_supervised.sum(-1, keepdim=True)))
+    student_counts = student_visible.sum(-1)
+    teacher_counts = teacher_visible.sum(-1)
+    if not torch.equal(student_counts, teacher_counts):
+        raise ValueError("Teacher/student visible response lengths must match")
+    width = max(1, int(student_counts.max().item()))
+    student = _pack_supervised_states(
+        student_hidden[:, 1:], student_labels[:, :-1].masked_fill(~student_visible, -100), width)
+    teacher = _pack_supervised_states(
+        teacher_hidden[:, 1:].detach(), teacher_labels[:, :-1].masked_fill(~teacher_visible, -100), width)
+    token_mask = torch.arange(width, device=student.device)[None, :] < student_counts[:, None]
+    return velocity_loss_from_steps(
+        student, teacher, token_mask, token_mask, normalization, eps)
+
+
 def _response_token_gram_loss(student_hidden, teacher_hidden,
                               student_labels, teacher_labels, rows, eps):
     student_counts = (student_labels != -100).sum(-1)

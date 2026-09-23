@@ -54,6 +54,8 @@ DISTILL_TEMPERATURE="${DISTILL_TEMPERATURE:-1.0}"
 MAG_WEIGHT="${MAG_WEIGHT:-1.0}"
 GRAM_WEIGHT="${GRAM_WEIGHT:-1.0}"
 CKA_WEIGHT="${CKA_WEIGHT:-1.0}"
+MENGER_WEIGHT="${MENGER_WEIGHT:-0.0}"
+MENGER_EPS="${MENGER_EPS:-1.0e-6}"
 CKA="${CKA:-0}"
 DEFAULT_GEOMETRY=1
 if [[ "$CKA" == 1 ]]; then DEFAULT_GEOMETRY=0; fi
@@ -101,6 +103,7 @@ OPTS=(
     --self-distill-context-max-tokens "$CONTEXT_MAX_NEW_TOKENS"
     --skew-alpha "$SKEW_ALPHA"
     --mag-weight "$MAG_WEIGHT" --gram-weight "$GRAM_WEIGHT" --cka-weight "$CKA_WEIGHT"
+    --menger-weight "$MENGER_WEIGHT" --menger-eps "$MENGER_EPS"
     --distill-top-k "$DISTILL_TOP_K" --distill-temperature "$DISTILL_TEMPERATURE"
     --step-separator "$STEP_SEPARATOR" --step-pooling mean
     --magnitude-normalization zscore --eps 1e-6
