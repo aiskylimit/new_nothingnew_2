@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # SFT Long CoT driver -- DeepSeek-R1-Distill-Qwen-1.5B, FULL fine-tuning.
-#   data (s1K-1.1 long CoT, all-ones mask) -> full-FT SFT (Unsloth, 1 GPU) -> eval -> compare.
+#   data (s1K-1.1 long CoT, all-ones mask) -> full-FT SFT (train_sft.py) -> eval -> compare.
+# Every phase runs in ONE env: spectral_guided_learning (../spectral_guided_learning.txt).
 # Eval follows P-ALIGN/src/test.py: thinking OFF, n=3, T=0.6, top_p=0.9, repetition_penalty=1.05,
 # max_tokens=4096 over AIME24/AIME25/AMC12/MATH500 (Pass@1 + Pass@3).
 # The spectral/IWC arms of this track live in scripts/{capture,masks,spectral}/ and are NOT run
@@ -11,8 +12,8 @@ set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 
-# Which GPU(s) each phase runs on (space-separated ids). Training is single-GPU (Unsloth OSS
-# takes the first id); eval uses the whole list.
+# Which GPU(s) each phase runs on (space-separated ids). Training runs torchrun over the whole
+# list (effective batch fixed at 8, so 1/2/4/8 GPUs); eval uses the whole list too.
 CUDA_GPUS="${CUDA_VISIBLE_DEVICES:-}"
 export GPUS="${GPUS:-${CUDA_GPUS:+${CUDA_GPUS//,/ }}}"
 export GPUS="${GPUS:-0}"
@@ -23,13 +24,13 @@ export GPUS="${GPUS:-0}"
 export ENABLE_THINKING="${ENABLE_THINKING:-true}"
 
 # ============================ TRAIN ============================
-# Each script activates its own venv (data: spectral_guided_learning, train: ..._train), so
-# leave the shell env clean here.
+# Each script activates spectral_guided_learning itself when no venv is active (PROJECT_ENV
+# overrides the path).
 bash scripts/data/data_r1-qwen-1.5b.sh
 bash scripts/sft/sft_r1-qwen-1.5b.sh
 
 # ============================ EVAL =============================
-# Leave any train env so the eval script activates the vLLM env. Thinking is OFF at eval
+# Start from a clean shell env so the eval script activates the vLLM env. Thinking is OFF at eval
 # regardless of how the data was built -- override with ENABLE_THINKING_EVAL=true.
 deactivate 2>/dev/null || true
 unset VIRTUAL_ENV

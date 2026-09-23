@@ -35,11 +35,11 @@ export GPUS="${GPUS:-1}"
 # bash scripts/iwc/train_iwc_unsloth.sh qwen25-7b iwc-stable
 # bash scripts/sft/sft_unsloth_qwen25-7b.sh
 # answer-only SFT arm (ground-truth `solution`, no long CoT): data+masks in one step, no
-# capture/spectral needed. Data prep runs in the main env, training in the unsloth env; each
-# script activates its own env when none is active, so leave the shell env clean here.
+# capture/spectral needed. Data prep and training (train_sft.py + DeepSpeed) both run in the
+# main env (spectral_guided_learning.txt); the unsloth variant is kept commented for reference.
 bash scripts/data/data_answer.sh qwen25-7b
-bash scripts/sft/sft_answer_unsloth.sh qwen25-7b
-# bash scripts/sft/sft_answer.sh qwen25-7b
+bash scripts/sft/sft_answer.sh qwen25-7b
+# bash scripts/sft/sft_answer_unsloth.sh qwen25-7b
 
 # bash scripts/data/data_qwen3-8b.sh
 # bash scripts/capture/capture_qwen3-8b.sh
@@ -54,11 +54,11 @@ bash scripts/sft/sft_answer_unsloth.sh qwen25-7b
 # bash scripts/iwc/train_iwc_unsloth.sh qwen3-8b iwc-stable
 # bash scripts/sft/sft_unsloth_qwen3-8b.sh
 bash scripts/data/data_answer.sh qwen3-8b
-bash scripts/sft/sft_answer_unsloth.sh qwen3-8b
-# bash scripts/sft/sft_answer.sh qwen3-8b
+bash scripts/sft/sft_answer.sh qwen3-8b
+# bash scripts/sft/sft_answer_unsloth.sh qwen3-8b
 
 # ============================ EVAL =============================
-# Leave the unsloth train env so each eval script activates the vLLM env (spectral-guided-learning).
+# Start from a clean shell env so each eval script activates the vLLM env (spectral-guided-learning).
 deactivate 2>/dev/null || true
 unset VIRTUAL_ENV
 # only the answer-only checkpoints this run (the other arms are already in results/)
@@ -70,14 +70,16 @@ unset VIRTUAL_ENV
 # bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-unsloth-qwen25-7b iwc-unsloth-qwen25-7b
 # bash scripts/eval/eval_qwen25-7b.sh checkpoints/iwc-stable-unsloth-qwen25-7b iwc-stable-unsloth-qwen25-7b
 # bash scripts/eval/eval_qwen25-7b.sh checkpoints/vanilla-unsloth-qwen25-7b vanilla-unsloth-qwen25-7b
-bash scripts/eval/eval_qwen25-7b.sh checkpoints/answer-unsloth-qwen25-7b answer-unsloth-qwen25-7b
+bash scripts/eval/eval_qwen25-7b.sh checkpoints/answer-qwen25-7b answer-qwen25-7b
+# bash scripts/eval/eval_qwen25-7b.sh checkpoints/answer-unsloth-qwen25-7b answer-unsloth-qwen25-7b
 
 # bash scripts/eval/eval_qwen3-8b.sh
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-qwen3-8b vanilla-qwen3-8b
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-qwen3-8b iwc-qwen3-8b
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-stable-qwen3-8b iwc-stable-qwen3-8b
 # bash scripts/eval/eval_qwen3-8b.sh checkpoints/vanilla-unsloth-qwen3-8b vanilla-unsloth-qwen3-8b
-bash scripts/eval/eval_qwen3-8b.sh checkpoints/answer-unsloth-qwen3-8b answer-unsloth-qwen3-8b
+bash scripts/eval/eval_qwen3-8b.sh checkpoints/answer-qwen3-8b answer-qwen3-8b
+# bash scripts/eval/eval_qwen3-8b.sh checkpoints/answer-unsloth-qwen3-8b answer-unsloth-qwen3-8b
 
 # =========================== COMPARE ==========================
 # writes results/comparison-table.md and results/eval-summary.json

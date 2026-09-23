@@ -53,7 +53,7 @@ LR=5.0e-5
 MIN_LR=1.0e-5
 WARMUP_RATIO=0.1
 BATCH_SIZE=1
-GRAD_ACC=16           # bs1 x ga16 x 2 GPU = effective batch 32
+GRAD_ACC=$((32 / GPUS_PER_NODE))   # bs1 x ga x n GPU = effective batch 32 (same as the unsloth arm)
 ATTN=sdpa
 LOG_INTERVAL=5
 SEED=42

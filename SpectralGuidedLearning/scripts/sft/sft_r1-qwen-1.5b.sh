@@ -1,24 +1,40 @@
 #!/usr/bin/env bash
 # Phase 5: SFT Long CoT (vanilla arm) -- DeepSeek-R1-Distill-Qwen-1.5B track.
-# Every response token supervised (all-ones mask from data_r1-qwen-1.5b.sh), FULL fine-tuning:
-# Unsloth on a SINGLE GPU (no LoRA, no DeepSpeed, no torchrun), same trainer/knobs as
-# scripts/spectral/spectral_r1-qwen-1.5b.sh so the two arms differ only in the loss mask.
+# Every response token supervised (all-ones mask from data_r1-qwen-1.5b.sh), FULL fine-tuning
+# with src/train_sft.py (HF Trainer, no LoRA) in the main env (spectral_guided_learning.txt) --
+# no Unsloth, so no separate train venv. Runs under torchrun on every GPU in GPUS; GRAD_ACC is
+# derived so the effective batch stays 8 regardless of GPU count. Hyperparameters are unchanged
+# from the Unsloth version (lr 1e-5 -> 1e-6 cosine, 3 epochs, eff. batch 8, adamw_torch).
+# Optional: DS_CONFIG=configs/deepspeed/ds_config_zero2_offload.json for extra memory headroom.
 set -euo pipefail
 
-read -ra GPUS <<< "${GPUS:-0 1}"
-export CUDA_VISIBLE_DEVICES="${GPUS[0]}"   # Unsloth OSS is single-GPU; pin the first listed GPU
+read -ra GPUS <<< "${GPUS:-0}"
+export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 export TOKENIZERS_PARALLELISM=false
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
+# ZeRO-2 offload (only if DS_CONFIG is set) JIT-compiles cpu_adam against system nvcc, which can
+# trail the torch cuXXX build -- skip that version check.
+export DS_SKIP_CUDA_CHECK=1
+
+# The cluster (PyTorchJob pod) injects PET_RDZV_BACKEND=c10d / PET_RDZV_ENDPOINT=<worker-0>:23456 /
+# TORCHELASTIC_*; torchrun reads those over --master_addr and hangs in "Rendezvous'ing worker group"
+# waiting on that endpoint. This is a single-node run: drop them and pin the static backend.
+for _v in $(compgen -e PET_) $(compgen -e TORCHELASTIC_); do unset "$_v"; done
+MASTER_ADDR=localhost
+MASTER_PORT=66$(($RANDOM%90+10))
+NNODES=1
+NODE_RANK=0
+GPUS_PER_NODE=${#GPUS[@]}
+DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --rdzv_backend static \
+                  --nnodes $NNODES \
+                  --node_rank $NODE_RANK \
+                  --master_addr $MASTER_ADDR \
+                  --master_port $MASTER_PORT"
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-# Unsloth needs its own venv (torch 2.9 / transformers 4.57 -- see spectral_guided_learning_train.txt);
-# the main env (torch 2.13 / vllm) cannot hold it, so never fall back to scripts/setup.sh here.
-PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning_train}"
+PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
 if [[ -z "${VIRTUAL_ENV:-}" ]]; then
-  [[ -f "${PROJECT_ENV}/bin/activate" ]] || {
-    echo "ERROR: unsloth train env not found at ${PROJECT_ENV}; build it from spectral_guided_learning_train.txt or set PROJECT_ENV" >&2
-    exit 1
-  }
+  [[ -f "${PROJECT_ENV}/bin/activate" ]] || "${BASE_PATH}/scripts/setup.sh"
   source "${PROJECT_ENV}/bin/activate"
 fi
 export PYTHONPATH="${BASE_PATH}/src"
@@ -33,8 +49,10 @@ LR=1.0e-5              # full-FT lr (LoRA would use 5e-5); matched to the spectr
 MIN_LR=1.0e-6
 WARMUP_RATIO=0.1
 BATCH_SIZE=1
-GRAD_ACC=8            # bs1 x ga8 = effective batch 8 (single GPU)
-OPTIM=adamw_torch     # 1.5B optimizer state fits easily; 7B uses adamw_8bit
+EFFECTIVE_BATCH=8
+(( EFFECTIVE_BATCH % GPUS_PER_NODE == 0 )) || { echo "GPU count ${GPUS_PER_NODE} must divide ${EFFECTIVE_BATCH}" >&2; exit 2; }
+GRAD_ACC=$((EFFECTIVE_BATCH / (BATCH_SIZE * GPUS_PER_NODE)))   # bs1 x ga x n GPU = effective batch 8
+ATTN=sdpa             # train_sft.py uses the Trainer default optimizer (adamw_torch), as before
 LOG_INTERVAL=5
 SEED=42
 SAVE_STRATEGY=epoch
@@ -51,14 +69,17 @@ OPTS+=" --min-learning-rate ${MIN_LR}"
 OPTS+=" --warmup-ratio ${WARMUP_RATIO}"
 OPTS+=" --per-device-batch-size ${BATCH_SIZE}"
 OPTS+=" --gradient-accumulation-steps ${GRAD_ACC}"
-OPTS+=" --optim ${OPTIM}"
+OPTS+=" --attn-implementation ${ATTN}"
 OPTS+=" --logging-steps ${LOG_INTERVAL}"
 OPTS+=" --save-strategy ${SAVE_STRATEGY}"
 OPTS+=" --save-total-limit ${SAVE_TOTAL_LIMIT}"
 OPTS+=" --seed ${SEED}"
 OPTS+=" --max-seq-len ${MAX_SEQ_LEN}"
 OPTS+=" --no-use-lora"
+if [[ -n "${DS_CONFIG:-}" ]]; then
+  OPTS+=" --deepspeed-config ${DS_CONFIG}"
+fi
 
-CMD="python ${BASE_PATH}/src/train_sft_unsloth.py ${OPTS}"
+CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/vanilla-r1-qwen-1.5b.log"
