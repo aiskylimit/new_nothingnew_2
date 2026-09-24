@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/P-ALIGN/output/eval_results_r1_1.5b.txt
+#i ssft_eval.txt
 #sft_label
 #v1
 
@@ -10,7 +10,7 @@
 # bash project_commands.sh
 # cd P-ALIGN && GPUS=1 bash  project_commands_r1_1.5b.sh
 # kill -9 155157 155158
-cd ./SpectralGuidedLearning && GPUS=0 bash project_commands_answer_r1-qwen-1.5b.sh 
+# cd ./SpectralGuidedLearning && GPUS=0 bash project_commands_answer_r1-qwen-1.5b.sh 
 # cd ./offline_rlsd_sdpo_b200
 # ls
 
