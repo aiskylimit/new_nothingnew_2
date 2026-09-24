@@ -10,7 +10,7 @@
 # bash project_commands.sh
 # cd P-ALIGN && GPUS=1 bash  project_commands_r1_1.5b.sh
 # kill -9 155157 155158
-
+cd ./SpectralGuidedLearning && GPUS=0 bash project_commands_answer_r1-qwen-1.5b.sh 
 # cd ./offline_rlsd_sdpo_b200
 # ls
 
