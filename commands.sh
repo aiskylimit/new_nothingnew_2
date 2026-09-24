@@ -1,9 +1,9 @@
 #1 +10
-#test
+#t
 #v2
 
-kill -9 499 500 501 502 503 504 505 506
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
+
+# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
 nvidia-smi
 
