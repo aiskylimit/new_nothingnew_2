@@ -25,7 +25,7 @@ MAX_GEN_TOKS="${EVAL_MAX_NEW_TOKENS:-5120}"
 MAX_LORA_RANK="${EVAL_MAX_LORA_RANK:-16}"
 USE_LORA="${EVAL_USE_LORA:-1}"
 
-DEFAULT_TASKS="gsm8k,minerva_math,sciq,bbh_cot_fewshot,mmlu_stem,gsm_plus,mmlu_pro_math,mbpp"
+DEFAULT_TASKS="gsm8k,minerva_math,mmlu_stem,gsm_plus,mbpp"
 EVAL_TASKS="${EVAL_TASKS:-$DEFAULT_TASKS}"
 
 IFS=',' read -r -a GPU_LIST <<< "$CUDA_VISIBLE_DEVICES"
