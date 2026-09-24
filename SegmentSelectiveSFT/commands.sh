@@ -170,13 +170,14 @@ bash eval.sh "${EVAL_ARGS[@]}"
 # =============================================================================
 # In ca base chua finetune (tag $BASE_TAG) neu da eval, de doi chieu.
 # Chay rieng buoc nay (khong eval lai) khi chi muon xem lai ket qua: copy khoi python ben duoi,
-# truyen 4 tham so <MODEL_DIR> <TAG> <BASE_TAG> <EVAL_MAX_TOKENS>. Moi so lam tron 2 chu so thap phan.
-python - "$MODEL_DIR" "$TAG" "$BASE_TAG" "$EVAL_MAX_TOKENS" <<'PY'
+# truyen 4 tham so <checkpoint> <TAG> <BASE_TAG> <EVAL_MAX_TOKENS>. Moi so lam tron 2 chu so thap phan.
+# Bang in ra man hinh VA ghi vao Eval/outputs_$TAG/results.txt (giong output/eval_results.txt cua P-ALIGN).
+python - "$MODEL_CKPT" "$TAG" "$BASE_TAG" "$EVAL_MAX_TOKENS" <<'PY' | tee "Eval/outputs_$TAG/results.txt"
 import json, os, sys
 model_dir, tag, base_tag, max_tokens = sys.argv[1:5]
 runs = [(tag, "selective SFT full finetune, P-ALIGN prompt, thinking OFF"),
         (base_tag, "base chua finetune")]
-tasks = ["aime24", "aime25", "amc12", "math500"]
+tasks = ["aime25", "aime24", "amc12", "math500"]        # cung thu tu cot voi bang P-ALIGN (report.py)
 
 def load(path):
     try:
@@ -186,9 +187,10 @@ def load(path):
 
 print()
 print("=" * 78)
-print("  KET QUA  %s  (max_tokens=%s, 3 mau/cau)" % (os.path.basename(model_dir), max_tokens))
+print("  KET QUA  %s  (max_tokens=%s, 3 mau/cau)" % (model_dir, max_tokens))
+print("  So chinh = dong 'P-ALIGN' (cham math_verify nhu P-ALIGN); dong 'grader.py' chi de tham khao.")
 print("=" * 78)
-hdr = "  %-32s %8s %8s %8s %8s %8s"
+hdr = "  %-24s %8s %8s %8s %8s %8s"
 for t, desc in runs:
     root = os.path.join("Eval", "outputs_" + t)
     summ = load(os.path.join(root, "summary.json"))
@@ -199,7 +201,7 @@ for t, desc in runs:
         print("  [%s] %s: chua co ket qua (%s)" % (t, desc, root))
         continue
     print("  [%s] %s" % (t, desc))
-    print(hdr % ("metric", *tasks, "AVG"))
+    print(hdr % ("metric", *[x.upper() for x in tasks], "Avg"))
     if pa is not None:
         for k in pa.get("k", []):
             key = "pass@%d" % k
