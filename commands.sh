@@ -1,6 +1,6 @@
 #2
 #rivad
-#v1
+#v2
 
 # cd SegmentSelectiveSFT && bash commands.sh
 # cd P-ALIGN && CUDA_VISIBLE_DEVICES=1 bash project_commands_r1_1.5b.sh
