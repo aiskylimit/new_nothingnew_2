@@ -118,4 +118,4 @@ CUDA_DEVICES="$CUDA_DEVICES" LORA_PATH="$LORA_PATH" MODEL_PATH="$CKPT" \
     EVAL_DATA_DIR="$EVAL_DATA_DIR" \
     SAVE_PATH="$(dirname -- "$LORA_PATH")" \
     EVAL_MAX_LORA_RANK="${EVAL_MAX_LORA_RANK:-${LORA_R:-16}}" \
-    bash "$BASE_PATH/scripts/eval/eval.sh" run
+    bash "$BASE_PATH/scripts/eval/eval_gemma.sh" run
