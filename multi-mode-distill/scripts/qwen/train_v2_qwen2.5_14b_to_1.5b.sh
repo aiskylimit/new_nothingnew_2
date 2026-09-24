@@ -55,6 +55,7 @@ GRAM_WEIGHT="${GRAM_WEIGHT:-1.0}"
 CKA_WEIGHT="${CKA_WEIGHT:-1.0}"
 CKA="${CKA:-0}"
 TOKEN_VELOCITY="${TOKEN_VELOCITY:-0}"
+SELF_DISTILL="${SELF_DISTILL:-True}"
 DEFAULT_GEOMETRY=1
 if [[ "$CKA" == 1 || "$TOKEN_VELOCITY" == 1 ]]; then DEFAULT_GEOMETRY=0; fi
 GEOMETRY="${GEOMETRY:-$DEFAULT_GEOMETRY}"
@@ -79,6 +80,10 @@ case "$TOKEN_VELOCITY" in
     0|1) ;;
     *) printf 'TOKEN_VELOCITY must be 0 or 1\n' >&2; exit 2 ;;
 esac
+case "${SELF_DISTILL,,}" in
+    true|false) ;;
+    *) printf 'SELF_DISTILL must be True or False\n' >&2; exit 2 ;;
+esac
 if [[ "$GEOMETRY" == 1 && "$CKA" == 1 ]]; then
     printf 'GEOMETRY and CKA are mutually exclusive\n' >&2
     exit 2
@@ -90,6 +95,8 @@ fi
 RUN_TAG="adaptive"
 if [[ "$FINETUNE_ENTRYPOINT" == "finetune_off_self.py" ]]; then
     RUN_TAG="off_self_adaptive"
+elif [[ "${SELF_DISTILL,,}" == "false" ]]; then
+    RUN_TAG="off_on_adaptive"
 fi
 TOKEN_VELOCITY_TAG=""
 if [[ "$TOKEN_VELOCITY" == 1 ]]; then TOKEN_VELOCITY_TAG="_token_velocity1"; fi
@@ -130,6 +137,7 @@ if [[ "$FINETUNE_ENTRYPOINT" == "finetune_off_self.py" ]]; then
     OPTS+=(--rho-self-increment "${RHO_SELF_INCREMENT:-0.025}")
 else
     OPTS+=(--dual-adaptive-exposure)
+    OPTS+=(--self-distill "$SELF_DISTILL")
     OPTS+=(--rho-self-init "${RHO_SELF_INIT:-0.1}" --rho-on-init "${RHO_ON_INIT:-0.05}")
     OPTS+=(--rho-self-max "${RHO_SELF_MAX:-0.25}" --rho-on-max "${RHO_ON_MAX:-0.25}")
     OPTS+=(--rho-self-increment "${RHO_SELF_INCREMENT:-0.025}" --rho-on-increment "${RHO_ON_INCREMENT:-0.025}")

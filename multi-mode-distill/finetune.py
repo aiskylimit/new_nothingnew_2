@@ -271,10 +271,15 @@ def teacher_batch_for_response(args, student_batch):
     return teacher_batch
 
 
-def evaluate_adaptive_losses(args, tokenizer, model, teacher_model, reference_model, dataset, device):
-    """Token-weighted canonical SELF and deterministic ON discrepancies."""
-    if not dataset.with_teacher or not dataset.needs_self_distill_context:
+def evaluate_adaptive_losses(args, tokenizer, model, teacher_model, reference_model, dataset, device,
+                             self_distill=True):
+    """Token-weighted adaptive discrepancies for optional SELF and ON."""
+    if not dataset.with_teacher:
+        raise ValueError("Adaptive dev data must include teacher metadata")
+    if self_distill and not dataset.needs_self_distill_context:
         raise ValueError("Adaptive dev data must include canonical self-distillation steps")
+    if self_distill and reference_model is None:
+        raise ValueError("SELF evaluation requires a reference model")
     world_size, rank = dist.get_world_size(), dist.get_rank()
     sampler = DistributedSampler(dataset, shuffle=False, drop_last=False,
                                  rank=rank, num_replicas=world_size)
@@ -287,7 +292,8 @@ def evaluate_adaptive_losses(args, tokenizer, model, teacher_model, reference_mo
     was_training = model.training
     model.eval()
     teacher_model.eval()
-    reference_model.eval()
+    if reference_model is not None:
+        reference_model.eval()
     try:
         with torch.no_grad():
             for model_batch, metadata, gen_data, _, _ in dataloader:
@@ -295,7 +301,8 @@ def evaluate_adaptive_losses(args, tokenizer, model, teacher_model, reference_mo
                 rows = torch.arange(model_batch["input_ids"].shape[0], device=device) + offset
                 valid_rows = rows * world_size + rank < len(dataset)
                 offset += rows.numel()
-                for mode, start in (("self_distill", 0), ("on_policy", 2)):
+                modes = (("self_distill", 0), ("on_policy", 2)) if self_distill else (("on_policy", 2),)
+                for mode, start in modes:
                     if mode == "self_distill":
                         sample_ids = (rows * world_size + rank).tolist()
                         rngs = [random.Random(args.self_distill_eval_seed + sample_id)
@@ -325,12 +332,14 @@ def evaluate_adaptive_losses(args, tokenizer, model, teacher_model, reference_mo
     finally:
         model.train(was_training)
     dist.all_reduce(stats, dist.ReduceOp.SUM)
-    if (stats[1] == 0).item() or (stats[3] == 0).item():
+    if (self_distill and (stats[1] == 0).item()) or (stats[3] == 0).item():
         raise ValueError("Adaptive dev evaluation has no response tokens")
-    losses = (stats[0] / stats[1], stats[2] / stats[3])
-    if not all(torch.isfinite(loss).item() for loss in losses):
+    self_loss = stats[0] / stats[1] if self_distill else None
+    on_loss = stats[2] / stats[3]
+    losses = (self_loss, on_loss)
+    if not all(loss is None or torch.isfinite(loss).item() for loss in losses):
         raise FloatingPointError("Non-finite adaptive dev KD loss")
-    return tuple(loss.item() for loss in losses)
+    return tuple(loss.item() if loss is not None else None for loss in losses)
 
 
 def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, teacher_model=None):
@@ -351,7 +360,11 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
         num_workers=args.num_workers, collate_fn=dataset["train"].collate)
 
     adaptive = getattr(args, "adaptive_on_policy", False)
-    scheduler = AdaptiveScheduler(AdaptiveConfig.from_args(args), seed=getattr(args, "seed", 42)) if adaptive else None
+    self_distill = adaptive and getattr(args, "self_distill", True)
+    scheduler = (AdaptiveScheduler(
+        AdaptiveConfig.from_args(args), seed=getattr(args, "seed", 42),
+        self_distill=self_distill,
+        off_policy=not getattr(args, "exclude_off_policy", False)) if adaptive else None)
     if adaptive and (teacher_model is None or "dev" not in dataset or args.eval_interval < 1):
         raise ValueError("Adaptive training requires a teacher, dev data, and positive eval_interval")
     student_gen = adaptive or args.distill_mode in ("on_policy", "opsd")
@@ -361,7 +374,7 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
         teacher_model.eval()
     reference_model = None
     reference_eval_step = 0
-    if adaptive or args.distill_mode == "self_distill":
+    if self_distill or args.distill_mode == "self_distill":
         reference_model = make_reference_model(model.module)
     if args.distill_mode == "opsd" and not callable(getattr(model.module, "disable_adapter", None)):
         raise ValueError("OPSD fixed teacher requires a PEFT model with disable_adapter()")
@@ -603,7 +616,8 @@ def finetune(args, tokenizer, model, optimizer, lr_scheduler, dataset, device, t
                          global_step=global_step)
                 if scheduler:
                     self_loss, on_loss = evaluate_adaptive_losses(
-                        args, tokenizer, model, teacher_model, reference_model, dataset["dev"], device)
+                        args, tokenizer, model, teacher_model, reference_model, dataset["dev"], device,
+                        self_distill=self_distill)
                     scheduler_log = scheduler.on_evaluation(self_loss, on_loss)
                     scheduler_log["global_step"] = global_step
                     log_str = "scheduler | " + json.dumps(scheduler_log, sort_keys=True, allow_nan=False)

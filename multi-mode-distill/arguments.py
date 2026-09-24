@@ -19,6 +19,15 @@ import deepspeed
 import numpy as np
 
 
+def str_to_bool(value):
+    normalized = value.lower()
+    if normalized == "true":
+        return True
+    if normalized == "false":
+        return False
+    raise argparse.ArgumentTypeError("Expected True or False")
+
+
 def add_model_args(parser: argparse.ArgumentParser):
     """Model arguments"""
 
@@ -237,6 +246,11 @@ def add_distillation_args(parser: argparse.ArgumentParser):
     group.add_argument("--dual-adaptive-exposure", "--adaptive-on-policy",
                        dest="adaptive_on_policy", action="store_true",
                        help="Sample OFF/SELF/ON once per optimizer step using dev discrepancies")
+    group.add_argument("--self-distill", type=str_to_bool, default=True,
+                       metavar="True|False",
+                       help="Include SELF in adaptive routing; False uses OFF/ON only")
+    group.add_argument("--exclude-off-policy", action="store_true",
+                       help="Route adaptive training between SELF and ON only, with no OFF-policy steps")
     for name in ("rho_self_init", "rho_on_init", "rho_self_max", "rho_on_max",
                  "rho_self_increment", "rho_on_increment"):
         group.add_argument("--" + name.replace("_", "-"), type=float, default=getattr(defaults, name))
