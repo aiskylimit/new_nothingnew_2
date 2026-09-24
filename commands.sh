@@ -1,4 +1,4 @@
-#1 +10
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/multi-mode-distill/results/gemma-2-2b-it-distill/geo1_cka0_menger0.0/e2-bs8-lr0.0001-G4-N4-NN1-kd0.5-lora-16-128-0.05/evaluation_gemma/code/__mnt__local__aiskylimit_new_nothing__reasoning_velocity_distill__models__google_gemma-2-2b-it/samples_mbpp_2026-09-24T07-21-52.951985.jsonl +a
 #test
 #v1
 
