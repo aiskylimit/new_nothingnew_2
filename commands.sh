@@ -1,4 +1,4 @@
-#1 +60
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/P-ALIGN/output/eval_results_r1_1.5b.txt
 #sft_label
 #v1
 
