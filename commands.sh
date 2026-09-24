@@ -1,10 +1,10 @@
-#1 +60
+#i ssft_eval.txt
 #reeval
 #v1
 
 # cd SegmentSelectiveSFT && bash commands.sh
 # cd P-ALIGN && CUDA_VISIBLE_DEVICES=1 bash project_commands_r1_1.5b.sh
-cd SegmentSelectiveSFT && GPU=0 bash commands.sh
+# cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
