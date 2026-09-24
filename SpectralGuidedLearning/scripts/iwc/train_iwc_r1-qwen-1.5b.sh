@@ -1,17 +1,14 @@
 #!/usr/bin/env bash
-# Phase 5: train an IWC arm -- DeepSeek-R1-Distill-Qwen-1.5B track.
-# Hyperparameters match scripts/spectral/spectral_{full,lora}_r1-qwen-1.5b.sh exactly; the data
-# (train-<variant>.jsonl) shares train-spectral's token selection and only adds loss_weights, which
-# train_sft.py's MaskedSFTTrainer applies. Never train IWC through train_sft_unsloth.py: it drops them.
-# Usage: scripts/iwc/train_iwc_r1-qwen-1.5b.sh {full|lora} [iwc-stable|iwc]
+# Phase 5: IWC arm -- DeepSeek-R1-Distill-Qwen-1.5B track, set up exactly like the SFT Long CoT
+# arm (scripts/sft/sft_r1-qwen-1.5b.sh): FULL fine-tuning, 3 epochs, eff. batch 32, lr 5e-5 cosine
+# to 0, warmup 0.1, max_seq_len 32768. The only difference is the data: train-<variant>.jsonl keeps
+# train-spectral's token selection and adds loss_weights, which train_sft.py's MaskedSFTTrainer
+# applies. Never train IWC through train_sft_unsloth.py: it drops the weights.
+# Usage: scripts/iwc/train_iwc_r1-qwen-1.5b.sh [iwc-stable|iwc]
+# Optional: DS_CONFIG=configs/deepspeed/ds_config_zero2_offload.json for extra memory headroom.
 set -euo pipefail
 
-MODE="${1:?mode is required: full or lora}"
-VARIANT="${2:-iwc-stable}"
-case "${MODE}" in
-  full|lora) ;;
-  *) echo "unknown mode: ${MODE}" >&2; exit 2 ;;
-esac
+VARIANT="${1:-iwc-stable}"
 case "${VARIANT}" in
   iwc|iwc-stable) ;;
   *) echo "unknown variant: ${VARIANT}" >&2; exit 2 ;;
@@ -21,8 +18,13 @@ read -ra GPUS <<< "${GPUS:-0}"
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 export TOKENIZERS_PARALLELISM=false
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
+# ZeRO-2 offload (only if DS_CONFIG is set) JIT-compiles cpu_adam against system nvcc, which can
+# trail the torch cuXXX build -- skip that version check.
 export DS_SKIP_CUDA_CHECK=1
 
+# The cluster (PyTorchJob pod) injects PET_RDZV_BACKEND=c10d / PET_RDZV_ENDPOINT=<worker-0>:23456 /
+# TORCHELASTIC_*; torchrun reads those over --master_addr and hangs in "Rendezvous'ing worker group"
+# waiting on that endpoint. This is a single-node run: drop them and pin the static backend.
 for _v in $(compgen -e PET_) $(compgen -e TORCHELASTIC_); do unset "$_v"; done
 MASTER_ADDR=localhost
 MASTER_PORT=66$(($RANDOM%90+10))
@@ -44,34 +46,23 @@ fi
 export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p "${BASE_PATH}/logs"
 
-EFFECTIVE_BATCH=32
-if (( EFFECTIVE_BATCH % GPUS_PER_NODE != 0 )); then
-  echo "train_iwc_r1-qwen-1.5b.sh: ${GPUS_PER_NODE} GPUs does not divide effective batch ${EFFECTIVE_BATCH}." >&2
-  exit 2
-fi
-
-TAG="${VARIANT}-${MODE}-r1-qwen-1.5b"
 LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
 MODEL_NAME="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-1.5B"
 DATA_PATH="${BASE_PATH}/data/r1-qwen-1.5b/train-${VARIANT}.jsonl"
-OUTPUT_DIR="${BASE_PATH}/checkpoints/${TAG}"
+OUTPUT_DIR="${BASE_PATH}/checkpoints/${VARIANT}-r1-qwen-1.5b"
 EPOCHS=3
-LR="${LR:-5.0e-5}"
-MIN_LR="${MIN_LR:-1.0e-5}"
+LR=5.0e-5
+MIN_LR=0               # min_lr_rate 0 -> cosine_with_min_lr is exactly plain cosine-with-warmup
 WARMUP_RATIO=0.1
 BATCH_SIZE=1
-GRAD_ACC=$(( EFFECTIVE_BATCH / GPUS_PER_NODE ))
-ATTN=sdpa
+EFFECTIVE_BATCH=32
+(( EFFECTIVE_BATCH % GPUS_PER_NODE == 0 )) || { echo "GPU count ${GPUS_PER_NODE} must divide ${EFFECTIVE_BATCH}" >&2; exit 2; }
+GRAD_ACC=$((EFFECTIVE_BATCH / (BATCH_SIZE * GPUS_PER_NODE)))   # bs1 x ga x n GPU = effective batch 32
+ATTN=sdpa             # train_sft.py uses the Trainer default optimizer (adamw_torch), as before
 LOG_INTERVAL=5
 SEED=42
 SAVE_STRATEGY=epoch
-SAVE_STEPS=500
-SAVE_TOTAL_LIMIT=6
-LORA_R=16
-LORA_ALPHA=16
-LORA_DROPOUT=0.05
-LORA_TARGET_MODULES="q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj"
-DS_CONFIG="${BASE_PATH}/configs/deepspeed/ds_config_zero2_offload.json"
+SAVE_TOTAL_LIMIT=2
 MAX_SEQ_LEN=32768
 
 [[ -f "${DATA_PATH}" ]] || { echo "missing ${DATA_PATH} -- run scripts/masks/iwc_r1-qwen-1.5b.sh first" >&2; exit 1; }
@@ -89,22 +80,14 @@ OPTS+=" --gradient-accumulation-steps ${GRAD_ACC}"
 OPTS+=" --attn-implementation ${ATTN}"
 OPTS+=" --logging-steps ${LOG_INTERVAL}"
 OPTS+=" --save-strategy ${SAVE_STRATEGY}"
-OPTS+=" --save-steps ${SAVE_STEPS}"
 OPTS+=" --save-total-limit ${SAVE_TOTAL_LIMIT}"
 OPTS+=" --seed ${SEED}"
-if [[ "${MODE}" == lora ]]; then
-  OPTS+=" --use-lora"
-  OPTS+=" --lora-r ${LORA_R}"
-  OPTS+=" --lora-alpha ${LORA_ALPHA}"
-  OPTS+=" --lora-dropout ${LORA_DROPOUT}"
-  OPTS+=" --lora-target-modules ${LORA_TARGET_MODULES}"
-  OPTS+=" --no-lora-merge"
-else
-  OPTS+=" --no-use-lora"
-fi
-OPTS+=" --deepspeed-config ${DS_CONFIG}"
 OPTS+=" --max-seq-len ${MAX_SEQ_LEN}"
+OPTS+=" --no-use-lora"
+if [[ -n "${DS_CONFIG:-}" ]]; then
+  OPTS+=" --deepspeed-config ${DS_CONFIG}"
+fi
 
 CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
 echo "${CMD}"
-${CMD} 2>&1 | tee "${BASE_PATH}/logs/${TAG}.log"
+${CMD} 2>&1 | tee "${BASE_PATH}/logs/${VARIANT}-r1-qwen-1.5b.log"

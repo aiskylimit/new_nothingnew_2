@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
-# IWC driver -- DeepSeek-R1-Distill-Qwen-1.5B.
-#   data -> capture (spectral + entropy) -> IWC weights -> IWC SFT (full + LoRA) -> eval -> compare.
-# IWC-Stable keeps train-spectral's exact token selection and only reweights it, so each arm is
-# matched to its spectral counterpart from project_commands_spectral_r1-qwen-1.5b.sh:
-#   iwc-stable-full-r1-qwen-1.5b <-> spectral-full-r1-qwen-1.5b
-#   iwc-stable-lora-r1-qwen-1.5b <-> spectral-lora-r1-qwen-1.5b
+# IWC driver -- DeepSeek-R1-Distill-Qwen-1.5B, FULL fine-tuning, set up like the SFT Long CoT driver
+# (project_commands_r1-qwen-1.5b.sh):
+#   data -> capture (spectral + entropy) -> IWC weights -> full-FT IWC SFT -> eval -> compare.
+# Training hyperparameters, data format and eval are identical to vanilla-r1-qwen-1.5b; the only
+# difference is which response tokens are supervised (spectral selection) and how they are
+# weighted (IWC-Stable), so iwc-stable-r1-qwen-1.5b compares directly against vanilla-r1-qwen-1.5b.
+# Every phase runs in ONE env: spectral_guided_learning (../spectral_guided_learning.txt).
 #   GPUS=0 bash project_commands_iwc_r1-qwen-1.5b.sh
 # Comment out any line you don't want to run.
 set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 
+# Which GPU(s) each phase runs on (space-separated ids). Training runs torchrun over the whole
+# list (effective batch fixed at 32, so 1/2/4/8 GPUs); eval uses the whole list too.
 CUDA_GPUS="${CUDA_VISIBLE_DEVICES:-}"
 export GPUS="${GPUS:-${CUDA_GPUS:+${CUDA_GPUS//,/ }}}"
 export GPUS="${GPUS:-0}"
 
+# Thinking mode for the SUPERVISION format -- must match the SFT driver so both arms train on the
+# same token sequences (long CoT inside R1-Distill's native <think> block).
+export ENABLE_THINKING="${ENABLE_THINKING:-true}"
+
 # ============================ TRAIN ============================
-# Shared with the spectral driver; skipped when already on disk. The parquet must carry
-# step_entropies -- build_iwc_datasets.py stops with a clear error if it predates that.
+# data + capture are shared with the SFT/spectral drivers and skipped when already on disk. The
+# parquet must carry step_entropies -- build_iwc_datasets.py stops with a clear error if not.
 [[ -f data/r1-qwen-1.5b/train-segmented.jsonl ]]     || bash scripts/data/data_r1-qwen-1.5b.sh
 [[ -f data/r1-qwen-1.5b/spectral-strengths.parquet ]] || bash scripts/capture/capture_r1-qwen-1.5b.sh
 
@@ -29,17 +36,19 @@ export IWC_TEMPERATURE="${IWC_TEMPERATURE:-2.0}"
 export IWC_CLIP="${IWC_CLIP:-1.0}"
 bash scripts/masks/iwc_r1-qwen-1.5b.sh
 
-bash scripts/iwc/train_iwc_r1-qwen-1.5b.sh full iwc-stable
-bash scripts/iwc/train_iwc_r1-qwen-1.5b.sh lora iwc-stable
-# bash scripts/iwc/train_iwc_r1-qwen-1.5b.sh full iwc   # Eq. 11 baseline: not mass-preserving
+bash scripts/iwc/train_iwc_r1-qwen-1.5b.sh iwc-stable
+# bash scripts/iwc/train_iwc_r1-qwen-1.5b.sh iwc   # Eq. 11 baseline: not mass-preserving
 
 # ============================ EVAL =============================
+# Start from a clean shell env so the eval script activates the vLLM env. Thinking is OFF at eval
+# regardless of how the data was built -- override with ENABLE_THINKING_EVAL=true.
 deactivate 2>/dev/null || true
 unset VIRTUAL_ENV
-
-bash scripts/eval/eval_r1-qwen-1.5b.sh checkpoints/iwc-stable-full-r1-qwen-1.5b iwc-stable-full-r1-qwen-1.5b
-bash scripts/eval/eval_r1-qwen-1.5b.sh checkpoints/iwc-stable-lora-r1-qwen-1.5b iwc-stable-lora-r1-qwen-1.5b
-# bash scripts/eval/eval_r1-qwen-1.5b.sh checkpoints/iwc-full-r1-qwen-1.5b iwc-full-r1-qwen-1.5b
+ENABLE_THINKING="${ENABLE_THINKING_EVAL:-false}" \
+  bash scripts/eval/eval_r1-qwen-1.5b.sh checkpoints/iwc-stable-r1-qwen-1.5b iwc-stable-r1-qwen-1.5b
+# ENABLE_THINKING="${ENABLE_THINKING_EVAL:-false}" \
+#   bash scripts/eval/eval_r1-qwen-1.5b.sh checkpoints/iwc-r1-qwen-1.5b iwc-r1-qwen-1.5b
 
 # =========================== COMPARE ==========================
+# writes results/comparison-table.md and results/eval-summary.json
 "${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" "${BASE}/src/compare_results.py"
