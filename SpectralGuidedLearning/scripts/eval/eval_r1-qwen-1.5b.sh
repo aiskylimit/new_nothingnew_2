@@ -53,11 +53,14 @@ GPU_MEM_UTIL=0.8       # P-ALIGN test.py
 SEED=42
 CHAT_TEMPLATE=true
 # Thinking OFF, as in test.py. R1-Distill's template ignores enable_thinking and hard-codes an
-# open <think>, so evaluate.py closes that block (data_prep.close_open_thinking) -- without it
-# the model would still emit a full thinking trace. For a thinking eval set ENABLE_THINKING=true
+# open <think>; --palign-prompt closes it exactly as test.py apply_chat() does
+# ("<think>\n\n</think>\n\n") and passes token ids without a second BOS -- without closing
+# it the model would still emit a full thinking trace. For a thinking eval set ENABLE_THINKING=true
 # AND MAX_TOKENS=32768; 4096 would cut the trace off mid-way.
 ENABLE_THINKING="${ENABLE_THINKING:-false}"
 ENFORCE_EAGER=true
+# P-ALIGN/src/evaluation.py: math_verify only (the "palign" grader also ORs oat_math_grader).
+GRADER=math_verify
 LORA_R=16
 RESULTS_DIR="${RESULTS_DIR:-${BASE_PATH}/results}"
 
@@ -77,6 +80,8 @@ OPTS+=" --gpu-memory-utilization ${GPU_MEM_UTIL}"
 OPTS+=" --seed ${SEED}"
 [[ "${CHAT_TEMPLATE}" == true ]] && OPTS+=" --chat-template" || OPTS+=" --no-chat-template"
 [[ "${ENABLE_THINKING}" == true ]] && OPTS+=" --enable-thinking" || OPTS+=" --no-enable-thinking"
+OPTS+=" --palign-prompt"
+OPTS+=" --grader ${GRADER}"
 # Always passed: the base model supplies the chat template / tokenizer, and is what a LoRA
 # adapter is loaded onto. Checkpoint type comes from the checkpoint itself -- an adapter_config.json
 # means a LoRA adapter, anything else (e.g. the full-FT SFT checkpoint) loads directly.
