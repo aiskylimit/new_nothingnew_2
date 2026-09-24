@@ -1,5 +1,5 @@
-#2 -0-10
-#p-align
+#1 +60
+#sft_label
 #v1
 
 # cd SegmentSelectiveSFT && bash commands.sh
