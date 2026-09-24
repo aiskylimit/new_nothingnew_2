@@ -1,10 +1,10 @@
 #1 +60
-#sft_label
+#rivad
 #v1
 
 # cd SegmentSelectiveSFT && bash commands.sh
 # cd P-ALIGN && CUDA_VISIBLE_DEVICES=1 bash project_commands_r1_1.5b.sh
-cd SegmentSelectiveSFT && GPU=0 bash commands.sh
+# cd SegmentSelectiveSFT && GPU=0 bash commands.sh
 # CUDA_VISIBLE_DEVICES=1 bash project_commands.sh
 # cd ./offline_olmo7b_b200
 # bash project_commands.sh
@@ -52,8 +52,8 @@ export NCCL_DEBUG=WARN
 # bash project_commands.sh
 
 
-# cd ./multi-mode-distill
-# bash ./run_gemma.sh
+cd ./multi-mode-distill
+bash ./run_gemma.sh
 # bash ./project_commands.sh
 # # # bash ./project_commands_opsd_ablation.sh
 # # # bash ./project_commands_ablation.sh

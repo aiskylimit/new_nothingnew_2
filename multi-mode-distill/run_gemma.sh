@@ -56,17 +56,17 @@ CUDA_DEVICES="${CUDA_DEVICES:-4,5,6,7}"
 #     https://raw.githubusercontent.com/huggingface/evaluate/v0.4.6/metrics/code_eval/execute.py \
 #     --output "$EVAL_DATA_DIR/code_eval/execute.py"
 
-"$VENV_PATH/bin/python" "$BASE_PATH/tools/process_data_ultraInteract.py" \
-    --base-path "$BASE_PATH" \
-    --data-dir "$RAW_DATA" \
-    --processed-data-dir "$PROCESSED_DATA_ROOT" \
-    --model-path "$CKPT" \
-    --model-type gemma \
-    --data-process-workers "${DATA_PROCESS_WORKERS:-32}" \
-    --max-length "$MAX_LENGTH" \
-    --max-prompt-length "$MAX_PROMPT_LENGTH" \
-    --dev-num "$DEV_NUM" \
-    --seed "$SEED"
+# "$VENV_PATH/bin/python" "$BASE_PATH/tools/process_data_ultraInteract.py" \
+#     --base-path "$BASE_PATH" \
+#     --data-dir "$RAW_DATA" \
+#     --processed-data-dir "$PROCESSED_DATA_ROOT" \
+#     --model-path "$CKPT" \
+#     --model-type gemma \
+#     --data-process-workers "${DATA_PROCESS_WORKERS:-32}" \
+#     --max-length "$MAX_LENGTH" \
+#     --max-prompt-length "$MAX_PROMPT_LENGTH" \
+#     --dev-num "$DEV_NUM" \
+#     --seed "$SEED"
 
 KD_LOSS="${KD_LOSS:-sfkl}"
 KD_RATIO="${KD_RATIO:-0.5}"
@@ -88,29 +88,31 @@ CHECKPOINT_FILE="$(mktemp)"
 
 trap 'rm -f -- "$CHECKPOINT_FILE"' EXIT
 
-printf '\n[%s 1/2] Train Gemma: KD=%s, geometry=%s, CKA=%s, Menger=%s\n' \
-    "$RUN_NAME" "$KD_RATIO" "$GEOMETRY" "$CKA" "$MENGER_WEIGHT"
-: > "$CHECKPOINT_FILE"
-CUDA_DEVICES="$CUDA_DEVICES" DATA_DIR="$DATA_DIR" \
-    BASE_PATH="$BASE_PATH" ASSET_ROOT="$ASSET_ROOT" VENV_PATH="$VENV_PATH" \
-    CKPT="$CKPT" TEACHER_CKPT="$TEACHER_CKPT" \
-    PROCESSED_DATA_ROOT="$PROCESSED_DATA_ROOT" SAVE_PATH="$SAVE_PATH" \
-    MAX_LENGTH="$MAX_LENGTH" MAX_PROMPT_LENGTH="$MAX_PROMPT_LENGTH" \
-    DEV_NUM="$DEV_NUM" SEED="$SEED" \
-    KD_LOSS="$KD_LOSS" KD_RATIO="$KD_RATIO" SKEW_ALPHA="$SKEW_ALPHA" \
-    GEOMETRY="$GEOMETRY" CKA="$CKA" \
-    MAG_WEIGHT="$MAG_WEIGHT" GRAM_WEIGHT="$GRAM_WEIGHT" \
-    CKA_WEIGHT="$CKA_WEIGHT" MENGER_WEIGHT="$MENGER_WEIGHT" \
-    MENGER_EPS="$MENGER_EPS" DISTILL_TOP_K="$DISTILL_TOP_K" \
-    DISTILL_TEMPERATURE="$DISTILL_TEMPERATURE" \
-    FINAL_CHECKPOINT_FILE="$CHECKPOINT_FILE" \
-    bash "$BASE_PATH/scripts/gemma/train_gemma2_9b_to_2b.sh" "$@"
+# printf '\n[%s 1/2] Train Gemma: KD=%s, geometry=%s, CKA=%s, Menger=%s\n' \
+#     "$RUN_NAME" "$KD_RATIO" "$GEOMETRY" "$CKA" "$MENGER_WEIGHT"
+# : > "$CHECKPOINT_FILE"
+# CUDA_DEVICES="$CUDA_DEVICES" DATA_DIR="$DATA_DIR" \
+#     BASE_PATH="$BASE_PATH" ASSET_ROOT="$ASSET_ROOT" VENV_PATH="$VENV_PATH" \
+#     CKPT="$CKPT" TEACHER_CKPT="$TEACHER_CKPT" \
+#     PROCESSED_DATA_ROOT="$PROCESSED_DATA_ROOT" SAVE_PATH="$SAVE_PATH" \
+#     MAX_LENGTH="$MAX_LENGTH" MAX_PROMPT_LENGTH="$MAX_PROMPT_LENGTH" \
+#     DEV_NUM="$DEV_NUM" SEED="$SEED" \
+#     KD_LOSS="$KD_LOSS" KD_RATIO="$KD_RATIO" SKEW_ALPHA="$SKEW_ALPHA" \
+#     GEOMETRY="$GEOMETRY" CKA="$CKA" \
+#     MAG_WEIGHT="$MAG_WEIGHT" GRAM_WEIGHT="$GRAM_WEIGHT" \
+#     CKA_WEIGHT="$CKA_WEIGHT" MENGER_WEIGHT="$MENGER_WEIGHT" \
+#     MENGER_EPS="$MENGER_EPS" DISTILL_TOP_K="$DISTILL_TOP_K" \
+#     DISTILL_TEMPERATURE="$DISTILL_TEMPERATURE" \
+#     FINAL_CHECKPOINT_FILE="$CHECKPOINT_FILE" \
+#     bash "$BASE_PATH/scripts/gemma/train_gemma2_9b_to_2b.sh" "$@"
 
-LORA_PATH="$(<"$CHECKPOINT_FILE")"
-[[ -f "$LORA_PATH/adapter_config.json" ]] || {
-    printf 'Final LoRA checkpoint missing: %s\n' "$LORA_PATH" >&2
-    exit 1
-}
+# LORA_PATH="$(<"$CHECKPOINT_FILE")"
+# [[ -f "$LORA_PATH/adapter_config.json" ]] || {
+#     printf 'Final LoRA checkpoint missing: %s\n' "$LORA_PATH" >&2
+#     exit 1
+# }
+
+LORA_PATH="/mnt/local/aiskylimit_new_nothingnew_2/multi-mode-distill/results/gemma-2-2b-it-distill/geo1_cka0_menger0.0/e2-bs8-lr0.0001-G4-N4-NN1-kd0.5-lora-16-128-0.05/1238"
 
 printf '\n[%s 2/2] Evaluate checkpoint: %s\n' "$RUN_NAME" "$LORA_PATH"
 CUDA_DEVICES="$CUDA_DEVICES" LORA_PATH="$LORA_PATH" MODEL_PATH="$CKPT" \
