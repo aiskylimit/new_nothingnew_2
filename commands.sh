@@ -1,6 +1,6 @@
-#2 +a
-#reeval
-#v1
+#2
+#rivad
+#v2
 
 # cd SegmentSelectiveSFT && bash commands.sh
 # cd P-ALIGN && CUDA_VISIBLE_DEVICES=1 bash project_commands_r1_1.5b.sh
@@ -52,8 +52,8 @@ export NCCL_DEBUG=WARN
 # bash project_commands.sh
 
 
-# cd ./multi-mode-distill
-# bash ./run_gemma.sh
+cd ./multi-mode-distill
+bash ./run_gemma.sh
 # bash ./project_commands.sh
 # # # bash ./project_commands_opsd_ablation.sh
 # # # bash ./project_commands_ablation.sh
