@@ -28,13 +28,15 @@ PROCESSED_DATA_ROOT="${PROCESSED_DATA_ROOT:-$ASSET_ROOT/processed_data/ultraInte
 DATA_DIR="${DATA_DIR:-$PROCESSED_DATA_ROOT/models/$(basename -- "$CKPT")}"
 DS_CONFIG="${DS_CONFIG:-$BASE_PATH/configs/deepspeed/ds_config_bf16.json}"
 
+MODEL_TYPE="${MODEL_TYPE:-qwen}"
+TEACHER_MODEL_TYPE="${TEACHER_MODEL_TYPE:-$MODEL_TYPE}"
 CKPT_NAME="${CKPT_NAME:-qwen2.5-1.5B-Instruct}"
 TEACHER_CKPT_NAME="${TEACHER_CKPT_NAME:-qwen2.5-14B-Instruct}"
 
 # Fixed probabilities. finetune_no_adaptive.py validates that their sum is 1.
 export OFF_POLICY_RATIO="${OFF_POLICY_RATIO:-0.90}"
-export SELF_DISTILL_RATIO="${SELF_DISTILL_RATIO:-0.20}"
-export ON_POLICY_RATIO="${ON_POLICY_RATIO:-0.20}"
+export SELF_DISTILL_RATIO="${SELF_DISTILL_RATIO:-0.05}"
+export ON_POLICY_RATIO="${ON_POLICY_RATIO:-0.05}"
 
 # Distributed setup.
 export CUDA_VISIBLE_DEVICES="${CUDA_DEVICES:-${CUDA_VISIBLE_DEVICES:-4,5,6,7}}"
@@ -59,7 +61,7 @@ LR="${LR:-1e-4}"
 EPOCHS="${EPOCHS:-2}"
 WARMUP_RATIO="${WARMUP_RATIO:-0.1}"
 MAX_LENGTH="${MAX_LENGTH:-1024}"
-MAX_PROMPT_LENGTH="${MAX_PROMPT_LENGTH:-5120}"
+MAX_PROMPT_LENGTH="${MAX_PROMPT_LENGTH:-512}"
 CONTEXT_MAX_NEW_TOKENS="${CONTEXT_MAX_NEW_TOKENS:-${SELF_DISTILL_CONTEXT_MAX_TOKENS:-512}}"
 T_MAX_PROMPT_LENGTH="${T_MAX_PROMPT_LENGTH:-$((MAX_PROMPT_LENGTH + CONTEXT_MAX_NEW_TOKENS))}"
 T_MAX_LENGTH="${T_MAX_LENGTH:-$((MAX_LENGTH + T_MAX_PROMPT_LENGTH - MAX_PROMPT_LENGTH))}"
@@ -122,8 +124,8 @@ fi
 
 OPTS=(
     --base-path "$BASE_PATH"
-    --model-path "$CKPT" --model-type qwen --ckpt-name "$CKPT_NAME"
-    --teacher-model-path "$TEACHER_CKPT" --teacher-model-type qwen
+    --model-path "$CKPT" --model-type "$MODEL_TYPE" --ckpt-name "$CKPT_NAME"
+    --teacher-model-path "$TEACHER_CKPT" --teacher-model-type "$TEACHER_MODEL_TYPE"
     --teacher-ckpt-name "$TEACHER_CKPT_NAME"
     --n-gpu "$GPUS_PER_NODE" --n-nodes "$NNODES" --bf16
     --data-dir "$DATA_DIR" --json-data --num-workers "$NUM_WORKERS" --dev-num "$DEV_NUM"
@@ -183,10 +185,17 @@ if [[ ! -f "$LORA_PATH/adapter_config.json" ]]; then
     exit 1
 fi
 
+if [[ "${RUN_EVAL:-1}" == 0 ]]; then
+    printf '\n[eval] skipped (RUN_EVAL=0)\n'
+    exit 0
+fi
 printf '\n[eval] final checkpoint: %s\n' "$LORA_PATH"
+EVAL_SCRIPT="${EVAL_SCRIPT:-$BASE_PATH/scripts/eval/eval.sh}"
 CUDA_DEVICES="$CUDA_VISIBLE_DEVICES" \
 LORA_PATH="$LORA_PATH" \
 MODEL_PATH="$CKPT" \
 SAVE_PATH="$(dirname -- "$LORA_PATH")" \
 EVAL_MAX_LORA_RANK="${EVAL_MAX_LORA_RANK:-$LORA_R}" \
-bash "$BASE_PATH/scripts/eval/eval.sh" run
+ASSET_ROOT="$ASSET_ROOT" \
+EVAL_DATA_DIR="${EVAL_DATA_DIR:-$ASSET_ROOT/data/eval}" \
+bash "$EVAL_SCRIPT" run

@@ -29,6 +29,12 @@ def validate_mode_args(args):
         raise ValueError("Old adaptive scheduler arguments were removed: " +
                          ", ".join("--" + name for name in old_flags))
     adaptive = getattr(args, "adaptive_on_policy", False)
+    self_distill = getattr(args, "self_distill", True)
+    exclude_off_policy = getattr(args, "exclude_off_policy", False)
+    if exclude_off_policy and not adaptive:
+        raise ValueError("--exclude-off-policy requires --dual-adaptive-exposure")
+    if exclude_off_policy and not self_distill:
+        raise ValueError("--exclude-off-policy requires SELF distillation")
     if adaptive:
         from .adaptive import AdaptiveConfig
         AdaptiveConfig.from_args(args)
@@ -103,9 +109,11 @@ def validate_mode_args(args):
         raise ValueError("--type lm requires canonical LM supervision")
     if not 0 < args.max_prompt_length < args.max_length:
         raise ValueError("Require 0 < --max-prompt-length < --max-length")
-    if (args.distill_mode in ("self_distill", "opsd") or adaptive) and not 0 < args.t_max_prompt_length < args.t_max_length:
+    extended_reference = (args.distill_mode in ("self_distill", "opsd")
+                          or (adaptive and self_distill))
+    if extended_reference and not 0 < args.t_max_prompt_length < args.t_max_length:
         raise ValueError("Require 0 < --t-max-prompt-length < --t-max-length")
-    if (args.distill_mode in ("self_distill", "opsd") or adaptive) and args.t_max_length < args.max_length:
+    if extended_reference and args.t_max_length < args.max_length:
         raise ValueError("Self-distillation reference length must fit the full student response")
     if not 0 <= args.self_distill_context_drop_ratio <= 1 or not math.isfinite(args.self_distill_context_drop_ratio):
         raise ValueError("--self-distill-context-drop-ratio must be finite and in [0, 1]")

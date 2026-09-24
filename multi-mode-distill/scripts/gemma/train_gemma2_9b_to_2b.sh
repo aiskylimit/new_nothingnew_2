@@ -49,6 +49,8 @@ SEED="${SEED:-10}"
 KD_LOSS="${KD_LOSS:-sfkl}"
 KD_RATIO="${KD_RATIO:-0.5}"
 SKEW_ALPHA="${SKEW_ALPHA:-0.1}"
+FINETUNE_ENTRYPOINT="${FINETUNE_ENTRYPOINT:-finetune.py}"
+EXCLUDE_OFF_POLICY="${EXCLUDE_OFF_POLICY:-0}"
 DISTILL_TOP_K="${DISTILL_TOP_K:-5120}"
 DISTILL_TEMPERATURE="${DISTILL_TEMPERATURE:-1.0}"
 MAG_WEIGHT="${MAG_WEIGHT:-1.0}"
@@ -72,11 +74,29 @@ case "$CKA" in
     0|1) ;;
     *) printf 'CKA must be 0 or 1\n' >&2; exit 2 ;;
 esac
+case "$EXCLUDE_OFF_POLICY" in
+    0|1) ;;
+    *) printf 'EXCLUDE_OFF_POLICY must be 0 or 1\n' >&2; exit 2 ;;
+esac
 if [[ "$GEOMETRY" == 1 && "$CKA" == 1 ]]; then
     printf 'GEOMETRY and CKA are mutually exclusive\n' >&2
     exit 2
 fi
-SAVE_PATH="${SAVE_PATH:-$BASE_PATH/results/${CKPT_NAME}-distill/adaptive1_${KD_LOSS}_k${DISTILL_TOP_K}_geometry${GEOMETRY}_cka${CKA}_bs${BATCH_SIZE}_ga${GRAD_ACC}_lr${LR}_seed${SEED}}"
+case "$FINETUNE_ENTRYPOINT" in
+    finetune.py)
+        RUN_TAG="adaptive"
+        if [[ "$EXCLUDE_OFF_POLICY" == 1 ]]; then RUN_TAG="adaptive_on_self"; fi
+        ;;
+    finetune_off_self.py)
+        if [[ "$EXCLUDE_OFF_POLICY" == 1 ]]; then
+            printf 'EXCLUDE_OFF_POLICY=1 conflicts with finetune_off_self.py\n' >&2
+            exit 2
+        fi
+        RUN_TAG="adaptive_off_self"
+        ;;
+    *) printf 'Unsupported FINETUNE_ENTRYPOINT for Gemma: %s\n' "$FINETUNE_ENTRYPOINT" >&2; exit 2 ;;
+esac
+SAVE_PATH="${SAVE_PATH:-$BASE_PATH/results/${CKPT_NAME}-distill/${RUN_TAG}_${KD_LOSS}_k${DISTILL_TOP_K}_geometry${GEOMETRY}_cka${CKA}_bs${BATCH_SIZE}_ga${GRAD_ACC}_lr${LR}_seed${SEED}}"
 
 OPTS=(
     --base-path "$BASE_PATH"
@@ -91,13 +111,7 @@ OPTS=(
     --weight-decay 1e-2 --clip-grad 1.0 --epochs "$EPOCHS"
     --max-length "$MAX_LENGTH" --max-prompt-length "$MAX_PROMPT_LENGTH"
     --t-max-length "$T_MAX_LENGTH" --t-max-prompt-length "$T_MAX_PROMPT_LENGTH"
-    --type kd --kd-loss "$KD_LOSS" --kd-ratio "$KD_RATIO"
-    --dual-adaptive-exposure --do-sample
-    --rho-self-init "${RHO_SELF_INIT:-0.1}" --rho-on-init "${RHO_ON_INIT:-0.05}"
-    --rho-self-max "${RHO_SELF_MAX:-0.25}" --rho-on-max "${RHO_ON_MAX:-0.25}"
-    --rho-self-increment "${RHO_SELF_INCREMENT:-0.025}"
-    --rho-on-increment "${RHO_ON_INCREMENT:-0.025}"
-    --adaptive-threshold "${ADAPTIVE_THRESHOLD:-0.05}"
+    --type kd --kd-loss "$KD_LOSS" --kd-ratio "$KD_RATIO" --do-sample
     --self-distill-eval-seed "${SELF_DISTILL_EVAL_SEED:-1234}"
     --self-distill-context-drop-ratio "${SELF_DISTILL_CONTEXT_DROP_MAX:-0.5}"
     --self-distill-context-max-tokens "$CONTEXT_MAX_NEW_TOKENS"
@@ -115,6 +129,25 @@ OPTS=(
     --top-k 0 --top-p 1.0 --temperature 1.0 --repetition-penalty 1.0 --num-beams 1
     --deepspeed --deepspeed_config "$DS_CONFIG"
 )
+if [[ "$FINETUNE_ENTRYPOINT" == "finetune_off_self.py" ]]; then
+    OPTS+=(
+        --rho-self-init "${RHO_SELF_INIT:-0.1}"
+        --rho-self-max "${RHO_SELF_MAX:-0.25}"
+        --rho-self-increment "${RHO_SELF_INCREMENT:-0.025}"
+    )
+else
+    OPTS+=(
+        --dual-adaptive-exposure
+        --rho-self-init "${RHO_SELF_INIT:-0.1}" --rho-on-init "${RHO_ON_INIT:-0.05}"
+        --rho-self-max "${RHO_SELF_MAX:-0.25}" --rho-on-max "${RHO_ON_MAX:-0.25}"
+        --rho-self-increment "${RHO_SELF_INCREMENT:-0.025}"
+        --rho-on-increment "${RHO_ON_INCREMENT:-0.025}"
+    )
+    if [[ "$EXCLUDE_OFF_POLICY" == 1 ]]; then
+        OPTS+=(--exclude-off-policy)
+    fi
+fi
+OPTS+=(--adaptive-threshold "${ADAPTIVE_THRESHOLD:-0.05}")
 if [[ "$GEOMETRY" == 1 ]]; then
     OPTS+=(--geometry)
 fi
@@ -130,7 +163,7 @@ export TF_CPP_MIN_LOG_LEVEL=3
 export PYTHONPATH="$BASE_PATH${PYTHONPATH:+:$PYTHONPATH}"
 export CODE_BASE=HF
 
-CMD=(torchrun "${DISTRIBUTED_ARGS[@]}" "$BASE_PATH/finetune.py" "${OPTS[@]}" "$@")
+CMD=(torchrun "${DISTRIBUTED_ARGS[@]}" "$BASE_PATH/$FINETUNE_ENTRYPOINT" "${OPTS[@]}" "$@")
 printf 'CUDA_VISIBLE_DEVICES=%s\n' "$CUDA_VISIBLE_DEVICES"
 printf 'Command: '
 printf '%q ' "${CMD[@]}"
