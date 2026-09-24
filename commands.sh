@@ -1,5 +1,5 @@
 #1 +120
-#rivad
+#rivad_gemma_ablations
 #v2
 
 # cd SegmentSelectiveSFT && bash commands.sh
@@ -53,7 +53,8 @@ export NCCL_DEBUG=WARN
 
 
 cd ./multi-mode-distill
-bash ./run_gemma.sh
+# bash ./run_gemma.sh
+bash ./run_gemma_ablations.sh
 # tree /mnt/local/aiskylimit_new_nothingnew_2/multi-mode-distill/results/gemma-2-2b-it-distill/geo1_cka0_menger0.0/e2-bs8-lr0.0001-G4-N4-NN1-kd0.5-lora-16-128-0.05/evaluation_gemma
 # bash ./project_commands.sh
 # # # bash ./project_commands_opsd_ablation.sh
