@@ -24,3 +24,6 @@ multiprocess==0.70.16
 timeout-decorator==0.5.0
 word2number==1.1
 tqdm==4.67.1
+# Cham diem nhu P-ALIGN (Eval/score_palign.py, goi trong commands.sh): math_verify cua P-ALIGN src/evaluation.py. latex2sympy2_extended la package RIENG (khong dung cham latex2sympy vendored), chon parser theo antlr: 4.11.x -> gen/antlr4_11_0, nen chay duoc voi antlr4-python3-runtime==4.11.1 o tren (da thu: ca hai parser cung import, pip check sach).
+math-verify==0.9.0
+latex2sympy2_extended==1.11.0
