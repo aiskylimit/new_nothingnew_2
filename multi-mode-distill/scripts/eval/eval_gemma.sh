@@ -42,6 +42,7 @@ export HF_EVALUATE_OFFLINE=1
 export HF_ALLOW_CODE_EVAL=1
 export TOKENIZERS_PARALLELISM=false
 export EVAL_GEMMA_MERGE_SYSTEM=1
+export MBPP_CLEAN_SENTENCEPIECE="${MBPP_CLEAN_SENTENCEPIECE:-1}"
 
 mkdir -p "$OUT" "$HF_DATASETS_CACHE" "$HF_MODULES_CACHE"
 
@@ -102,8 +103,11 @@ CHAT_ARGS=(
 
 CODE_ARGS=(
     "${COMMON_ARGS[@]}"
+    --apply_chat_template
+    --fewshot_as_multiturn
     --confirm_run_unsafe_code
     --output_path "$OUT/code"
+    --gen_kwargs "max_gen_toks=$MAX_GEN_TOKS,temperature=0.0"
 )
 
 run_task() {

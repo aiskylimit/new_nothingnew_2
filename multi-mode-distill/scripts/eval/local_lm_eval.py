@@ -14,6 +14,8 @@ from typing import Any
 import datasets
 import evaluate
 
+from verify_mbpp import wrap_code_eval_metric
+
 
 DATASET_DIRECTORIES = {
     "openai/gsm8k": "gsm8k",
@@ -192,7 +194,10 @@ def install_offline_loaders() -> None:
         metric_file = eval_data_root() / "code_eval" / "code_eval.py"
         require_path(metric_file, "local code_eval metric")
         require_path(metric_file.with_name("execute.py"), "local code_eval executor")
-        return original_evaluate_load(str(metric_file), *args, **kwargs)
+        metric = original_evaluate_load(str(metric_file), *args, **kwargs)
+        if os.environ.get("MBPP_CLEAN_SENTENCEPIECE", "0") == "1":
+            metric = wrap_code_eval_metric(metric)
+        return metric
 
     datasets.load_dataset = load_local_dataset
     evaluate.load = load_local_metric
