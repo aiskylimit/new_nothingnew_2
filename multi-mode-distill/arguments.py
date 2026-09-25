@@ -245,7 +245,10 @@ def add_distillation_args(parser: argparse.ArgumentParser):
     defaults = AdaptiveConfig()
     group.add_argument("--dual-adaptive-exposure", "--adaptive-on-policy",
                        dest="adaptive_on_policy", action="store_true",
-                       help="Sample OFF/SELF/ON once per optimizer step using dev discrepancies")
+                       help="Sample one enabled distillation mode per optimizer step using dev discrepancies")
+    group.add_argument("--adaptive-mode-set", choices=["all", "on_self", "off_self"],
+                       default="all",
+                       help="Modes available to adaptive routing; pairwise choices are ablations")
     group.add_argument("--self-distill", type=str_to_bool, default=True,
                        metavar="True|False",
                        help="Include SELF in adaptive routing; False uses OFF/ON only")

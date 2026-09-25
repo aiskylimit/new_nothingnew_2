@@ -29,8 +29,14 @@ def validate_mode_args(args):
         raise ValueError("Old adaptive scheduler arguments were removed: " +
                          ", ".join("--" + name for name in old_flags))
     adaptive = getattr(args, "adaptive_on_policy", False)
+    adaptive_mode_set = getattr(args, "adaptive_mode_set", "all")
     self_distill = getattr(args, "self_distill", True)
     exclude_off_policy = getattr(args, "exclude_off_policy", False)
+    if adaptive_mode_set != "all" and not adaptive:
+        raise ValueError("--adaptive-mode-set requires --dual-adaptive-exposure")
+    if adaptive_mode_set != "all" and (not self_distill or exclude_off_policy):
+        raise ValueError(
+            "--adaptive-mode-set conflicts with --self-distill=False and --exclude-off-policy")
     if exclude_off_policy and not adaptive:
         raise ValueError("--exclude-off-policy requires --dual-adaptive-exposure")
     if exclude_off_policy and not self_distill:
