@@ -40,6 +40,21 @@ export RHO_ON_MAX="${RHO_ON_MAX:-0.25}"
 export RHO_SELF_INCREMENT="${RHO_SELF_INCREMENT:-0.025}"
 export RHO_ON_INCREMENT="${RHO_ON_INCREMENT:-0.025}"
 
+
+QWEN_RAW_DATA="${QWEN_RAW_DATA:-$ASSET_ROOT/data/raw/Qwen/Qwen2.5-14B-Instruct/generated_train.jsonl}"
+PROCESSED_DATA_ROOT="${PROCESSED_DATA_ROOT:-$ASSET_ROOT/processed_data/ultraInteract-v2}"
+QWEN_DATA_DIR="${QWEN_DATA_DIR:-${DATA_DIR:-$PROCESSED_DATA_ROOT/models/$(basename -- "$CKPT")}}"
+QWEN_RESULTS_ROOT="${QWEN_RESULTS_ROOT:-$BASE_PATH/results/qwen2.5-1.5B-Instruct-v2}"
+# Process Qwen data before training.
+printf '\n[process] Qwen data: %s\n' "$QWEN_RAW_DATA"
+python tools/process_data_ultraInteract.py \
+    --base-path "$BASE_PATH" --data-dir "$QWEN_RAW_DATA" \
+    --processed-data-dir "$PROCESSED_DATA_ROOT" \
+    --model-path "$CKPT" --model-type qwen \
+    --data-process-workers "${DATA_PROCESS_WORKERS:-8}" \
+    --max-length "$MAX_LENGTH" --max-prompt-length "$MAX_PROMPT_LENGTH" \
+    --dev-num "$DEV_NUM" --seed "$SEED"
+
 if [[ ! -s "$DATA_DIR/train.jsonl" || ( ! -s "$DATA_DIR/valid.jsonl" && ! -s "$DATA_DIR/dev.jsonl" ) ]]; then
     printf 'Processed train and valid/dev JSONL files are required in: %s\n' "$DATA_DIR" >&2
     exit 1
