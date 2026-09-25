@@ -45,8 +45,17 @@ NUM_WORKERS="${NUM_WORKERS:-4}"
 DEV_NUM="${DEV_NUM:-512}"
 SEED="${SEED:-10}"
 
-# Select the standard three-mode run or the OFF+SELF ablation.
+# Adaptive routing defaults to OFF + SELF + ON; pairwise sets are ablations.
 FINETUNE_ENTRYPOINT="${FINETUNE_ENTRYPOINT:-finetune.py}"
+ADAPTIVE_MODE_SET="${ADAPTIVE_MODE_SET:-all}"
+case "$ADAPTIVE_MODE_SET" in
+    all|on_self|off_self) ;;
+    *) printf 'ADAPTIVE_MODE_SET must be all, on_self, or off_self\n' >&2; exit 2 ;;
+esac
+if [[ "$FINETUNE_ENTRYPOINT" == "finetune_off_self.py" && "$ADAPTIVE_MODE_SET" != all ]]; then
+    printf 'Pairwise ADAPTIVE_MODE_SET uses finetune.py, not finetune_off_self.py\n' >&2
+    exit 2
+fi
 KD_LOSS="${KD_LOSS:-sfkl}"
 SKEW_ALPHA="${SKEW_ALPHA:-0.1}"
 KD_RATIO="${KD_RATIO:-0.5}"
@@ -95,6 +104,8 @@ fi
 RUN_TAG="adaptive"
 if [[ "$FINETUNE_ENTRYPOINT" == "finetune_off_self.py" ]]; then
     RUN_TAG="off_self_adaptive"
+elif [[ "$ADAPTIVE_MODE_SET" != all ]]; then
+    RUN_TAG="${ADAPTIVE_MODE_SET}_adaptive"
 elif [[ "${SELF_DISTILL,,}" == "false" ]]; then
     RUN_TAG="off_on_adaptive"
 fi
@@ -137,6 +148,7 @@ if [[ "$FINETUNE_ENTRYPOINT" == "finetune_off_self.py" ]]; then
     OPTS+=(--rho-self-increment "${RHO_SELF_INCREMENT:-0.025}")
 else
     OPTS+=(--dual-adaptive-exposure)
+    OPTS+=(--adaptive-mode-set "$ADAPTIVE_MODE_SET")
     OPTS+=(--self-distill "$SELF_DISTILL")
     OPTS+=(--rho-self-init "${RHO_SELF_INIT:-0.1}" --rho-on-init "${RHO_ON_INIT:-0.05}")
     OPTS+=(--rho-self-max "${RHO_SELF_MAX:-0.25}" --rho-on-max "${RHO_ON_MAX:-0.25}")
@@ -175,5 +187,6 @@ printf 'Command: '
 printf '%q ' "${CMD[@]}"
 printf '\n'
 
+if [[ "${DRY_RUN:-0}" == 1 ]]; then exit 0; fi
 mkdir -p -- "$SAVE_PATH"
 exec "${CMD[@]}"
