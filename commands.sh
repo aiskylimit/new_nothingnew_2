@@ -1,4 +1,4 @@
-#i multi-mode-distill-eval.txt
+#i reasoning-velocity-distill.txt
 #t
 #v1
 
