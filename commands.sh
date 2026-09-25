@@ -1,5 +1,5 @@
 #i reasoning-velocity-distill.txt
-#t
+#i
 #v1
 
 
