@@ -1,13 +1,10 @@
 """TROPIC-G (TROPIC-P + Eq. 11's classifier-free-guidance debiasing, alpha>0),
 TOP-K=64 (sparsified) variant, on allenai/Olmo-3-7B-Think, as an
-offline-deployment baseline. SIBLING of run_tropic_g_experiment_olmo7b.py
-(the FULL-VOCABULARY variant already in this folder) - byte-identical in
-every setting EXCEPT `top_k` in CONFIG["tropic_g"] (64 here vs 200000 there)
-and the tag/output-dir (so the two never clobber each other's results:
-TAG="tropic_g_topk64_olmo", --output-dir default "results_tropic_g_topk64_olmo7b").
-Added per the same request that added run_tropic_g_topk64_4b.py to
-offline_tropic_g_b200/ - also cover the ONLINE cluster's own tropic_g
-default (sparsified top_k=64) on OLMo, alongside the full-vocab ablation.
+offline-deployment baseline (TAG="tropic_g_topk64_olmo", --output-dir default
+"results_tropic_g_topk64_olmo7b"). The full-vocabulary sibling that used to
+live in this folder (run_tropic_g_experiment_olmo7b.py) was dropped from this
+package - this top_k=64 setting is the ONLINE cluster's own tropic_g default,
+matching run_tropic_g_topk64_4b.py in offline_tropic_g_b200/.
 
 Same experimental setting as this package's Qwen3 tropic_g scripts
 (run_tropic_g_experiment_4b.py/_8b.py, and run_tropic_g_topk64_4b.py for the
@@ -22,9 +19,8 @@ max_grad_norm=0.1/gradient_checkpointing, checkpoint cadence
 --vllm-gpu-memory-utilization/--training-steps offline mechanisms,
 TROPIC_TRAIN_DATA_PATH/TROPIC_EVAL_DATA_DIR env-var overrides, alpha=0.25/
 beta=0.1/epsilon=0.1 (fixed, not adaptive), top_k=64 (the ONLINE cluster's
-own default sparsification width for tropic_g/tropic_k/tropic_adaptive - NOT
-full vocabulary, see run_tropic_g_experiment_olmo7b.py in this same folder
-for that ablation instead).
+own default sparsification width for tropic_g/tropic_k/tropic_adaptive, not
+full vocabulary).
 
 CRITICAL DIFFERENCE FROM QWEN3 - NO NATIVE THINKING TOGGLE, TRICK REQUIRED:
 verified live against the REAL allenai/Olmo-3-7B-Think tokenizer on
@@ -188,7 +184,7 @@ CONFIG = dict(
                gradient_checkpointing=True),
     # epsilon=0.1/beta=0.1/alpha=0.25/top_k=64: same fixed values as the
     # online cluster's own tropic_g default (sparsified top-K, NOT the
-    # full-vocab ablation in run_tropic_g_experiment_olmo7b.py).
+    # full vocabulary).
     tropic_g=dict(epsilon=0.1, beta=0.1, top_k=64, default_mass=1e-5, alpha=args.alpha),
     eval=dict(benchmarks=args.eval_benchmarks, num_problems=30, k=12,
               max_new_tokens=38912, temperature=1.0, top_p=1.0, top_k=-1,
@@ -529,7 +525,7 @@ def evaluate_model_vllm(checkpoint_dir, cfg, tag, vllm_gpu_ids, vllm_base_port=8
         tick(f"[{tag}] vLLM eval replicas shut down")
 
 
-TAG = "tropic_g_topk64_olmo"  # distinct from the full-vocab script's "tropic_g_olmo" tag, so results/checkpoints never mix
+TAG = "tropic_g_topk64_olmo"
 EVAL_TAG = TAG + infer_step_suffix(args.checkpoint_path if args.skip_train else None) + bench_suffix_for(args.eval_benchmarks)
 
 if args.skip_train:

@@ -149,16 +149,14 @@ aggregate_results baseline_results.json "results_rlsd_olmo7b_eval_step*.log" "re
 echo "RLSD+SDPO DONE - see baseline_results.json for the aggregated table (TROPIC-G still running below)."
 
 # ============================================================
-# 5. Train + eval TROPIC-G (fullvocab, then top-k64) - the proposal, runs only
-#    after RLSD+SDPO above are completely done. Already ran on Qwen3-4B/8B
-#    separately (offline_tropic_g_b200/) - this is only the OLMo addition.
-#    Check its own results later with a separate command (grep the
-#    results_tropic_g*_eval_step*.log files, or re-run aggregate_results
-#    against them) rather than waiting on this script to finish.
+# 5. Train + eval TROPIC-G (top-k64 only - the real baseline's sparsification
+#    setting; the full-vocab variant was dropped from this package) - the
+#    proposal, runs only after RLSD+SDPO above are completely done. Already
+#    ran on Qwen3-4B/8B separately (offline_tropic_g_b200/) - this is only
+#    the OLMo addition. Check its own results later with a separate command
+#    (grep the results_tropic_g*_eval_step*.log files, or re-run
+#    aggregate_results against them) rather than waiting on this script to finish.
 # ============================================================
-train run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b
-for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b tropic_g_olmo "$step"; done
-
 train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo "$step"; done
 
