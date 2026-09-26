@@ -87,11 +87,11 @@ fi
 # 1. Train synchronously using the existing processed data.
 printf '\n[full 1/2] Train Qwen: CE + KD + no geometry (mag=%s, gram=%s)\n' "$MAG_WEIGHT" "$GRAM_WEIGHT"
 : > "$CHECKPOINT_FILE"
-CUDA_DEVICES=4,5,6,7 DATA_DIR="$QWEN_DATA_DIR" \
+CUDA_DEVICES=0,1,2,3,4,5,6,7 DATA_DIR="$QWEN_DATA_DIR" \
     SAVE_PATH="$QWEN_RESULTS_ROOT/full_mag${MAG_WEIGHT}_gram${GRAM_WEIGHT}" \
     KD_RATIO="${CE_KD_RATIO:-0.5}" GEOMETRY=0 CKA=0 \
     MAG_WEIGHT="$MAG_WEIGHT" GRAM_WEIGHT="$GRAM_WEIGHT" \
-    FINAL_CHECKPOINT_FILE="$CHECKPOINT_FILE" \
+    FINAL_CHECKPOINT_FILE="$CHECKPOINT_FILE" GRAD_ACC=2 \
     bash scripts/qwen/train_v2_qwen2.5_14b_to_1.5b.sh "$@"
 
 # 2. Evaluate this run's final checkpoint only after training succeeds.
