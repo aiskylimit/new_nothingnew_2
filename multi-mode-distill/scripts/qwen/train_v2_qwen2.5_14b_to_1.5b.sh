@@ -28,8 +28,8 @@ TEACHER_CKPT="${TEACHER_CKPT:-$ASSET_ROOT/models/Qwen2.5_14B-Instruct}"
 DATA_DIR="${DATA_DIR:-$ASSET_ROOT/processed_data/ultraInteract/Qwen/Qwen2.5-14B-Instruct}"
 DS_CONFIG="${DS_CONFIG:-$BASE_PATH/configs/deepspeed/ds_config_bf16.json}"
 
-BATCH_SIZE="${BATCH_SIZE:-8}"
-GRAD_ACC="${GRAD_ACC:-4}"
+export BATCH_SIZE="${BATCH_SIZE:-8}"
+export GRAD_ACC="${GRAD_ACC:-4}"
 EVAL_BATCH_SIZE="${EVAL_BATCH_SIZE:-16}"
 LR="${LR:-1e-4}"
 EPOCHS="${EPOCHS:-2}"
@@ -46,6 +46,13 @@ DEV_NUM="${DEV_NUM:-512}"
 SEED="${SEED:-10}"
 
 # Adaptive routing defaults to OFF + SELF + ON; pairwise sets are ablations.
+export RHO_SELF_INIT="${RHO_SELF_INIT:-0.05}"
+export RHO_ON_INIT="${RHO_ON_INIT:-0.05}"
+export RHO_SELF_MAX="${RHO_SELF_MAX:-0.25}"
+export RHO_ON_MAX="${RHO_ON_MAX:-0.25}"
+export RHO_SELF_INCREMENT="${RHO_SELF_INCREMENT:-0.025}"
+export RHO_ON_INCREMENT="${RHO_ON_INCREMENT:-0.025}"
+
 FINETUNE_ENTRYPOINT="${FINETUNE_ENTRYPOINT:-finetune.py}"
 ADAPTIVE_MODE_SET="${ADAPTIVE_MODE_SET:-all}"
 case "$ADAPTIVE_MODE_SET" in
@@ -143,16 +150,16 @@ if [[ "$TOKEN_VELOCITY" == 1 ]]; then
 fi
 OPTS+=(--do-sample)
 if [[ "$FINETUNE_ENTRYPOINT" == "finetune_off_self.py" ]]; then
-    OPTS+=(--rho-self-init "${RHO_SELF_INIT:-0.1}")
-    OPTS+=(--rho-self-max "${RHO_SELF_MAX:-0.25}")
-    OPTS+=(--rho-self-increment "${RHO_SELF_INCREMENT:-0.025}")
+    OPTS+=(--rho-self-init "$RHO_SELF_INIT")
+    OPTS+=(--rho-self-max "$RHO_SELF_MAX")
+    OPTS+=(--rho-self-increment "$RHO_SELF_INCREMENT")
 else
     OPTS+=(--dual-adaptive-exposure)
     OPTS+=(--adaptive-mode-set "$ADAPTIVE_MODE_SET")
     OPTS+=(--self-distill "$SELF_DISTILL")
-    OPTS+=(--rho-self-init "${RHO_SELF_INIT:-0.1}" --rho-on-init "${RHO_ON_INIT:-0.05}")
-    OPTS+=(--rho-self-max "${RHO_SELF_MAX:-0.25}" --rho-on-max "${RHO_ON_MAX:-0.25}")
-    OPTS+=(--rho-self-increment "${RHO_SELF_INCREMENT:-0.025}" --rho-on-increment "${RHO_ON_INCREMENT:-0.025}")
+    OPTS+=(--rho-self-init "$RHO_SELF_INIT" --rho-on-init "$RHO_ON_INIT")
+    OPTS+=(--rho-self-max "$RHO_SELF_MAX" --rho-on-max "$RHO_ON_MAX")
+    OPTS+=(--rho-self-increment "$RHO_SELF_INCREMENT" --rho-on-increment "$RHO_ON_INCREMENT")
 fi
 OPTS+=(--adaptive-threshold "${ADAPTIVE_THRESHOLD:-${ADAPTIVE_DETERIORATION_THRESHOLD:-0.05}}")
 OPTS+=(--self-distill-eval-seed "${SELF_DISTILL_EVAL_SEED:-1234}")
