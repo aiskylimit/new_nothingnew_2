@@ -45,15 +45,15 @@ QWEN_RAW_DATA="${QWEN_RAW_DATA:-$ASSET_ROOT/data/raw/Qwen/Qwen2.5-14B-Instruct/g
 PROCESSED_DATA_ROOT="${PROCESSED_DATA_ROOT:-$ASSET_ROOT/processed_data/ultraInteract-v2}"
 QWEN_DATA_DIR="${QWEN_DATA_DIR:-${DATA_DIR:-$PROCESSED_DATA_ROOT/models/$(basename -- "$CKPT")}}"
 QWEN_RESULTS_ROOT="${QWEN_RESULTS_ROOT:-$BASE_PATH/results/qwen2.5-1.5B-Instruct-v2}"
-# Process Qwen data before training.
-printf '\n[process] Qwen data: %s\n' "$QWEN_RAW_DATA"
-python tools/process_data_ultraInteract.py \
-    --base-path "$BASE_PATH" --data-dir "$QWEN_RAW_DATA" \
-    --processed-data-dir "$PROCESSED_DATA_ROOT" \
-    --model-path "$CKPT" --model-type qwen \
-    --data-process-workers "${DATA_PROCESS_WORKERS:-8}" \
-    --max-length "$MAX_LENGTH" --max-prompt-length "$MAX_PROMPT_LENGTH" \
-    --dev-num "$DEV_NUM" --seed "$SEED"
+# # Process Qwen data before training.
+# printf '\n[process] Qwen data: %s\n' "$QWEN_RAW_DATA"
+# python tools/process_data_ultraInteract.py \
+#     --base-path "$BASE_PATH" --data-dir "$QWEN_RAW_DATA" \
+#     --processed-data-dir "$PROCESSED_DATA_ROOT" \
+#     --model-path "$CKPT" --model-type qwen \
+#     --data-process-workers "${DATA_PROCESS_WORKERS:-8}" \
+#     --max-length "$MAX_LENGTH" --max-prompt-length "$MAX_PROMPT_LENGTH" \
+#     --dev-num "$DEV_NUM" --seed "$SEED"
 
 if [[ ! -s "$DATA_DIR/train.jsonl" || ( ! -s "$DATA_DIR/valid.jsonl" && ! -s "$DATA_DIR/dev.jsonl" ) ]]; then
     printf 'Processed train and valid/dev JSONL files are required in: %s\n' "$DATA_DIR" >&2
@@ -61,38 +61,48 @@ if [[ ! -s "$DATA_DIR/train.jsonl" || ( ! -s "$DATA_DIR/valid.jsonl" && ! -s "$D
 fi
 
 
-MODE_CHECKPOINT_FILE="$(mktemp)"
-trap 'rm -f -- "$MODE_CHECKPOINT_FILE"' EXIT
-RESULTS_ROOT="${RESULTS_ROOT:-$BASE_PATH/results/qwen2.5-1.5B-Instruct-v2/adaptive_mode_ablation}"
-read -r -a ADAPTIVE_ABLATIONS <<< "${ADAPTIVE_ABLATIONS:-on_self off_self}"
+# MODE_CHECKPOINT_FILE="$(mktemp)"
+# trap 'rm -f -- "$MODE_CHECKPOINT_FILE"' EXIT
+# RESULTS_ROOT="${RESULTS_ROOT:-$BASE_PATH/results/qwen2.5-1.5B-Instruct-v2/adaptive_mode_ablation}"
+# read -r -a ADAPTIVE_ABLATIONS <<< "${ADAPTIVE_ABLATIONS:-on_self off_self}"
 
-for ADAPTIVE_MODE_SET in "${ADAPTIVE_ABLATIONS[@]}"; do
-    case "$ADAPTIVE_MODE_SET" in
-        on_self|off_self) ;;
-        *) printf 'Unsupported adaptive ablation: %s\n' "$ADAPTIVE_MODE_SET" >&2; exit 2 ;;
-    esac
+# for ADAPTIVE_MODE_SET in "${ADAPTIVE_ABLATIONS[@]}"; do
+#     case "$ADAPTIVE_MODE_SET" in
+#         on_self|off_self) ;;
+#         *) printf 'Unsupported adaptive ablation: %s\n' "$ADAPTIVE_MODE_SET" >&2; exit 2 ;;
+#     esac
 
-    printf '\n[%s 1/2] Train adaptive Qwen with modes: %s\n' \
-        "$ADAPTIVE_MODE_SET" "$ADAPTIVE_MODE_SET"
-    : > "$MODE_CHECKPOINT_FILE"
-    CUDA_DEVICES="${CUDA_DEVICES:-0,1,2,3,4,5,6,7}" \
-        DATA_DIR="$DATA_DIR" ADAPTIVE_MODE_SET="$ADAPTIVE_MODE_SET" \
-        FINETUNE_ENTRYPOINT=finetune.py SELF_DISTILL=True \
-        GEOMETRY=0 CKA=0 TOKEN_VELOCITY=0 \
-        SAVE_PATH="$RESULTS_ROOT/$ADAPTIVE_MODE_SET" \
-        FINAL_CHECKPOINT_FILE="$MODE_CHECKPOINT_FILE" \
-        bash scripts/qwen/train_v2_qwen2.5_14b_to_1.5b.sh "$@"
+#     printf '\n[%s 1/2] Train adaptive Qwen with modes: %s\n' \
+#         "$ADAPTIVE_MODE_SET" "$ADAPTIVE_MODE_SET"
+#     : > "$MODE_CHECKPOINT_FILE"
+#     CUDA_DEVICES="${CUDA_DEVICES:-0,1,2,3,4,5,6,7}" \
+#         DATA_DIR="$DATA_DIR" ADAPTIVE_MODE_SET="$ADAPTIVE_MODE_SET" \
+#         FINETUNE_ENTRYPOINT=finetune.py SELF_DISTILL=True \
+#         GEOMETRY=0 CKA=0 TOKEN_VELOCITY=0 \
+#         SAVE_PATH="$RESULTS_ROOT/$ADAPTIVE_MODE_SET" \
+#         FINAL_CHECKPOINT_FILE="$MODE_CHECKPOINT_FILE" \
+#         bash scripts/qwen/train_v2_qwen2.5_14b_to_1.5b.sh "$@"
 
-    MODE_LORA_PATH="$(cat "$MODE_CHECKPOINT_FILE")"
-    [[ -f "$MODE_LORA_PATH/adapter_config.json" ]] || {
-        printf 'Final LoRA checkpoint missing: %s\n' "$MODE_LORA_PATH" >&2
-        exit 1
-    }
-    printf '\n[%s 2/2] Evaluate checkpoint: %s\n' \
+#     MODE_LORA_PATH="$(cat "$MODE_CHECKPOINT_FILE")"
+#     [[ -f "$MODE_LORA_PATH/adapter_config.json" ]] || {
+#         printf 'Final LoRA checkpoint missing: %s\n' "$MODE_LORA_PATH" >&2
+#         exit 1
+#     }
+#     printf '\n[%s 2/2] Evaluate checkpoint: %s\n' \
+#         "$ADAPTIVE_MODE_SET" "$MODE_LORA_PATH"
+#     CUDA_DEVICES="${CUDA_DEVICES:-0,1,2,3,4,5,6,7}" \
+#         LORA_PATH="$MODE_LORA_PATH" MODEL_PATH="$CKPT" \
+#         SAVE_PATH="$(dirname -- "$MODE_LORA_PATH")" \
+#         EVAL_MAX_LORA_RANK="${EVAL_MAX_LORA_RANK:-${LORA_R:-16}}" \
+#         bash scripts/eval/eval.sh run
+# done
+
+
+MODE_LORA_PATH="/mnt/local/aiskylimit_new_nothingnew_2/multi-mode-distill/results/qwen2.5-1.5B-Instruct-v2/adaptive_mode_ablation/off_self/e2-bs8-lr0.0001-G2-N8-NN1-kd0.5-lora-16-128-0.05/1238"
+printf '\n[%s 2/2] Evaluate checkpoint: %s\n' \
         "$ADAPTIVE_MODE_SET" "$MODE_LORA_PATH"
-    CUDA_DEVICES="${CUDA_DEVICES:-0,1,2,3,4,5,6,7}" \
-        LORA_PATH="$MODE_LORA_PATH" MODEL_PATH="$CKPT" \
-        SAVE_PATH="$(dirname -- "$MODE_LORA_PATH")" \
-        EVAL_MAX_LORA_RANK="${EVAL_MAX_LORA_RANK:-${LORA_R:-16}}" \
-        bash scripts/eval/eval.sh run
-done
+CUDA_DEVICES="${CUDA_DEVICES:-0,1,2,3,4,5,6,7}" \
+    LORA_PATH="$MODE_LORA_PATH" MODEL_PATH="$CKPT" \
+    SAVE_PATH="$(dirname -- "$MODE_LORA_PATH")" \
+    EVAL_MAX_LORA_RANK="${EVAL_MAX_LORA_RANK:-${LORA_R:-16}}" \
+    bash scripts/eval/eval.sh run
