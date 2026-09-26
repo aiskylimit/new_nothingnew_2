@@ -5,7 +5,7 @@
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-# nvidia-smi
+nvidia-smi
 
 # cd SegmentSelectiveSFT && bash commands.sh
 # cd P-ALIGN && CUDA_VISIBLE_DEVICES=1 bash project_commands_r1_1.5b.sh
