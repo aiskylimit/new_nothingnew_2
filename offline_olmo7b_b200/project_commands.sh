@@ -162,7 +162,18 @@ train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo "$step"; done
 
 # ============================================================
-# 6. Aggregate every avg@12/pass@12 line (all 4 methods) into one final
+# 6. Train + eval TROPIC-L (leverage-allocated trust regions, TROPIC_Proposal_v8)
+#    - runs only after TROPIC-G above is completely done. Self-value (SV)
+#    process credit only (the only credit source built anywhere in this
+#    codebase) - checkpoints saved at 5/10/15/20/25/40/50/60/75/80/100
+#    (TROPIC-L's own cadence, includes the early 5/10/15 regardless of
+#    CHECKPOINTS_TROPIC below which only controls which get EVALUATED here).
+# ============================================================
+train run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b tropic_l_olmo "$step"; done
+
+# ============================================================
+# 7. Aggregate every avg@12/pass@12 line (all 5 methods) into one final
 #    table + JSON.
 # ============================================================
 aggregate_results final_results.json "results_*_eval_step*.log"

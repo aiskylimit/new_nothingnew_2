@@ -237,3 +237,62 @@ def apply_sparse_mask(log_p: Tensor, mask_indices: Tensor, default_mass: float) 
 def total_variation(log_p: Tensor, log_q: Tensor, dim: int = -1) -> Tensor:
     """TV(p, q) = 0.5 * sum_v |p(v) - q(v)|."""
     return 0.5 * (log_p.exp() - log_q.exp()).abs().sum(dim=dim)
+
+
+# ---------------------------------------------------------------------------
+# TROPIC_Proposal_v8, Eq. 13/14 - leverage-allocated trust region: same
+# projection as bisect_step_size/project_to_kl_ball above, except epsilon is
+# now a PER-POSITION Tensor[T] (tropic.leverage.allocate_epsilon's output)
+# instead of one scalar shared by the whole roll-out. Added here rather than
+# generalizing the scalar functions in place so every existing caller
+# (tropic.loss.tropic_p_loss, tropic.loss_pc.tropic_pc_loss) keeps calling
+# the untouched scalar path byte-for-byte.
+# ---------------------------------------------------------------------------
+
+
+def bisect_step_size_vec(
+    log_teacher: Tensor,
+    log_old: Tensor,
+    epsilon: Tensor,
+    tol: float = 1e-6,
+    max_iter: int = 60,
+) -> Tensor:
+    """Like `bisect_step_size`, but `epsilon` is a Tensor[T] (one radius per
+    leading-dim position) instead of a python float. log_teacher, log_old:
+    [T, V]. Returns s: [T]. Idle (s=1) is decided PER POSITION: position t is
+    idle iff KL(teacher_t || old_t) <= epsilon[t]."""
+    del tol  # fixed-iteration bisection, same convention as bisect_step_size
+    kl_at_1 = kl_categorical(log_teacher, log_old)
+    idle = kl_at_1 <= epsilon
+
+    s = torch.ones_like(kl_at_1)
+    active = ~idle
+    if active.any():
+        log_teacher_a = log_teacher[active]
+        log_old_a = log_old[active]
+        epsilon_a = epsilon[active]
+        lo = torch.zeros_like(kl_at_1[active])
+        hi = torch.ones_like(kl_at_1[active])
+        for _ in range(max_iter):
+            mid = 0.5 * (lo + hi)
+            val = phi(mid, log_teacher_a, log_old_a)
+            too_high = val > epsilon_a
+            hi = torch.where(too_high, mid, hi)
+            lo = torch.where(too_high, lo, mid)
+        s_active = 0.5 * (lo + hi)
+        s[active] = s_active
+    return s
+
+
+def project_to_kl_ball_vec(
+    log_teacher: Tensor,
+    log_old: Tensor,
+    epsilon: Tensor,
+    tol: float = 1e-6,
+    max_iter: int = 60,
+) -> tuple[Tensor, Tensor]:
+    """Vector-epsilon counterpart of `project_to_kl_ball` (Proposition 1 of
+    v8: same closed form, per-position radius epsilon_t from Eq. 13)."""
+    s = bisect_step_size_vec(log_teacher, log_old, epsilon, tol, max_iter)
+    log_pi_eps = build_log_pi_eps(s, log_teacher, log_old)
+    return log_pi_eps, s
