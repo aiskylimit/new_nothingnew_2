@@ -99,8 +99,7 @@ fi
 
 
 MODE_LORA_PATH="/mnt/local/aiskylimit_new_nothingnew_2/multi-mode-distill/results/qwen2.5-1.5B-Instruct-v2/adaptive_mode_ablation/off_self/e2-bs8-lr0.0001-G2-N8-NN1-kd0.5-lora-16-128-0.05/1238"
-printf '\n[%s 2/2] Evaluate checkpoint: %s\n' \
-        "$ADAPTIVE_MODE_SET" "$MODE_LORA_PATH"
+printf '\n[2/2] Evaluate checkpoint: %s\n' "$MODE_LORA_PATH"
 CUDA_DEVICES="${CUDA_DEVICES:-0,1,2,3,4,5,6,7}" \
     LORA_PATH="$MODE_LORA_PATH" MODEL_PATH="$CKPT" \
     SAVE_PATH="$(dirname -- "$MODE_LORA_PATH")" \
