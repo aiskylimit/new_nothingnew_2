@@ -1,11 +1,9 @@
 #d
 #datasets
---hf siyanzhao/Openthoughts_math_30k_opsd /mnt/local/@PROJECT@/tropic_baselines/data/train
---hf yentinglin/aime_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime25
---hf MathArena/aime_2026 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime26
---hf MathArena/hmmt_feb_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/hmmt25
-#models
---hf allenai/Olmo-3-7B-Think /mnt/local/@PROJECT@/tropic_baselines/models/Olmo-3-7B-Think
+--hf-dataset siyanzhao/Openthoughts_math_30k_opsd /mnt/local/@PROJECT@/tropic_baselines/data/train
+--hf-dataset yentinglin/aime_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime25
+--hf-dataset MathArena/aime_2026 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime26
+--hf-dataset MathArena/hmmt_feb_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/hmmt25
 
 #rivad-gpu
 #v2
@@ -37,25 +35,6 @@ export HF_DATASETS_OFFLINE=1
 export NCCL_DEBUG=WARN
 
 
-# cd ./sdxl_q3_offline_b200_2gpu
-# export GPU_IDS=1,2,6,7
-# export NUM_GPUS=4
-# export TARGET_GPU_FAMILY=B200
-# export TARGET_VRAM_PERCENT=94
-# export AUTOTUNE_STEPS=10
-# export B200_MAX_PREEXISTING_MEMORY_MIB=8192
-# export B200_BATCH_CANDIDATES="24 32 40 48 56 64"
-
-# bash hessian/tune_b200_batch.sh
-# source runtime/b200-autotune.env
-
-# export PIPELINE_MODE=pilot
-# export PILOT_TRAIN_STEPS=10
-# export DATASET_PAIRS=4096
-# export OFFLINE_EVAL_LIMIT=2
-# export RUN_NAME="q3_dspo_sdxl_b200x4_tuned_mb${TRAIN_BATCH_SIZE}_pilot"
-# bash project_command.sh
-
 # cd ./offline_rlsd_sdpo_b200
 # bash project_commands.sh
 
@@ -67,10 +46,8 @@ export NCCL_DEBUG=WARN
 
 
 # cd ./multi-mode-distill
-# bash ./run_gemma.sh
-# bash ./run_gemma_ablations.sh
 # bash ./project_commands.sh
-# # # bash ./project_commands_opsd_ablation.sh
-# bash ./project_commands_ablation.sh
-# cat /mnt/local/aiskylimit_new_nothingnew_2/multi-mode-distill/results/gemma-2-2b-it-distill/geo1_cka0_menger0.0/e2-bs8-lr0.0001-G4-N4-NN1-kd0.5-lora-16-128-0.05/evaluation_gemma/code/__mnt__local__aiskylimit_new_nothing__reasoning_velocity_distill__models__google_gemma-2-2b-it/samples_mbpp_2026-09-24T07-21-52.951985.jsonl
-# cat /mnt/local/aiskylimit_new_nothingnew_2/multi-mode-distill/results/gemma-2-2b-it-distill/geo1_cka0_menger0.0/e2-bs8-lr0.0001-G4-N4-NN1-kd0.5-lora-16-128-0.05/evaluation_gemma/code/__mnt__local__aiskylimit_new_nothing__reasoning_velocity_distill__models__google_gemma-2-2b-it/samples_mbpp_2026-09-24T14-54-48.288245.jsonl
+
+
+# cd ./offline_olmo7b_b200
+# bash ./project_commands.sh

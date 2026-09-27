@@ -24,7 +24,7 @@ export TROPIC_EVAL_DATA_DIR="${BASE_DIR}/data/eval"
 #    MAIN_GPU/VLLM_GPU_IDS below if that ever changes.
 # ============================================================
 MAIN_GPU=0
-VLLM_GPU_IDS="1,2,3"
+VLLM_GPU_IDS="1"
 VLLM_BASE_PORT=8100
 VLLM_EXECUTABLE="vllm"
 GPU_MEM_UTIL=0.9
