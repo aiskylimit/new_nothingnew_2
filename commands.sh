@@ -1,11 +1,11 @@
 #1 +10
-#olmo
+#kill
 #v2
 
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-
+kill -9 497 498 499 500 501 502 503
 nvidia-smi
 
 # cd SegmentSelectiveSFT && bash commands.sh
@@ -43,5 +43,5 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 
-cd ./offline_olmo7b_b200
-bash ./project_commands.sh
+# cd ./offline_olmo7b_b200
+# bash ./project_commands.sh
