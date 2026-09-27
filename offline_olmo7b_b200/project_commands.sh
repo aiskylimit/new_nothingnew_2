@@ -18,24 +18,26 @@ export TROPIC_TRAIN_DATA_PATH="${BASE_DIR}/data/train"
 export TROPIC_EVAL_DATA_DIR="${BASE_DIR}/data/eval"
 
 # ============================================================
-# 2. GPU topology - same as offline_rlsd_sdpo_b200/offline_tropic_g_b200,
-#    confirmed with the server owner: GPU 2 (main/training) + GPU 3 (vLLM
-#    replica). Change MAIN_GPU/VLLM_GPU_IDS below if that ever changes.
+# 2. GPU topology - THIS PACKAGE uses 4 GPUs (0-3): GPU 0 (main/training) +
+#    GPU 1,2,3 (3 vLLM replicas) - different from offline_rlsd_sdpo_b200/
+#    offline_tropic_g_b200's 2-GPU (main+1 replica) topology. Change
+#    MAIN_GPU/VLLM_GPU_IDS below if that ever changes.
 # ============================================================
-MAIN_GPU=2
-VLLM_GPU_IDS="3"
+MAIN_GPU=0
+VLLM_GPU_IDS="1,2,3"
 VLLM_BASE_PORT=8100
 VLLM_EXECUTABLE="vllm"
 GPU_MEM_UTIL=0.9
 
-# Per-method eval cadence (checkpoints are still SAVED at all 8 steps below
-# by each script's own CHECKPOINT_STEPS - this only controls which of those
-# get EVALUATED, per the user's explicit choice: RLSD/SDPO (baselines) eval
-# less densely than TROPIC-G (the proposal). SDPO's cadence is ASSUMED same
-# as RLSD (not separately specified) - flag if that's wrong.
+# Per-method eval cadence (checkpoints are still SAVED at all steps below by
+# each script's own CHECKPOINT_STEPS - 8 steps for RLSD/SDPO, 10 for
+# TROPIC-G (adds 10/15) - this only controls which of those get EVALUATED,
+# per the user's explicit choice: RLSD/SDPO (baselines) eval less densely
+# than TROPIC-G (the proposal). SDPO's cadence is ASSUMED same as RLSD (not
+# separately specified) - flag if that's wrong.
 CHECKPOINTS_RLSD="25 50 75 100"
 CHECKPOINTS_SDPO="25 50 75 100"
-CHECKPOINTS_TROPIC="20 25 40 50 75 100"
+CHECKPOINTS_TROPIC="10 15 20 25 40 50 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {
@@ -147,21 +149,30 @@ aggregate_results baseline_results.json "results_rlsd_olmo7b_eval_step*.log" "re
 echo "RLSD+SDPO DONE - see baseline_results.json for the aggregated table (TROPIC-G still running below)."
 
 # ============================================================
-# 5. Train + eval TROPIC-G (fullvocab, then top-k64) - the proposal, runs only
-#    after RLSD+SDPO above are completely done. Already ran on Qwen3-4B/8B
-#    separately (offline_tropic_g_b200/) - this is only the OLMo addition.
-#    Check its own results later with a separate command (grep the
-#    results_tropic_g*_eval_step*.log files, or re-run aggregate_results
-#    against them) rather than waiting on this script to finish.
+# 5. Train + eval TROPIC-G (top-k64 only - the real baseline's sparsification
+#    setting; the full-vocab variant was dropped from this package) - the
+#    proposal, runs only after RLSD+SDPO above are completely done. Already
+#    ran on Qwen3-4B/8B separately (offline_tropic_g_b200/) - this is only
+#    the OLMo addition. Check its own results later with a separate command
+#    (grep the results_tropic_g*_eval_step*.log files, or re-run
+#    aggregate_results against them) rather than waiting on this script to finish.
 # ============================================================
-train run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b
-for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_experiment_olmo7b.py "${MODEL_OLMO}" results_tropic_g_olmo7b tropic_g_olmo "$step"; done
-
 train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo "$step"; done
 
 # ============================================================
-# 6. Aggregate every avg@12/pass@12 line (all 4 methods) into one final
+# 6. Train + eval TROPIC-L (leverage-allocated trust regions, TROPIC_Proposal_v8)
+#    - runs only after TROPIC-G above is completely done. Self-value (SV)
+#    process credit only (the only credit source built anywhere in this
+#    codebase) - checkpoints saved at 5/10/15/20/25/40/50/60/75/80/100
+#    (TROPIC-L's own cadence, includes the early 5/10/15 regardless of
+#    CHECKPOINTS_TROPIC below which only controls which get EVALUATED here).
+# ============================================================
+train run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b
+for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b tropic_l_olmo "$step"; done
+
+# ============================================================
+# 7. Aggregate every avg@12/pass@12 line (all 5 methods) into one final
 #    table + JSON.
 # ============================================================
 aggregate_results final_results.json "results_*_eval_step*.log"
