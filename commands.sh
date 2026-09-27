@@ -1,4 +1,4 @@
-#2 -0-3 +a
+#i opened.txt
 #rivad-gpu
 #v2
 
