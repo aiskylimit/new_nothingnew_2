@@ -1,4 +1,4 @@
-#1 +10
+#i tropic.txt
 #rivad-gpu
 #v2
 
