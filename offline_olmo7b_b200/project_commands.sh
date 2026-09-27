@@ -18,10 +18,9 @@ export TROPIC_TRAIN_DATA_PATH="${BASE_DIR}/data/train"
 export TROPIC_EVAL_DATA_DIR="${BASE_DIR}/data/eval"
 
 # ============================================================
-# 2. GPU topology - THIS PACKAGE uses 4 GPUs (0-3): GPU 0 (main/training) +
-#    GPU 1,2,3 (3 vLLM replicas) - different from offline_rlsd_sdpo_b200/
-#    offline_tropic_g_b200's 2-GPU (main+1 replica) topology. Change
-#    MAIN_GPU/VLLM_GPU_IDS below if that ever changes.
+# 2. GPU topology - 2 GPUs (0,1): GPU 0 (main/training) + GPU 1 (1 vLLM
+#    replica) - same 2-GPU shape as offline_rlsd_sdpo_b200/offline_tropic_g_b200.
+#    Change MAIN_GPU/VLLM_GPU_IDS below if that ever changes.
 # ============================================================
 MAIN_GPU=0
 VLLM_GPU_IDS="1"
