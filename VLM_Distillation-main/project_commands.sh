@@ -26,19 +26,28 @@ fi
 
 # Training uses IMAGE_DIR=train_data. The archives are expected to have
 # already been extracted under this directory.
-unzip -q -o "${DOWNLOAD_DATA_DIR}/coco/train2017.zip" -d "${DATA_DIR}/coco"
-unzip -q -o "${DOWNLOAD_DATA_DIR}/gqa/images.zip" -d "${DATA_DIR}/gqa"
-unzip -q -o "${DOWNLOAD_DATA_DIR}/textvqa/train_val_images.zip" -d "${DATA_DIR}/textvqa"
-unzip -q -o "${DOWNLOAD_DATA_DIR}/ocr_vqa/ocr_vqa_images.zip" -d "${DATA_DIR}/ocr_vqa"
-unzip -q -o "${DOWNLOAD_DATA_DIR}/vg/images.zip" -d "${DATA_DIR}/vg"
-unzip -q -o "${DOWNLOAD_DATA_DIR}/vg/images2.zip" -d "${DATA_DIR}/vg"
+# unzip -q -o "${DOWNLOAD_DATA_DIR}/coco/train2017.zip" -d "${DATA_DIR}/coco"
+# unzip -q -o "${DOWNLOAD_DATA_DIR}/gqa/images.zip" -d "${DATA_DIR}/gqa"
+# unzip -q -o "${DOWNLOAD_DATA_DIR}/textvqa/train_val_images.zip" -d "${DATA_DIR}/textvqa"
+# unzip -q -o "${DOWNLOAD_DATA_DIR}/ocr_vqa/ocr_vqa_images.zip" -d "${DATA_DIR}/ocr_vqa"
+# unzip -q -o "${DOWNLOAD_DATA_DIR}/vg/images.zip" -d "${DATA_DIR}/vg"
+# unzip -q -o "${DOWNLOAD_DATA_DIR}/vg/images2.zip" -d "${DATA_DIR}/vg"
 
 # bash download_datatrain.sh
 
-# Each entry is "training script|output directory name". Run one training job
-# on GPUs 4,5,6,7, then immediately evaluate its newest checkpoint on GPU 4.
+# CE-only training has already completed. Resume from its evaluation, then run
+# every remaining training job on GPUs 4,5,6,7 and immediately evaluate its
+# newest checkpoint on GPU 4.
+CE_RUN_NAME="qwen2_teacher_7b_fastvlm_student_05b_ce_only"
+CE_OUTPUT_DIR="${PROJECT_DIR}/outputs/${CE_RUN_NAME}"
+
+printf '\n=== [%s] RESUME WITH EVAL %s on GPU 4 ===\n' \
+  "$(date '+%Y-%m-%d %H:%M:%S')" "${CE_RUN_NAME}"
+CUDA_VISIBLE_DEVICES=4 bash "${EVAL_SCRIPT}" "${CE_OUTPUT_DIR}" "${BASE_MODEL}"
+printf '=== [%s] COMPLETED eval: %s ===\n' \
+  "$(date '+%Y-%m-%d %H:%M:%S')" "${CE_RUN_NAME}"
+
 JOBS=(
-  "train_qwen2_teacher_7b_fastvlm_student_05b_ce_only.sh|qwen2_teacher_7b_fastvlm_student_05b_ce_only"
   "train_qwen2_teacher_7b_fastvlm_student_05b_dskd_v2_with_eta.sh|qwen2_teacher_7b_fastvlm_student_05b_dskd_v2_with_eta"
   "train_qwen2_teacher_7b_fastvlm_student_05b_dwa_kd.sh|qwen2_teacher_7b_fastvlm_student_05b_dwa_kd"
   "train_qwen2_teacher_7b_fastvlm_student_05b_emkd.sh|qwen2_teacher_7b_fastvlm_student_05b_emkd"
