@@ -1,5 +1,5 @@
-#2 -0-3
-#log
+#1 +60
+#olmo
 #v1
 
 
@@ -42,5 +42,5 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 
-# cd ./offline_olmo7b_b200
-# bash ./project_commands.sh
+cd ./offline_olmo7b_b200
+bash ./project_commands.sh
