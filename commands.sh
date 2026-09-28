@@ -1,5 +1,5 @@
-#i vlm-distill-eval.txt
-#vlm
+#1 +10
+#vlm_distill_baseline
 #v1
 
 
@@ -34,13 +34,5 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash project_commands.sh
 
-# cd ./VLM_Distillation-main
-# bash project_commands.sh
-
-
-# cd ./multi-mode-distill
-# bash ./project_commands.sh
-
-
-# cd ./offline_olmo7b_b200
-# bash ./project_commands.sh
+cd ./VLM_Distillation-main
+bash project_commands.sh
