@@ -1,6 +1,6 @@
 #2 -0-3
-#kill
-#v2
+#log
+#v1
 
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
