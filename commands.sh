@@ -1,4 +1,4 @@
-#2 -0-10
+#i tropic.txt
 #vlm_distill_baseline
 #v1
 
