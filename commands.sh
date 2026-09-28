@@ -1,4 +1,4 @@
-#i vlm-distill.txt
+#i vlm-distill-train.txt
 #vlm_distill_baseline
 #v1
 
