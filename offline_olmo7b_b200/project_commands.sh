@@ -20,13 +20,26 @@ export TROPIC_EVAL_DATA_DIR="${BASE_DIR}/data/eval"
 # ============================================================
 # 2. GPU topology - 2 GPUs (0,1): GPU 0 (main/training) + GPU 1 (1 vLLM
 #    replica) - same 2-GPU shape as offline_rlsd_sdpo_b200/offline_tropic_g_b200.
-#    Change MAIN_GPU/VLLM_GPU_IDS below if that ever changes.
+#    Kept at 2 GPUs per explicit request - throughput is instead improved by
+#    using GPU 1's VRAM more efficiently (VLLM_MAX_MODEL_LEN below), not by
+#    adding more replica GPUs. Change MAIN_GPU/VLLM_GPU_IDS below if that
+#    ever changes.
 # ============================================================
 MAIN_GPU=0
 VLLM_GPU_IDS="1"
 VLLM_BASE_PORT=8100
 VLLM_EXECUTABLE="vllm"
 GPU_MEM_UTIL=0.9
+# Without this, vLLM auto-detects Olmo-3-7B-Think's own max_position_embeddings
+# (can be far larger than anything this project ever sends it) and sizes its
+# KV-cache pool/max concurrent sequence count against THAT - reserving
+# per-sequence memory for a context length nothing reaches, so only a small
+# number of sequences can run concurrently even on a B200's 183GB (observed
+# live: ~17GB used out of 183GB on the single vLLM replica). Capping this to
+# what's actually needed (eval's max_new_tokens=38912 plus a short prompt)
+# lets the SAME gpu_memory_utilization budget fit many more concurrent
+# sequences, directly increasing throughput without adding replica GPUs.
+VLLM_MAX_MODEL_LEN=41000
 
 # Per-method eval cadence (checkpoints are still SAVED at all steps below by
 # each script's own CHECKPOINT_STEPS - 8 steps for RLSD/SDPO, 10 for
@@ -46,6 +59,7 @@ train() {
       --model-path "${model_path}" --seed 0 --output-dir "${output_dir}" --skip-eval \
       --use-vllm-rollout --vllm-gpu-ids "${VLLM_GPU_IDS}" --vllm-base-port ${VLLM_BASE_PORT} \
       --vllm-executable "${VLLM_EXECUTABLE}" --vllm-gpu-memory-utilization ${GPU_MEM_UTIL} \
+      --vllm-max-model-len ${VLLM_MAX_MODEL_LEN} \
       2>&1 | tee "${output_dir}_train.log"
 }
 
@@ -57,6 +71,7 @@ train_dry_run() {
       --training-steps 3 \
       --use-vllm-rollout --vllm-gpu-ids "${VLLM_GPU_IDS}" --vllm-base-port ${VLLM_BASE_PORT} \
       --vllm-executable "${VLLM_EXECUTABLE}" --vllm-gpu-memory-utilization ${GPU_MEM_UTIL} \
+      --vllm-max-model-len ${VLLM_MAX_MODEL_LEN} \
       2>&1 | tee "${output_dir}_dryrun_train.log"
   echo "Dry run finished - check ${output_dir}_dryrun_train.log for errors before continuing."
   echo "IMPORTANT (OLMo-specific): also inspect a few RAW student rollouts in"
@@ -80,6 +95,7 @@ eval_checkpoint() {
       --output-dir "${output_dir}" \
       --eval-engine vllm --vllm-gpu-ids "${VLLM_GPU_IDS}" --vllm-base-port ${VLLM_BASE_PORT} \
       --vllm-executable "${VLLM_EXECUTABLE}" --vllm-gpu-memory-utilization ${GPU_MEM_UTIL} \
+      --vllm-max-model-len ${VLLM_MAX_MODEL_LEN} \
       --eval-benchmarks ${BENCHMARKS} \
       2>&1 | tee "${output_dir}_eval_step${step}.log"
 }
