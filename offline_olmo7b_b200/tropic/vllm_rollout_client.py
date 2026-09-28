@@ -76,6 +76,7 @@ def launch_vllm_replicas(
     log_dir: str | None = None,
     vllm_executable: str = "vllm",
     gpu_memory_utilization: float | None = None,
+    max_model_len: int | None = None,
 ) -> tuple[list[subprocess.Popen], list[int]]:
     """Launches len(gpu_ids) independent `vllm serve` processes, one per GPU
     (data-parallel replicas, NOT tensor-parallel - the model is 1.7B/4B,
@@ -110,7 +111,23 @@ def launch_vllm_replicas(
     headroom than this project's original 40GB A100s (e.g. a B200) to widen
     the KV-cache pool and admit more concurrent requests, which matters more
     under an unrestricted (top_k=-1) sampling recipe where a handful of
-    generations can run to the full max_new_tokens."""
+    generations can run to the full max_new_tokens.
+
+    `max_model_len` (default None): when given, passed through as
+    `--max-model-len <value>` - otherwise vLLM auto-detects the model's own
+    max_position_embeddings, which for a reasoning ("Think") model can be far
+    larger than anything this project ever actually sends it (prompt +
+    max_new_tokens is at most ~41000 here, for eval's max_new_tokens=38912).
+    vLLM sizes its KV-cache block pool and max concurrent sequence count
+    against WHATEVER max_model_len it is using - a needlessly large
+    auto-detected value makes it reserve per-sequence KV cache for a context
+    length nothing ever reaches, so it can support only a SMALL number of
+    concurrent sequences even on a GPU with plenty of free VRAM (observed
+    live: ~17GB used out of a B200's 183GB with gpu_memory_utilization=0.9,
+    on a single replica running one large eval batch). Capping this to the
+    actual maximum needed lets the same memory budget fit many more
+    concurrent sequences, directly increasing throughput without adding
+    replica GPUs."""
     log_dir_path = log_dir or "."
     procs = []
     ports = [base_port + i for i in range(len(gpu_ids))]
@@ -141,6 +158,8 @@ def launch_vllm_replicas(
         ]
         if gpu_memory_utilization is not None:
             cmd += ["--gpu-memory-utilization", str(gpu_memory_utilization)]
+        if max_model_len is not None:
+            cmd += ["--max-model-len", str(max_model_len)]
         log_path = f"{log_dir_path}/vllm_replica_gpu{gpu_id}.log"
         log_file = open(log_path, "w")  # noqa: SIM115 - lifetime matches the subprocess, not closed here
         procs.append(subprocess.Popen(cmd, env=env, stdout=log_file, stderr=subprocess.STDOUT))

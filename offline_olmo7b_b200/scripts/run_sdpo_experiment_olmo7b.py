@@ -102,6 +102,15 @@ parser.add_argument("--model-path", default=None,
 parser.add_argument("--vllm-gpu-memory-utilization", type=float, default=None,
                      help="Passed through to `vllm serve --gpu-memory-utilization` for every "
                           "replica (train and eval). Omit to use vLLM's own default (0.9).")
+parser.add_argument("--vllm-max-model-len", type=int, default=41000,
+                     help="Passed through to `vllm serve --max-model-len` for every replica "
+                          "(train and eval). Without this, vLLM auto-detects the model's own "
+                          "max_position_embeddings (can be far larger than anything this project "
+                          "ever sends it), which makes it reserve per-sequence KV cache for a "
+                          "context length nothing reaches - artificially capping how many "
+                          "sequences can run concurrently even with plenty of free VRAM. Default "
+                          "41000 covers eval's max_new_tokens=38912 plus a short prompt; pass 0 "
+                          "to fall back to vLLM's own auto-detection.")
 parser.add_argument("--training-steps", type=int, default=100,
                      help="Overrides CONFIG['train']['training_steps'] (default 100) - lower this "
                           "for a quick dry run (e.g. 3) before committing to a full run.")
@@ -321,6 +330,8 @@ def train_run_sdpo(model, examples, cfg, tag, use_vllm_rollout=False, vllm_gpu_i
         vllm_procs, vllm_ports = launch_vllm_replicas(
             cfg["model_name"], vllm_gpu_ids, vllm_base_port, cfg["lora"]["r"],
             log_dir=str(RESULTS_DIR), vllm_executable=vllm_executable,
+            gpu_memory_utilization=args.vllm_gpu_memory_utilization,
+            max_model_len=(args.vllm_max_model_len or None),
         )
         model.save_pretrained(str(vllm_scratch_dir))
         refresh_lora_adapter(vllm_ports, str(vllm_scratch_dir))
@@ -512,6 +523,7 @@ def evaluate_model_vllm(checkpoint_dir, cfg, tag, vllm_gpu_ids, vllm_base_port=8
         cfg["model_name"], vllm_gpu_ids, vllm_base_port, cfg["lora"]["r"],
         log_dir=str(RESULTS_DIR), vllm_executable=vllm_executable,
         gpu_memory_utilization=args.vllm_gpu_memory_utilization,
+        max_model_len=(args.vllm_max_model_len or None),
     )
     try:
         refresh_lora_adapter(ports, str(checkpoint_dir))
