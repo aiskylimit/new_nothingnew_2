@@ -105,6 +105,13 @@ PROMPT_TEMPLATES = {
         "{output}",
         "\n\n\n",
     ),
+    # Prompt cua P-ALIGN (src/test.py): huong dan dung TRUOC, dinh lien cau hoi, khong xuong dong.
+    # Phai khop train_mask.py --prompt_style palign.
+    "palign": (
+        "Please reason step by step, and put your final answer within \\boxed{{}}.{input}",
+        "{output}",
+        "\n\n\n",
+    ),
     "deepseek-longcot-limit": (
         "{input}\nPlease reason step by step, and put your final answer within \\boxed{{}}. Then, immediately stop the generation.",
         "{output}",

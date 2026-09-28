@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
-# Phase 2: data prep (LIMO) -- DeepSeek-R1-Distill-Qwen-1.5B track.
+# Phase 2 (+4): data prep (s1K-1.1 long CoT) -- DeepSeek-R1-Distill-Qwen-1.5B track.
+# Emits train-segmented.jsonl and, right away, the all-ones train-vanilla.jsonl that the plain
+# SFT Long-CoT arm trains on, so that arm needs no capture/spectral phase. Running the spectral
+# path later (capture -> masks_r1-qwen-1.5b.sh --vanilla) rewrites train-vanilla.jsonl with the
+# same all-ones masks over the subset of samples that have spectral strengths.
 set -euo pipefail
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -16,10 +20,19 @@ mkdir -p logs "data/r1-qwen-1.5b"
 LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
 LOCAL_DATA_ROOT="${LOCAL_DATA_ROOT:-/mnt/local/_data/aiskylimit_new_nothingnew_2}"
 MODEL_NAME="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-1.5B"
-DATASET_NAME="${DATASET_NAME:-${LOCAL_DATA_ROOT}/LIMO}"
+# s1K-1.1, same corpus as the qwen25-7b / qwen3-8b tracks (and P-ALIGN): its
+# deepseek_thinking_trajectory + deepseek_attempt are a real DeepSeek-R1 long CoT, which is
+# exactly the format R1-Distill was distilled into.
+DATASET_NAME="${DATASET_NAME:-${LOCAL_DATA_ROOT}/s1K-1.1}"
 OUTPUT_PATH="data/r1-qwen-1.5b/train-segmented.jsonl"
 N_SAMPLES="${N_SAMPLES:-}"
 MAX_TOKENS="${MAX_TOKENS:-32768}"
+# true (right default here): the long CoT is supervised inside the <think> block R1-Distill's
+# template force-opens, i.e. the model's native format. false closes that block in the prompt and
+# supervises the same CoT as plain prose -- what the qwen25-7b / qwen3-8b tracks use, because
+# those templates have no thinking block to fill. Keep this in step with ENABLE_THINKING in
+# scripts/eval/eval_r1-qwen-1.5b.sh.
+ENABLE_THINKING="${ENABLE_THINKING:-true}"
 
 OPTS=""
 OPTS+=" --dataset-name ${DATASET_NAME}"
@@ -27,7 +40,7 @@ OPTS+=" --max-tokens ${MAX_TOKENS}"
 OPTS+=" --tokenizer ${MODEL_NAME}"
 OPTS+=" --output-path ${OUTPUT_PATH}"
 OPTS+=" --chat-template"
-OPTS+=" --enable-thinking"
+[[ "${ENABLE_THINKING}" == true ]] && OPTS+=" --enable-thinking" || OPTS+=" --no-enable-thinking"
 if [[ -n "${N_SAMPLES}" ]]; then
   OPTS+=" --n-samples ${N_SAMPLES}"
 fi
@@ -35,3 +48,8 @@ fi
 CMD="python ${BASE_PATH}/src/data_prep.py ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee logs/r1-qwen-1.5b-data.log
+
+# All-ones mask = every response token supervised = plain SFT on the full long CoT.
+CMD="python ${BASE_PATH}/src/build_masks.py --data-path ${OUTPUT_PATH} --vanilla-only"
+echo "${CMD}"
+${CMD} 2>&1 | tee logs/r1-qwen-1.5b-vanilla-masks.log

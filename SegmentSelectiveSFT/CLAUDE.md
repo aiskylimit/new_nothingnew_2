@@ -78,6 +78,7 @@ bash train.sh --epochs 5 --lr 1e-5 --gpu 1
 bash train.sh --lora-r 16 --lora-alpha 16 --target-modules "q_proj,v_proj"   # checkpoint dir gets _lora_r16; pass the same --lora-r to eval.sh
 bash train.sh --grad-accum 16 --ckpt-suffix _bs16   # batch isn't in the dir name; suffix keeps a new run from rotating out the old checkpoints (pass the same --ckpt-suffix to eval.sh)
 bash train.sh --no-grad-checkpoint  # faster, more VRAM
+bash train.sh --model deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --full-finetune   # --deepseek template auto-on
 bash train.sh --dry-run             # print commands only
 
 # LoRA checkpoints are adapters — merge before eval (train env, CPU is fine)
@@ -160,6 +161,30 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   `len(tokenizer("".join(segments[:k])))` — mixes two different tokenizations (prompt+response vs.
   response alone) and drifts a token or two at the junction, leaking text from *unselected* segments
   into the supervised span. This requires a fast tokenizer; the script exits early if it doesn't get one.
+- **Qwen3 thinking mode is a train/eval contract.** `train_mask.py --think_prefix off` and
+  `math_eval.py --disable_think` (`eval.sh --no-think`) both call
+  `apply_chat_template(enable_thinking=False)`, so the Qwen3 template appends an empty
+  `<think>\n\n</think>\n\n` block to the prompt (label `-100`) and the plain s1K trace follows it;
+  `train_mask.py` probes the template and exits if the prefix does not match (Qwen2.5 ignores the
+  kwarg, so `off` fails loudly there). The default `none` inserts nothing in either script. A checkpoint
+  trained one way must be evaluated the same way — `train.sh` appends `_nothink` to the checkpoint dir
+  and `eval.sh --no-think` looks for that suffix (and adds `_nothink` to the default tag) so the two
+  cannot be mixed by accident.
+- **DeepSeek-R1 models need the DeepSeek chat template** (`<｜User｜>...<｜Assistant｜><think>\n`), not
+  ChatML. `train.sh` passes `train_mask.py --deepseek` automatically when the model basename contains
+  `DeepSeek-R1` (`--deepseek` / `--no-deepseek` / `DEEPSEEK=0|1` override); only `--think-prefix none|off` is
+  allowed with it. The R1 template ignores `enable_thinking`, so "thinking off" for R1 means closing its
+  `<think>\n` into an empty `<think>\n\n</think>\n\n`: `train_mask.py --deepseek --think_prefix off` appends
+  `\n</think>\n\n` (label `-100`) and `math_eval.py --disable_think` rewrites a prompt ending in `<think>` the
+  same way (verified identical strings/tokens with the real 1.5B tokenizer). Both sides tokenize the rendered
+  template with `add_special_tokens=False` (math_eval passes `prompt_token_ids` to vLLM) so R1's BOS is never
+  doubled; Qwen has no BOS, so this is a no-op there. The `"qwen" in path` stop-token check still matches
+  `DeepSeek-R1-Distill-Qwen-*` (151643 = R1 EOS).
+- **Prompt wording is a train/eval contract too.** `train_mask.py --prompt_style default` (`<question>\nPlease
+  reason step by step, ...\boxed{}.`) pairs with eval `--prompt-type deepseek-longcot` (default);
+  `--prompt_style palign` (`Please reason step by step, ...\boxed{}.<question>`, as in P-ALIGN) pairs with
+  `eval.sh --prompt-type palign`. `train.sh --prompt-style palign` appends `_palign` to the checkpoint dir, after
+  `_nothink`. Attribution (`grad_analyze.py`) always uses the default wording.
 - **A sample whose labels are all `-100` yields `nan` loss and poisons the run.** This happens when
   `max_seq_length` truncates away the response. `train_mask.py` drops such samples in `.map()` and
   reports the count; it does not crash.
@@ -183,8 +208,10 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   `from latex2sympy.latex2sympy2 import ...` (resolved via the local package dir), and `--data_dir`
   defaults to `../data`. All wrappers `cd` there.
 - **`acc` in `*_metrics.json` scores only the first sample of each question** (`evaluate.py`:
-  `mean_score[0]`), not the mean over `n_sampling`. `Eval/pass_at_k.py outputs_<tag> --k 1 3` recomputes
-  unbiased pass@k from the per-question `score` lists and macro-averages across tasks.
+  `mean_score[0]`), not the mean over `n_sampling`. `eval.sh`'s summary step imports `pass_at_k.py` and
+  writes unbiased pass@1 and pass@n (n = `n_sampling`) per task + macro-average into
+  `summary.json["pass_at_k"]`; `Eval/pass_at_k.py outputs_<tag> --k 1 3` recomputes the same numbers for
+  arbitrary k into `pass_at_k.json`. All accuracies are rounded to 2 decimals.
 - **`math_eval.py` skips a task whose `*_metrics.json` already exists** — that is what makes `eval.sh`
   resumable after a crash. The output filename encodes
   `num_test_sample/seed/temperature/n_sampling/max_tokens`, so a `--quick` run and a full run coexist
@@ -208,9 +235,9 @@ silently misalign every downstream span, and a zero-length segment divides by ze
   or point `--data_dir` at a copy.
 - **`downloads.txt` lists what an offline server must fetch beforehand** (one `--hf-dataset` /
   `--hf <repo> <dest>` line each, `@PROJECT@` substituted by the download tool): the s1K CoT dataset
-  (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships a ready `train.jsonl`; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
+  (`baesad/s1K-1.1-deepseek-cot`, snapshot dir `s1k`, ships `train.jsonl`, `solution_segments.jsonl` (934 rows, `paragraph` split) **and** `solutions_selected.jsonl` (same rows + `selected_spans_ids` from the earlier R1-Distill IG run; 17 rows select nothing and fall back to the 3 default segments), so no attribution stage runs on the server unless that last file is missing; `prepare_s1k.py --dataset <dir>` also reads a raw `simplescaling/s1K-1.1` snapshot directly), the four eval benchmarks, `Qwen/Qwen2.5-7B-Instruct` (train) and
   `deepseek-ai/DeepSeek-R1-Distill-Qwen-7B` (attribution). Pair with `run_pipeline.sh --offline`.
-  `commands.sh` is the per-stage command sheet for that server (one uv env per stage); it currently runs the full-CoT SFT baseline (LoRA r=16) end to end: prep -> train -> merge -> eval -> pass@k.
+  `commands.sh` is the command sheet for that server; it currently runs **selective SFT with full finetuning on `deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B`** following a fixed hyperparameter table (its LoRA rows do not apply): 3 epochs, batch 1 x 32, seq 32768, lr 5e-5, max_grad_norm 1.0, AdamW (0.9, 0.999, 1e-8) wd 0, cosine warmup 0.1. Prompt and thinking mode match `../P-ALIGN/src/test.py` (`--force_empty_think`): P-ALIGN wording (`--prompt-style palign` / `--prompt-type palign`) and thinking off on both sides (`--think-prefix off` / `--no-think`); dir `..._epoch3_lr5e-5_len32768_nothink_palign`. The latest checkpoint is evaluated directly (no merge) with n=3 t=0.6 top_p=0.9 rep 1.05, `max_tokens 4096`, `max_model_len 4096`, 1 GPU, `gpu_mem 0.8`, tag `r1_1p5b_sel_ft_ep3_nothink_palign_4k` -> `pass_at_k.py` (grader.py scores, for reference) -> `Eval/score_palign.py` (rescores the same generations with P-ALIGN's `math_verify` + `report.py` formulas: gold = raw `answer`, pass@1 = mean correct/3 per question, pass@3 = any correct, unweighted AVG; writes `outputs_<tag>/palign_score.json`, the headline number for comparing with P-ALIGN; needs `math-verify` in the eval env) -> printed table (also shows the base model if evaluated). `commands.sh` now defaults to `SKIP_TRAIN=1` (eval the existing latest checkpoint, never touching `ssft_train`); `SKIP_TRAIN=0` retrains first (train.sh never skips on its own), `MODEL_CKPT=<dir>` evaluates a specific old checkpoint, `OVERWRITE=1` regenerates instead of resuming existing outputs; `EVAL_MAX_TOKENS` changes eval length, `max_model_len` and tag. Base-model eval and the `--full-sft` baseline sit commented under `[Tham khao]`.
 
 ## Defaults worth knowing
 

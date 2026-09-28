@@ -5,6 +5,7 @@ __pycache__/
 /data/
 /checkpoints/
 /results/
+/results-*/
 *.npz
 *.pt
 *.parquet

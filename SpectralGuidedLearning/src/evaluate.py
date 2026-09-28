@@ -15,13 +15,36 @@ import yaml
 import palign_grader
 from answer_scoring import score_generation
 from benchmarks import BENCHMARKS
+from data_prep import close_open_thinking
 
 
-def build_prompts(model_path: str, records: list[dict], config: dict) -> list[str]:
+PALIGN_EMPTY_THINK = "<think>\n\n</think>\n\n"
+
+
+def palign_close_thinking(prompt: str) -> str:
+    """Close an open `<think>` the way P-ALIGN/src/test.py apply_chat() does.
+
+    R1-Distill's template ends in `<think>\\n`; P-ALIGN strips it and appends
+    `<think>\\n\\n</think>\\n\\n` (two newlines inside the block, unlike close_open_thinking's
+    one), which is also what Qwen3 renders for enable_thinking=False.
+    """
+    stripped = prompt.rstrip()
+    if stripped.endswith("<think>"):
+        return stripped[: -len("<think>")] + PALIGN_EMPTY_THINK
+    return prompt
+
+
+def build_prompts(model_path: str, records: list[dict], config: dict) -> list:
     """Wrap each benchmark's plain instruction into a chat-templated prompt when requested.
 
     Instruct/hybrid-thinking models need the chat template so generation starts from the
-    assistant turn as trained, rather than continuing raw text like a base model.
+    assistant turn as trained, rather than continuing raw text like a base model. Prompts are
+    built exactly as data_prep.build_prompt() builds them at train time, including how
+    enable_thinking=False is rendered (see close_open_thinking).
+
+    palign_prompt: follow P-ALIGN/src/test.py instead -- close thinking with
+    palign_close_thinking and hand vLLM token ids encoded without special tokens, since the
+    rendered template already carries BOS (R1-Distill) and a text prompt would get a second one.
     """
     if not config.get("chat_template"):
         return [record["prompt"] for record in records]
@@ -29,14 +52,24 @@ def build_prompts(model_path: str, records: list[dict], config: dict) -> list[st
     from transformers import AutoTokenizer
 
     tokenizer = AutoTokenizer.from_pretrained(config.get("base_model") or model_path)
-    return [
+    enable_thinking = config.get("enable_thinking", True)
+    prompts = [
         tokenizer.apply_chat_template(
             [{"role": "user", "content": record["prompt"]}],
             tokenize=False,
             add_generation_prompt=True,
-            enable_thinking=config.get("enable_thinking", True),
+            enable_thinking=enable_thinking,
         )
         for record in records
+    ]
+    if not config.get("palign_prompt"):
+        return prompts if enable_thinking else [close_open_thinking(prompt) for prompt in prompts]
+
+    if not enable_thinking:
+        prompts = [palign_close_thinking(prompt) for prompt in prompts]
+    return [
+        {"prompt_token_ids": tokenizer.encode(prompt, add_special_tokens=False)}
+        for prompt in prompts
     ]
 
 
@@ -104,7 +137,10 @@ def generate(model_path: str, records: list[dict], config: dict):
 
 
 def label_generations(texts: list[str], gold: str, task_type: str, grader: str) -> list[int]:
-    """0/1 per generation. grader="palign" uses math_verify OR oat_math_grader on math tasks."""
+    """0/1 per generation on math tasks: grader="math_verify" is P-ALIGN's current
+    evaluation.py (math_verify only); "palign" ORs in oat_math_grader."""
+    if grader == "math_verify" and task_type == "math":
+        return palign_grader.grade_math_verify(texts, gold)
     if grader == "palign" and task_type == "math":
         return palign_grader.grade(texts, gold)
     return [int(score_generation(text, gold, task_type)) for text in texts]
@@ -188,8 +224,14 @@ def main() -> None:
     parser.add_argument(
         "--grader",
         default="palign",
-        choices=("palign", "builtin"),
-        help="palign: math_verify OR oat_math_grader (P-ALIGN's own); builtin: this repo's scorer",
+        choices=("palign", "math_verify", "builtin"),
+        help="math_verify: P-ALIGN's current evaluation.py; palign: math_verify OR "
+             "oat_math_grader (more lenient); builtin: this repo's scorer",
+    )
+    parser.add_argument(
+        "--palign-prompt",
+        action=argparse.BooleanOptionalAction,
+        help="render and tokenize chat prompts as P-ALIGN/src/test.py does (see build_prompts)",
     )
     args = parser.parse_args()
 
@@ -215,6 +257,7 @@ def main() -> None:
         "lora_adapter": args.lora_adapter,
         "lora_r": args.lora_r,
         "repetition_penalty": args.repetition_penalty,
+        "palign_prompt": args.palign_prompt,
     }
     config.update({key: value for key, value in overrides.items() if value is not None})
     tag = args.tag or Path(args.model).name
@@ -261,17 +304,17 @@ def main() -> None:
         summaries.append(summary)
         k = summary["samples_per_problem"]
         print(
-            f"[{name}] pass@1 = {summary['pass@1']:.1%}  "
-            + (f"pass@{k} = {summary[f'pass@{k}']:.1%}  " if k > 1 else "")
+            f"[{name}] pass@1 = {summary['pass@1']:.2%}  "
+            + (f"pass@{k} = {summary[f'pass@{k}']:.2%}  " if k > 1 else "")
             + f"length = {summary['length']:.0f} tok  "
-            f"truncated = {summary['truncation_rate']:.1%}"
+            f"truncated = {summary['truncation_rate']:.2%}"
         )
 
     results_path = run_dir / f"summary{suffix}.json"
     results_path.write_text(json.dumps(summaries, indent=2))
     average = sum(s["pass@1"] for s in summaries) / len(summaries)
     avg_length = sum(s["length"] for s in summaries) / len(summaries)
-    line = f"\n{tag}: Overall pass@1 = {average:.1%}"
+    line = f"\n{tag}: Overall pass@1 = {average:.2%}"
 
     # Only average Pass@k over benchmarks that actually carry that k -- reused raw files can
     # hold a different sample count than this run requested, and treating a missing key as 0%
@@ -279,7 +322,7 @@ def main() -> None:
     k = max(s["samples_per_problem"] for s in summaries)
     if k > 1:
         at_k = [s[f"pass@{k}"] for s in summaries if f"pass@{k}" in s]
-        line += f"  Overall pass@{k} = {sum(at_k) / len(at_k):.1%}"
+        line += f"  Overall pass@{k} = {sum(at_k) / len(at_k):.2%}"
         if len(at_k) != len(summaries):
             line += f" (over {len(at_k)}/{len(summaries)} benchmarks at k={k})"
     print(f"{line}  Overall length = {avg_length:.0f} tok -> {results_path}")
@@ -293,11 +336,11 @@ def print_summary_table(tag: str, summaries: list[dict]) -> None:
     rows = [
         [
             s["benchmark"],
-            f"{s['pass@1']:.1%}",
-            *([f"{s[f'pass@{k}']:.1%}" if f"pass@{k}" in s else "-"] if k > 1 else []),
+            f"{s['pass@1']:.2%}",
+            *([f"{s[f'pass@{k}']:.2%}" if f"pass@{k}" in s else "-"] if k > 1 else []),
             f"{s['length']:.0f}",
-            f"{s['truncation_rate']:.1%}",
-            f"{s['no_boxed_answer_rate']:.1%}",
+            f"{s['truncation_rate']:.2%}",
+            f"{s['no_boxed_answer_rate']:.2%}",
             str(s["n_problems"]),
         ]
         for s in summaries

@@ -1,76 +1,76 @@
-"""TROPIC-G (TROPIC-P + Eq. 11's classifier-free-guidance debiasing, alpha>0)
-on allenai/Olmo-3-7B-Think, as an offline-deployment baseline. Same
-experimental setting as this package's Qwen3 tropic_g scripts
-(run_tropic_g_experiment_4b.py/_8b.py): LoRA r=64/alpha=128 (SAME
-target_modules - verified against transformers' real modeling_olmo3.py
-source on 2026-09-15: Olmo3Attention/Olmo3MLP use q_proj/k_proj/v_proj/
-o_proj/gate_proj/up_proj/down_proj, byte-identical names to Qwen3, not
-assumed), lr=5e-6/max_grad_norm=0.1/gradient_checkpointing, checkpoint
-cadence 20/25/40/50/60/75/80/100, eval protocol (30 problems x k=12 x
-{aime25,aime26,hmmt25} by default), unrestricted train+eval sampling recipe
-(temperature=1.0/top_p=1.0/top_k=-1), --skip-train/--skip-eval/--model-path/
---vllm-gpu-memory-utilization/--training-steps offline mechanisms,
-TROPIC_TRAIN_DATA_PATH/TROPIC_EVAL_DATA_DIR env-var overrides, alpha=0.25/
-beta=0.1/epsilon=0.1 (fixed, not adaptive), FULL VOCABULARY loss
-(top_k=200000 in CONFIG["tropic_g"] - see run_tropic_g_experiment_4b.py's
-docstring for why this collapses to the true full vocab with zero loss.py
-changes).
+"""TROPIC-G (TROPIC-P + Eq. 11's classifier-free-guidance debiasing, alpha>0),
+TOP-K=64 (sparsified) variant, as an offline-deployment baseline, run under
+the SAME experimental setting this offline package already uses for
+RLSD/SDPO (see scripts/run_rlsd_experiment_8b.py / run_sdpo_experiment_8b.py):
+same base model (Qwen/Qwen3-8B, overridable via --model-path for a local
+offline directory), same LoRA config (r=64, alpha=128, same target modules),
+same lr=5e-6/max_grad_norm=0.1/gradient_checkpointing, same checkpoint cadence
+(20/25/40/50/60/75/80/100), same eval protocol (30 problems x k=12 samples x
+{aime25,aime26,hmmt25} by default), same unrestricted train+eval sampling
+recipe (temperature=1.0/top_p=1.0/top_k=-1), same --skip-train/--skip-eval/
+--model-path/--vllm-gpu-memory-utilization/--training-steps offline
+mechanisms, same TROPIC_TRAIN_DATA_PATH/TROPIC_EVAL_DATA_DIR env-var
+overrides (handled inside tropic/data.py and tropic/eval.py - this script
+never references those env vars directly).
 
-CRITICAL DIFFERENCE FROM QWEN3 - NO NATIVE THINKING TOGGLE, TRICK REQUIRED:
-verified live against the REAL allenai/Olmo-3-7B-Think tokenizer on
-2026-09-15 (not assumed): its chat template has NO `enable_thinking` branch
-at all - passing it is silently ignored (rendered text is byte-identical
-with or without it), unlike Qwen3's real toggle. Its own
-`add_generation_prompt=True` output already ends on an OPENED `<think>` tag,
-so the model always starts reasoning by default (this is what teacher_
-thinking=True naturally uses, unmodified). To get the REQUIRED non-thinking
-STUDENT rollout anyway, this script sets CONFIG["empty_think_suffix"] =
-"\\n\\n</think>\\n\\n", threaded through tropic.data's prompt builders (see
-that module's own docstring): when enable_thinking=False, this string is
-appended right after the template's auto-opened `<think>`, closing it with
-EMPTY content - the community "empty think prefill" trick already
-documented for DeepSeek-R1-style models (huggingface.co/deepseek-ai/
-DeepSeek-R1-Distill-Qwen-14B/discussions/11). UNVERIFIED END-TO-END: only
-confirmed the PROMPT renders as intended (ends in `<think>\\n\\n</think>\\n\\n`
-for the student) - NOT confirmed that Olmo-3-7B-Think actually skips
-reasoning and jumps to a real answer after seeing this, the way DeepSeek-R1
-does (that pattern is documented for DeepSeek-R1's specific RL recipe;
-Olmo-3-Think's is different and untested here). Inspect a handful of REAL
-student rollouts (raw generated text, not just scores) early in a real run
-before trusting this - if the model ignores the empty block and reasons
-anyway (or produces degenerate output), this mechanism needs rethinking,
-not just a parameter tweak.
+SIBLING of run_tropic_g_experiment_8b.py (the FULL-VOCABULARY variant already
+in this folder) - byte-identical in every setting EXCEPT `top_k` in
+CONFIG["tropic_g"] (64 here vs 200000 there) and the tag/output-dir (so the
+two never clobber each other's results: TAG="tropic_g_topk64",
+--output-dir default "results_tropic_g_topk64_8b"). Added per explicit
+request to also run the ORIGINAL sparsified top_k=64 tropic_g (matching the
+ONLINE cluster's own tropic_g default) on this offline B200 deployment,
+alongside the full-vocab ablation already there - both loaded from the SAME
+already-downloaded model, same tropic/*.py modules, no new dependencies.
 
-effective_batch_size=4: this offline package's own safety-reduced choice
-(matching RLSD/SDPO/tropic_g's 8B budget - see run_tropic_g_experiment_8b.py's
-docstring) - ASSUMED appropriate for a 7B model's memory footprint (closer
-to the 8B budget than the 4B one), not separately verified for OLMo's own
-architecture/memory profile. Lower it further via --training-steps 3 dry-run
-first if it OOMs.
+DELTAS from the shared RLSD/SDPO setting, exactly as agreed with the user
+before this file was written:
+  - alpha=0.25 (Eq. 11's debias weight - same value the ONLINE cluster's
+    tropic_g/tropic_k/tropic_adaptive scripts use).
+  - beta=0.1, epsilon=0.1 (Eq. 13-16's fixed trust-region radius and Eq. 6's
+    skew - same values every ONLINE tropic_p/tropic_g/tropic_k script uses;
+    NOT the adaptive schedule tropic_adaptive/tropic_g_adaptive use).
+  - top_k=64 in CONFIG["tropic_g"] - the ONLINE cluster's own default
+    sparsification width for tropic_g/tropic_k/tropic_adaptive (NOT full
+    vocabulary - see run_tropic_g_experiment_8b.py in this same folder for
+    that ablation instead).
+  - effective_batch_size=4 (this offline package's own choice, matching
+    RLSD/SDPO's FINAL reduced rollout budget on this untested-on-B200
+    pipeline for the 8B model: group_size=2 x questions_per_step=2=4 there;
+    TROPIC-G has no group_size concept at all - each micro-example is one
+    (question, single-rollout) pair, not a GRPO-style group - so 4 here
+    means 4 independent (question, rollout) pairs per training step, NOT
+    4 rollouts drawn from 2 grouped questions like RLSD/SDPO's 2x2). The 4B
+    script (run_tropic_g_topk64_4b.py) uses effective_batch_size=16,
+    matching RLSD/SDPO's 4B budget (group_size=4 x questions_per_step=4=16)
+    the same way.
+
+Everything else (only_correct=True, teacher_thinking=True,
+student_thinking=False, fixed_teacher=True - OPSD's own real recipe, teacher
+frozen at initial weights - max_length=20000, training_steps=100 default)
+matches the ONLINE cluster's own tropic_g scripts exactly, per "mọi setting
+thực nghiệm giống 2 bài kia [RLSD/SDPO], trừ [the deltas above]".
 
 This is a STANDALONE script - no existing tropic/*.py module in this offline
-package is modified for OLMo specifically (tropic/data.py's
-empty_think_suffix plumbing is generic, already covered by its own tests).
-Reuses the EXISTING tropic.model.ContextualPolicy, tropic.rollout.
-generate_rollout, tropic.loss.tropic_p_loss/privileged_gap, tropic.
-primitives.debias_logits/normalize_log, tropic.data.load_opsd_math_examples/
-build_teacher_context_only_prefix, and tropic.eval - identical building
-blocks to the Qwen3 tropic_g scripts, model-agnostic (verified: tropic/
-model.py has no Qwen-specific assumptions, only generic PEFT disable_adapter()).
+package is modified for it. It reuses the EXISTING, unmodified
+`tropic.model.ContextualPolicy`, `tropic.rollout.generate_rollout`,
+`tropic.loss.tropic_p_loss`/`privileged_gap`, `tropic.primitives.
+debias_logits`/`normalize_log`, `tropic.data.load_opsd_math_examples`/
+`build_teacher_context_only_prefix`, and `tropic.eval` (benchmark loading,
+math_verify-based grading, scoring) - the exact same building blocks the
+ONLINE cluster's run_tropic_adaptive_4b.py's "tropic_g" branch uses, copied
+here as a standalone offline script the same way run_rlsd_experiment_8b.py
+and run_sdpo_experiment_8b.py were.
 
-NOTE ON EVAL: eval always uses enable_thinking=True (CONFIG["eval"]) - this
-matches Olmo-3-7B-Think's NATURAL default behavior (always thinks) with ZERO
-special handling needed; the empty_think_suffix trick is ONLY exercised
-during TRAINING's non-thinking student rollout generation, never in eval.
-
-Usage - one-time training (no eval), THEN eval per checkpoint step:
-    CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python scripts/run_tropic_g_experiment_olmo7b.py \\
-        --model-path /path/to/local/Olmo-3-7B-Think --seed 0 --output-dir results_tropic_g_olmo7b --skip-eval \\
+Usage - one-time training (no eval), THEN eval per checkpoint step (matches
+run_rlsd_experiment_8b.py's own usage pattern exactly):
+    CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python scripts/run_tropic_g_topk64_8b.py \\
+        --model-path /path/to/local/Qwen3-8B --seed 0 --output-dir results_tropic_g_topk64_8b --skip-eval \\
         --use-vllm-rollout --vllm-gpu-ids 3 --vllm-base-port 8100
-    CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python scripts/run_tropic_g_experiment_olmo7b.py \\
-        --model-path /path/to/local/Olmo-3-7B-Think --skip-train \\
-        --checkpoint-path results_tropic_g_olmo7b/tropic_g_olmo_checkpoint_step100 \\
-        --output-dir results_tropic_g_olmo7b --eval-engine vllm --vllm-gpu-ids 1,2,3 --vllm-base-port 8100
+    CUDA_VISIBLE_DEVICES=0 PYTHONPATH=. python scripts/run_tropic_g_topk64_8b.py \\
+        --model-path /path/to/local/Qwen3-8B --skip-train \\
+        --checkpoint-path results_tropic_g_topk64_8b/tropic_g_topk64_checkpoint_step100 \\
+        --output-dir results_tropic_g_topk64_8b --eval-engine vllm --vllm-gpu-ids 1,2,3 --vllm-base-port 8100
 """
 import argparse
 import json
@@ -81,7 +81,7 @@ import sys
 from pathlib import Path
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--output-dir", default="results_tropic_g_olmo7b",
+parser.add_argument("--output-dir", default="results_tropic_g_topk64_8b",
                      help="Where to write results/checkpoints.")
 parser.add_argument("--seed", type=int, default=0,
                      help="Seed for the training-example draw AND torch's global RNG.")
@@ -142,7 +142,7 @@ t_start = time.time()
 RESULTS_DIR = Path(__file__).resolve().parent.parent / args.output_dir
 RESULTS_DIR.mkdir(exist_ok=True, parents=True)
 
-CHECKPOINT_STEPS = {20, 25, 40, 50, 60, 75, 80, 100}  # same union cadence as RLSD/SDPO's offline scripts
+CHECKPOINT_STEPS = {10, 15, 20, 25, 40, 50, 60, 75, 80, 100}  # same union cadence as RLSD/SDPO's offline scripts, plus 10/15
 
 
 def tick(label):
@@ -163,25 +163,18 @@ LORA_CONFIG = dict(
 )
 
 CONFIG = dict(
-    model_name=args.model_path or "allenai/Olmo-3-7B-Think",
+    model_name=args.model_path or "Qwen/Qwen3-8B",
     only_correct=True, teacher_thinking=True, student_thinking=False,
     fixed_teacher=True,  # OPSD's own real recipe: teacher = frozen initial policy (LoRA disabled)
     max_length=20000,
-    # OLMo-3-7B-Think has no native enable_thinking toggle - this closes its
-    # auto-opened <think> tag empty when enable_thinking=False (student only;
-    # eval and the thinking teacher never see this) - see this file's own
-    # docstring (UNVERIFIED end-to-end) and tropic/data.py's docstring.
-    empty_think_suffix="\n\n</think>\n\n",
     lora=LORA_CONFIG,
     train=dict(training_steps=args.training_steps, effective_batch_size=4, lr=5e-6, max_grad_norm=0.1,
                max_new_tokens=1024, temperature=1.0, top_p=1.0, top_k=-1, seed=args.seed,
                gradient_checkpointing=True),
-    # epsilon=0.1/beta=0.1/alpha=0.25: same fixed values as the online cluster's
-    # tropic_g script. top_k=200000: FULL VOCABULARY (Qwen3's real vocab is
-    # ~152K, so this exceeds it and build_shared_topk_mask's own
-    # `min(top_k, vocab_size)` collapses to the true full vocab - no top-K
-    # sparsification at all, per this file's own docstring).
-    tropic_g=dict(epsilon=0.1, beta=0.1, top_k=200000, default_mass=1e-5, alpha=args.alpha),
+    # epsilon=0.1/beta=0.1/alpha=0.25/top_k=64: same fixed values as the
+    # online cluster's own tropic_g default (sparsified top-K, NOT the
+    # full-vocab ablation in run_tropic_g_experiment_8b.py).
+    tropic_g=dict(epsilon=0.1, beta=0.1, top_k=64, default_mass=1e-5, alpha=args.alpha),
     eval=dict(benchmarks=args.eval_benchmarks, num_problems=30, k=12,
               max_new_tokens=38912, temperature=1.0, top_p=1.0, top_k=-1,
               min_p=0.0, enable_thinking=True, gen_batch_size=4),
@@ -275,7 +268,6 @@ if not args.skip_train:
         student_thinking=CONFIG["student_thinking"],
         seed=CONFIG["train"]["seed"],
         max_length=CONFIG["max_length"],
-        empty_think_suffix=CONFIG["empty_think_suffix"],
     )
     tick(f"dataset ready, {len(train_examples)} examples")
 
@@ -340,7 +332,6 @@ def train_run_tropic_g(model, examples, cfg, tag, use_vllm_rollout=False, vllm_g
                 context_only_prefix_ids = build_teacher_context_only_prefix(
                     tokenizer, ex.reference_solution,
                     enable_thinking=CONFIG["teacher_thinking"], max_length=CONFIG["max_length"],
-                    empty_think_suffix=CONFIG["empty_think_suffix"],
                 )
                 log_teacher_context_only = policy.forward_teacher_context_only(context_only_prefix_ids, generated_ids)
                 loss, s = tropic_p_loss(
@@ -521,7 +512,7 @@ def evaluate_model_vllm(checkpoint_dir, cfg, tag, vllm_gpu_ids, vllm_base_port=8
         tick(f"[{tag}] vLLM eval replicas shut down")
 
 
-TAG = "tropic_g_olmo"  # distinct from the Qwen3 scripts' "tropic_g" tag, so results/checkpoints never mix
+TAG = "tropic_g_topk64"  # distinct from the full-vocab script's "tropic_g" tag, so results/checkpoints never mix
 EVAL_TAG = TAG + infer_step_suffix(args.checkpoint_path if args.skip_train else None) + bench_suffix_for(args.eval_benchmarks)
 
 if args.skip_train:

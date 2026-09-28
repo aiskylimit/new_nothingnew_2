@@ -19,6 +19,8 @@
 #   bash eval.sh --full-finetune           # checkpoint train khong dung LoRA
 #   bash eval.sh --lora-r 16               # checkpoint train voi r khac mac dinh (64)
 #   bash eval.sh --ckpt-suffix _bs16       # checkpoint train voi --ckpt-suffix _bs16
+#   bash eval.sh --no-think                # Qwen3: tat thinking (enable_thinking=False) - khop train.sh --think-prefix off
+#   bash eval.sh --prompt-type palign      # prompt kieu P-ALIGN - khop train.sh --prompt-style palign
 #   bash eval.sh --full-sft                # eval checkpoint baseline full-CoT
 #   bash eval.sh --model /duong/dan/checkpoint-250
 #   bash eval.sh --model /duong/dan/checkpoint-250 --tag sel_ep5
@@ -59,6 +61,10 @@ MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
 USE_LORA="${USE_LORA:-1}"   # train.sh mac dinh LoRA -> ten thu muc co hau to _lora_r<R>
 LORA_R="${LORA_R:-64}"      # phai khop --lora-r luc train
 CKPT_SUFFIX="${CKPT_SUFFIX:-}"   # phai khop --ckpt-suffix luc train (vd _bs16)
+# 1 = math_eval.py --disable_think: apply_chat_template(enable_thinking=False), Qwen3 chen khoi
+# "<think>\n\n</think>\n\n" rong vao prompt. Checkpoint tuong ung (train.sh --think-prefix off)
+# co hau to _nothink; tag mac dinh cung them _nothink de khong tron output voi ban thinking.
+NO_THINK="${NO_THINK:-0}"
 
 # "task so_mau_moi_cau" - lay tu Eval/run_eval.sh goc cua paper.
 TASKS_DEFAULT="aime24:32 amc23:32 math500:6 minerva:6 gpqa:6 olympiad:6"
@@ -105,6 +111,8 @@ while [[ $# -gt 0 ]]; do
     --lora)            USE_LORA=1; shift ;;
     --lora-r)          LORA_R="$2"; shift 2 ;;
     --ckpt-suffix)     CKPT_SUFFIX="$2"; shift 2 ;;
+    --no-think)        NO_THINK=1; shift ;;
+    --prompt-type)     PROMPT_TYPE="$2"; shift 2 ;;
     --full-finetune)   USE_LORA=0; shift ;;
     --epochs)          EPOCHS="$2"; shift 2 ;;
     --lr)              LR="$2"; shift 2 ;;
@@ -130,7 +138,7 @@ while [[ $# -gt 0 ]]; do
     --reinstall)       REINSTALL=1; shift ;;
     --offline)         HF_OFFLINE=1; shift ;;
     --dry-run)         DRY_RUN=1; shift ;;
-    -h|--help)         sed -n '2,32p' "${BASH_SOURCE[0]}"; exit 0 ;;
+    -h|--help)         sed -n '2,36p' "${BASH_SOURCE[0]}"; exit 0 ;;
     *) echo "Tham so khong hop le: $1 (xem --help)" >&2; exit 2 ;;
   esac
 done
@@ -163,9 +171,10 @@ latest_checkpoint() {
   return 0
 }
 
-# train.sh ghep hau to theo thu tu: [_fullsft][_lora_r<R>][--ckpt-suffix]
+# train.sh ghep hau to theo thu tu: [_fullsft][_lora_r<R>][_nothink][--ckpt-suffix]
 LORA_SUFFIX=""
 [[ "$USE_LORA" == "1" ]] && LORA_SUFFIX="_lora_r${LORA_R}"
+[[ "$NO_THINK" == "1" ]] && LORA_SUFFIX="${LORA_SUFFIX}_nothink"
 LORA_SUFFIX="${LORA_SUFFIX}${CKPT_SUFFIX}"
 CKPT_BASE="${ROOT_DIR}/SelectiveSFT/checkpoints/$(basename "$BASE_MODEL")_epoch${EPOCHS}_lr${LR}_len${MAX_SEQ_LENGTH}"
 
@@ -191,7 +200,7 @@ case "$WHICH" in
     esac ;;
 esac
 
-[[ -n "$RUN_TAG" ]] || RUN_TAG="${DEFAULT_TAG:-$WHICH}"
+[[ -n "$RUN_TAG" ]] || { RUN_TAG="${DEFAULT_TAG:-$WHICH}"; [[ "$NO_THINK" == "1" ]] && RUN_TAG="${RUN_TAG}_nothink"; }
 [[ "$QUICK" == "1" && "$RUN_TAG" != *_quick ]] && RUN_TAG="${RUN_TAG}_quick"
 
 # Duong dan phai tuyet doi vi lat nua se cd sang Eval/.
@@ -319,6 +328,7 @@ EXTRA_ARGS=(--gpu_memory_utilization "$GPU_MEM_UTIL")
 [[ "$PREFIX_CACHING" == "1" ]]  && EXTRA_ARGS+=(--enable_prefix_caching)
 [[ "$LOGPROBS" == "1" ]]        && EXTRA_ARGS+=(--return_logprobs)
 [[ -n "$MAX_MODEL_LEN" ]]       && EXTRA_ARGS+=(--max_model_len "$MAX_MODEL_LEN")
+[[ "$NO_THINK" == "1" ]]        && EXTRA_ARGS+=(--disable_think)
 
 IFS=',' read -ra GPU_LIST <<< "$GPU"
 NGPU=${#GPU_LIST[@]}
@@ -358,6 +368,8 @@ else
   echo "    gpu        : ${GPU} (tensor_parallel_size=${NGPU})"
 fi
 echo "    sampling   : t=${TEMPERATURE} top_p=${TOP_P} rep=${REPETITION_PENALTY} seed=${SEED} max_tokens=${MAX_TOKENS}"
+echo "    thinking   : $([[ "$NO_THINK" == "1" ]] && echo 'OFF (enable_thinking=False)' || echo 'mac dinh cua chat template')"
+echo "    prompt     : ${PROMPT_TYPE}"
 echo "    so cau     : $([[ "$NUM_TEST_SAMPLE" == "-1" ]] && echo "ca test set" || echo "${NUM_TEST_SAMPLE} cau dau")"
 echo "    vllm       : gpu_mem=${GPU_MEM_UTIL} prefix_cache=$([[ "$PREFIX_CACHING" == 1 ]] && echo on || echo off) logprobs=$([[ "$LOGPROBS" == 1 ]] && echo on || echo off) max_model_len=${MAX_MODEL_LEN:-auto}"
 echo "    output     : Eval/${OUTPUT_ROOT}/<task>/${RUN_TAG}"
@@ -453,14 +465,20 @@ SUMMARY_JSON="${ROOT_DIR}/Eval/${OUTPUT_ROOT}/summary.json"
 
 if [[ "$DRY_RUN" != "1" ]]; then
   log "Ket qua"
-  META="$(printf '{"tag":"%s","model":"%s","decoding":"%s","temperature":%s,"top_p":%s,"repetition_penalty":%s,"seed":%s,"max_tokens":%s,"num_test_sample":%s,"prompt_type":"%s"}' \
+  META="$(printf '{"tag":"%s","model":"%s","decoding":"%s","temperature":%s,"top_p":%s,"repetition_penalty":%s,"seed":%s,"max_tokens":%s,"num_test_sample":%s,"prompt_type":"%s","enable_thinking":%s}' \
     "$RUN_TAG" "$MODEL" "$([[ "$TEMPERATURE" == "0" ]] && echo greedy || echo sampling)" \
-    "$TEMPERATURE" "$TOP_P" "$REPETITION_PENALTY" "$SEED" "$MAX_TOKENS" "$NUM_TEST_SAMPLE" "$PROMPT_TYPE")"
+    "$TEMPERATURE" "$TOP_P" "$REPETITION_PENALTY" "$SEED" "$MAX_TOKENS" "$NUM_TEST_SAMPLE" "$PROMPT_TYPE" \
+    "$([[ "$NO_THINK" == "1" ]] && echo false || echo true)")"
 
   python3 - "$ROOT_DIR/Eval/$OUTPUT_ROOT" "$SUMMARY_JSON" "$META" <<'PYSUM'
 import json, sys, glob, os, re, datetime
 
 root, out_path, meta = sys.argv[1], sys.argv[2], json.loads(sys.argv[3])
+
+# pass@k unbiased tinh tu truong "score" trong *.jsonl - dung chung cong thuc voi pass_at_k.py
+# ("acc" trong *_metrics.json chi la mau dau tien cua moi cau).
+sys.path.insert(0, os.path.join(os.path.dirname(out_path), ".."))
+from pass_at_k import pass_at_k, load_scores
 
 # Ten thu muc chua so cau va so mau/cau, nen mot lan chay nhanh va mot lan
 # chay day du nam canh nhau van phan biet duoc.
@@ -474,6 +492,14 @@ for f in sorted(glob.glob(os.path.join(root, "*", "*", "**", "*_metrics.json"), 
         m = json.load(open(f))
     except Exception:
         continue
+    # pass@1 (trung binh tren du n mau) va pass@n (n = n_sampling) cua task nay
+    pk = {}
+    scores = load_scores(f.replace("_metrics.json", ".jsonl")) if os.path.exists(f.replace("_metrics.json", ".jsonl")) else []
+    if scores:
+        n_min = min(len(x) for x in scores)
+        for k in sorted({1, n_min}):
+            vals = [pass_at_k(n_min, sum(x[:n_min]), k) for x in scores]
+            pk["pass@%d" % k] = round(100.0 * sum(vals) / len(vals), 2)
     rows.append({
         "task": task,
         "num_test_sample": (int(mo.group(1)) if mo else None),
@@ -481,6 +507,7 @@ for f in sorted(glob.glob(os.path.join(root, "*", "*", "**", "*_metrics.json"), 
         "temperature": (float(mo.group(3)) if mo else None),
         "n_sampling": (int(mo.group(4)) if mo else None),
         "acc": m.get("acc"),
+        **pk,
         "num_samples": m.get("num_samples"),
         "empty_samples": m.get("empty_samples"),
         "timeout_samples": m.get("timeout_samples"),
@@ -489,11 +516,22 @@ for f in sorted(glob.glob(os.path.join(root, "*", "*", "**", "*_metrics.json"), 
     })
 
 accs = [r["acc"] for r in rows if isinstance(r["acc"], (int, float))]
+pk_keys = sorted({k for r in rows for k in r if k.startswith("pass@")}, key=lambda k: int(k[5:]))
+pk_avg = {}
+for key in pk_keys:
+    vals = [r[key] for r in rows if isinstance(r.get(key), (int, float))]
+    pk_avg[key] = round(sum(vals) / len(vals), 2) if vals else None
 summary = {
     "generated_at": datetime.datetime.now().isoformat(timespec="seconds"),
     **meta,
     "tasks": {r["task"]: r["acc"] for r in rows},
     "average_acc": (round(sum(accs) / len(accs), 2) if accs else None),
+    # pass@k: per-task + macro-average (AVG) - cung so voi pass_at_k.py --k 1 <n>
+    "pass_at_k": {
+        "k": [int(k[5:]) for k in pk_keys],
+        "tasks": {r["task"]: {k: r.get(k) for k in pk_keys} for r in rows},
+        "average": pk_avg,
+    },
     "results": rows,
 }
 
@@ -504,17 +542,19 @@ with open(out_path, "w") as fh:
 if not rows:
     print("  (chua co metrics.json nao trong %s)" % root)
 else:
-    hdr = "  %-12s %7s %4s %8s %10s %8s"
-    print(hdr % ("task", "subset", "n", "acc", "num_samples", "time"))
+    fmt = lambda v: "%.2f" % v if isinstance(v, (int, float)) else "-"
+    hdr = "  %-12s %7s %4s %8s " + " ".join(["%8s"] * len(pk_keys)) + " %10s %8s"
+    print(hdr % ("task", "subset", "n", "acc", *pk_keys, "num_samples", "time"))
     for r in rows:
         sub = "full" if r["num_test_sample"] == -1 else r["num_test_sample"]
         t = r["time_use_in_second"]
-        print(hdr % (r["task"], sub, r["n_sampling"],
-                     "%.1f" % r["acc"] if isinstance(r["acc"], (int, float)) else r["acc"],
+        print(hdr % (r["task"], sub, r["n_sampling"], fmt(r["acc"]),
+                     *[fmt(r.get(k)) for k in pk_keys],
                      r["num_samples"],
                      "%d:%02d" % (t // 60, t % 60) if isinstance(t, (int, float)) else "-"))
     if accs:
-        print(hdr % ("TRUNG BINH", "", "", "%.1f" % (sum(accs) / len(accs)), "", ""))
+        print(hdr % ("TRUNG BINH", "", "", fmt(summary["average_acc"]),
+                     *[fmt(pk_avg[k]) for k in pk_keys], "", ""))
 print()
 print("  JSON: %s" % out_path)
 PYSUM

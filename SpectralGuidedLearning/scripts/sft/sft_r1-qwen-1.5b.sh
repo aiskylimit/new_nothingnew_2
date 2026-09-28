@@ -1,21 +1,33 @@
 #!/usr/bin/env bash
-# Phase 5: masked SFT -- vanilla, DeepSeek-R1-Distill-Qwen-1.5B track (LoRA, DDP across both GPUs).
+# Phase 5: SFT Long CoT (vanilla arm) -- DeepSeek-R1-Distill-Qwen-1.5B track.
+# Every response token supervised (all-ones mask from data_r1-qwen-1.5b.sh), FULL fine-tuning
+# with src/train_sft.py (HF Trainer, no LoRA) in the main env (spectral_guided_learning.txt) --
+# no Unsloth, so no separate train venv. Runs under torchrun on every GPU in GPUS; GRAD_ACC is
+# derived so the effective batch stays 32 regardless of GPU count. Hyperparameters follow the
+# P-ALIGN training setup: 3 epochs, eff. batch 32 (bs1 x ga32 on 1 GPU), lr 5e-5, cosine to 0 with
+# warmup_ratio 0.1, AdamW (0.9, 0.999, eps 1e-8), weight_decay 0, max_grad_norm 1.0 (the last
+# three are the Trainer defaults train_sft.py keeps), max_seq_len 32768.
+# Optional: DS_CONFIG=configs/deepspeed/ds_config_zero2_offload.json for extra memory headroom.
 set -euo pipefail
 
-read -ra GPUS <<< "${GPUS:-0 1}"
+read -ra GPUS <<< "${GPUS:-0}"
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 export TOKENIZERS_PARALLELISM=false
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
-# ZeRO-2 offload JIT-compiles cpu_adam against system nvcc, which can trail the torch cuXXX
-# build (see docs/server-runbook.md CUDAMismatchException) -- skip that version check.
+# ZeRO-2 offload (only if DS_CONFIG is set) JIT-compiles cpu_adam against system nvcc, which can
+# trail the torch cuXXX build -- skip that version check.
 export DS_SKIP_CUDA_CHECK=1
 
+# The cluster (PyTorchJob pod) injects PET_RDZV_BACKEND=c10d / PET_RDZV_ENDPOINT=<worker-0>:23456 /
+# TORCHELASTIC_*; torchrun reads those over --master_addr and hangs in "Rendezvous'ing worker group"
+# waiting on that endpoint. This is a single-node run: drop them and pin the static backend.
+for _v in $(compgen -e PET_) $(compgen -e TORCHELASTIC_); do unset "$_v"; done
 MASTER_ADDR=localhost
 MASTER_PORT=66$(($RANDOM%90+10))
 NNODES=1
 NODE_RANK=0
 GPUS_PER_NODE=${#GPUS[@]}
-DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
+DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --rdzv_backend static \
                   --nnodes $NNODES \
                   --node_rank $NODE_RANK \
                   --master_addr $MASTER_ADDR \
@@ -36,22 +48,17 @@ DATA_PATH="${BASE_PATH}/data/r1-qwen-1.5b/train-vanilla.jsonl"
 OUTPUT_DIR="${BASE_PATH}/checkpoints/vanilla-r1-qwen-1.5b"
 EPOCHS=3
 LR=5.0e-5
-MIN_LR=1.0e-5
+MIN_LR=0               # min_lr_rate 0 -> cosine_with_min_lr is exactly plain cosine-with-warmup
 WARMUP_RATIO=0.1
 BATCH_SIZE=1
-GRAD_ACC=8
-ATTN=sdpa
+EFFECTIVE_BATCH=32
+(( EFFECTIVE_BATCH % GPUS_PER_NODE == 0 )) || { echo "GPU count ${GPUS_PER_NODE} must divide ${EFFECTIVE_BATCH}" >&2; exit 2; }
+GRAD_ACC=$((EFFECTIVE_BATCH / (BATCH_SIZE * GPUS_PER_NODE)))   # bs1 x ga x n GPU = effective batch 32
+ATTN=sdpa             # train_sft.py uses the Trainer default optimizer (adamw_torch), as before
 LOG_INTERVAL=5
 SEED=42
 SAVE_STRATEGY=epoch
-SAVE_STEPS=500
-SAVE_TOTAL_LIMIT=6
-LORA_R=16
-LORA_ALPHA=32
-LORA_DROPOUT=0.05
-LORA_TARGET_MODULES="q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj"
-# ZeRO-2 offload for long-sequence headroom on VRAM-limited GPUs.
-DS_CONFIG="${BASE_PATH}/configs/deepspeed/ds_config_zero2_offload.json"
+SAVE_TOTAL_LIMIT=2
 MAX_SEQ_LEN=32768
 
 OPTS=""
@@ -67,17 +74,13 @@ OPTS+=" --gradient-accumulation-steps ${GRAD_ACC}"
 OPTS+=" --attn-implementation ${ATTN}"
 OPTS+=" --logging-steps ${LOG_INTERVAL}"
 OPTS+=" --save-strategy ${SAVE_STRATEGY}"
-OPTS+=" --save-steps ${SAVE_STEPS}"
 OPTS+=" --save-total-limit ${SAVE_TOTAL_LIMIT}"
 OPTS+=" --seed ${SEED}"
-OPTS+=" --use-lora"
-OPTS+=" --lora-r ${LORA_R}"
-OPTS+=" --lora-alpha ${LORA_ALPHA}"
-OPTS+=" --lora-dropout ${LORA_DROPOUT}"
-OPTS+=" --lora-target-modules ${LORA_TARGET_MODULES}"
-OPTS+=" --no-lora-merge"
-OPTS+=" --deepspeed-config ${DS_CONFIG}"
 OPTS+=" --max-seq-len ${MAX_SEQ_LEN}"
+OPTS+=" --no-use-lora"
+if [[ -n "${DS_CONFIG:-}" ]]; then
+  OPTS+=" --deepspeed-config ${DS_CONFIG}"
+fi
 
 CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
 echo "${CMD}"

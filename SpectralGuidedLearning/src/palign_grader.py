@@ -1,9 +1,9 @@
 """P-ALIGN's answer grader, ported from P-ALIGN/src/evaluation.py.
 
-A generation is correct when EITHER math_verify OR oat_math_grader accepts it (their
-`any_true=True` default). oat_math_grader is imported by their evaluation.py but missing
-from their requirements.txt, so `grade()` reports which branches are live instead of
-silently degrading.
+grade_math_verify() is P-ALIGN's current evaluation.py: math_verify only. grade() is the
+earlier variant, correct when EITHER math_verify OR oat_math_grader accepts it (the old
+`any_true=True` default) -- more lenient, so its numbers are not comparable to P-ALIGN's.
+grade() reports which branches are live instead of silently degrading.
 """
 
 import os
@@ -63,6 +63,13 @@ def active_graders() -> list[str]:
             continue
         available.append(module)
     return available
+
+
+def grade_math_verify(predictions: list[str], gold: str) -> list[int]:
+    """Per-generation 0/1 labels exactly as P-ALIGN/src/evaluation.py assigns them."""
+    if "math_verify" not in active_graders():
+        raise ImportError("math_verify grading needs the math-verify package installed.")
+    return _math_verify_labels(predictions, gold)
 
 
 def grade(predictions: list[str], gold: str) -> list[int]:

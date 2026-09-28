@@ -29,15 +29,17 @@ def load_summaries(results_dir: Path) -> tuple[dict[str, dict[str, dict[str, flo
     return models, samples
 
 
-METHODS = ("vanilla", "spectral")
+# Model tracks (scripts/*/<phase>_<track>.sh); a tag is "<method>-<track>", where method may itself
+# carry dashes ("iwc-stable", "trans-vanilla-l0.3"), so the split is anchored on the track suffix.
+TRACKS = ("qwen3-8b", "qwen25-7b", "r1-qwen-1.5b", "r1-qwen-7b")
 
 
 def split_tag(tag: str) -> tuple[str, str] | None:
-    """"spectral-r1-qwen-1.5b" -> ("spectral", "r1-qwen-1.5b"); None if no known method prefix."""
-    for method in METHODS:
-        prefix = f"{method}-"
-        if tag.startswith(prefix):
-            return method, tag[len(prefix) :]
+    """"spectral-r1-qwen-1.5b" -> ("spectral", "r1-qwen-1.5b"); None if no known track suffix."""
+    for track in TRACKS:
+        suffix = f"-{track}"
+        if tag.endswith(suffix) and len(tag) > len(suffix):
+            return tag[: -len(suffix)], track
     return None
 
 
@@ -63,12 +65,12 @@ def format_table(models: dict[str, dict[str, dict[str, float]]], metric: str) ->
             for name in benchmarks
             if name in PRIMARY_BENCHMARKS and (value := score(scores, name)) is not None
         ]
-        cells = [f"{value:.1%}" if value is not None else "-" for value in values]
+        cells = [f"{value:.2%}" if value is not None else "-" for value in values]
         if not present:
             continue
         lines.append(
-            f"| {tag} | " + " | ".join(cells) + f" | {sum(present) / len(present):.1%} | "
-            + (f"{sum(primary) / len(primary):.1%}" if primary else "-") + " |"
+            f"| {tag} | " + " | ".join(cells) + f" | {sum(present) / len(present):.2%} | "
+            + (f"{sum(primary) / len(primary):.2%}" if primary else "-") + " |"
         )
 
     # Group by track so the vanilla-vs-spectral delta is computed per model line
@@ -84,14 +86,14 @@ def format_table(models: dict[str, dict[str, dict[str, float]]], metric: str) ->
         if "vanilla" not in by_method:
             continue
         base_scores = models[by_method["vanilla"]]
-        for method in ("spectral",):
-            if method not in by_method:
+        for method in by_method:
+            if method == "vanilla":
                 continue
             new_scores = models[by_method[method]]
             deltas = []
             for name in benchmarks:
                 base, new = score(base_scores, name), score(new_scores, name)
-                deltas.append(f"{(new - base) * 100:+.1f}" if base is not None and new is not None else "-")
+                deltas.append(f"{(new - base) * 100:+.2f}" if base is not None and new is not None else "-")
             lines.append(f"| **delta ({method} - vanilla, {track}) (pp)** | " + " | ".join(deltas) + " | | |")
 
     return "\n".join(lines)

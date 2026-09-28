@@ -57,4 +57,29 @@ class MaskedSFTCollator:
         }
         if has_loss_weights:
             batch["loss_weights"] = torch.tensor(loss_weights, dtype=torch.float32)
+        if any("step_id" in example for example in examples):
+            batch.update(self._transition_fields(examples, max_length))
         return batch
+
+    @staticmethod
+    def _transition_fields(examples: list[dict], max_length: int) -> dict[str, torch.Tensor]:
+        """L_trans structure from build_trans_dataset.py, padded with -1 (step_id: outside the
+        CoT; step_end / pair_src: no entry) so the trainer can filter per example."""
+        if not all("step_id" in example for example in examples):
+            raise ValueError("a batch must either provide step_id for every example or for none")
+
+        def pad(rows: list[list[int]]) -> torch.Tensor:
+            width = max(1, max(len(row) for row in rows))
+            return torch.tensor([row + [-1] * (width - len(row)) for row in rows], dtype=torch.long)
+
+        for example in examples:
+            if len(example["step_id"]) != len(example["input_ids"]):
+                raise ValueError(
+                    f"step_id length {len(example['step_id'])} != input_ids length {len(example['input_ids'])}"
+                )
+        return {
+            "step_id": pad([list(example["step_id"]) for example in examples]),
+            "step_end": pad([list(example["step_end"]) for example in examples]),
+            "pair_src": pad([list(example["pair_src"]) for example in examples]),
+            "num_steps": torch.tensor([int(example["num_steps"]) for example in examples], dtype=torch.long),
+        }
