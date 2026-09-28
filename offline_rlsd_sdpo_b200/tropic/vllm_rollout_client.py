@@ -308,16 +308,16 @@ def _generate_eval_on_replica(
     min_p = sampling_kwargs.get("min_p")
     if min_p:
         payload["min_p"] = min_p
-    # 10800s (3h), not the training-rollout client's 1800s: a REAL crash hit
-    # mid-eval (see chat history) when an early/undertrained checkpoint
-    # (step25) produced enough non-terminating completions (never emitting
-    # \boxed{}, running to the full max_new_tokens=38912) within a single
-    # replica's shard that the WHOLE shard's aggregate generation time
-    # exceeded the previous 3600s (1h) timeout - later, better-trained
-    # checkpoints (step50/75/100) never hit this because they terminate
-    # early far more often. 3h is a deliberately generous margin, not a
-    # measured worst case.
-    status, body = _post_json(port, "/v1/completions", payload, timeout=10800.0)
+    # 259200s (3 days), not the training-rollout client's 1800s: TWO real
+    # crashes hit mid-eval on the online cluster (see chat history) - an
+    # early checkpoint (step25) exceeding a 3600s (1h) timeout, and later a
+    # step10 checkpoint exceeding the 10800s (3h) timeout that replaced it.
+    # This offline package's own single-vLLM-replica topology (2 GPUs: 1
+    # main + 1 replica, vs the online cluster's 3 replicas) hit that SAME 3h
+    # timeout for real on a single large-benchmark batch (30 problems x 12
+    # samples, no data-parallel split across replicas to shorten it). 3 days
+    # is a deliberately generous margin, not a measured worst case.
+    status, body = _post_json(port, "/v1/completions", payload, timeout=259200.0)
     if status != 200:
         raise RuntimeError(f"eval completions on port {port} failed ({status}): {body}")
     data = json.loads(body)
