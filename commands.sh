@@ -1,8 +1,8 @@
-#1 +10
+#2
 #olmo
 #v1
 
-kill -9 11779 12146
+# kill -9 11779 12146
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 nvidia-smi
 
@@ -18,5 +18,5 @@ export NCCL_DEBUG=WARN
 # cd ./VLM_Distillation-main
 # bash project_commands.sh
 
-cd ./offline_olmo7b_b200
-bash ./project_commands.sh
+# cd ./offline_olmo7b_b200
+# bash ./project_commands.sh
