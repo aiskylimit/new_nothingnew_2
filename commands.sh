@@ -1,11 +1,10 @@
-#1 +10
+#2 -0-10
 #vlm_distill_baseline
 #v1
 
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 nvidia-smi
-ls /mnt/local/uvenvs/
 
 
 export PATH=/usr/local/cuda/bin:$PATH
