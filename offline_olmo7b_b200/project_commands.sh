@@ -62,7 +62,12 @@ CHECKPOINTS_TROPIC="10 15 20 25 40 50 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {
-  local script=$1 model_path=$2 output_dir=$3
+  local script=$1 model_path=$2 output_dir=$3 tag=$4
+  local final_ckpt="${output_dir}/${tag}_checkpoint_step100"
+  if [ -d "$final_ckpt" ]; then
+    echo "skip (already trained): $final_ckpt exists"
+    return 0
+  fi
   echo "=== training: $script -> $output_dir ==="
   env CUDA_VISIBLE_DEVICES=${MAIN_GPU} python "scripts/${script}" \
       --model-path "${model_path}" --seed 0 --output-dir "${output_dir}" --skip-eval \
@@ -93,6 +98,11 @@ train_dry_run() {
 eval_checkpoint() {
   local script=$1 model_path=$2 output_dir=$3 tag=$4 step=$5
   local ckpt="${output_dir}/${tag}_checkpoint_step${step}"
+  local eval_log="${output_dir}_eval_step${step}.log"
+  if [ -f "$eval_log" ] && grep -q "ALL DONE" "$eval_log" 2>/dev/null; then
+    echo "skip (already evaluated): $eval_log shows ALL DONE"
+    return 0
+  fi
   if [ ! -d "$ckpt" ]; then
     echo "skip (no checkpoint): $ckpt"
     return 0
@@ -163,10 +173,10 @@ train_dry_run run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
 #    SDPO already ran on Qwen3-4B/8B separately (offline_rlsd_sdpo_b200/) -
 #    this folder is only the OLMo addition, not a re-run of those.
 # ============================================================
-train run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
+train run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b rlsd
 for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b rlsd "$step"; done
 
-train run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b
+train run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b sdpo
 for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b sdpo "$step"; done
 
 aggregate_results baseline_results.json "results_rlsd_olmo7b_eval_step*.log" "results_sdpo_olmo7b_eval_step*.log"
@@ -181,7 +191,7 @@ echo "RLSD+SDPO DONE - see baseline_results.json for the aggregated table (TROPI
 #    (grep the results_tropic_g*_eval_step*.log files, or re-run
 #    aggregate_results against them) rather than waiting on this script to finish.
 # ============================================================
-train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b
+train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo "$step"; done
 
 # ============================================================
@@ -192,7 +202,7 @@ for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.p
 #    (TROPIC-L's own cadence, includes the early 5/10/15 regardless of
 #    CHECKPOINTS_TROPIC below which only controls which get EVALUATED here).
 # ============================================================
-train run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b
+train run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b tropic_l_olmo
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b tropic_l_olmo "$step"; done
 
 # ============================================================
