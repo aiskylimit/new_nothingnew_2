@@ -1,6 +1,6 @@
-#2 -0-5
-#vlm
-#v2
+#i opsd.txt
+#opsd
+#v1
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 nvidia-smi
@@ -14,8 +14,8 @@ export HF_DATASETS_OFFLINE=1
 export NCCL_DEBUG=WARN
 
 
-cd ./VLM_Distillation-main
-bash project_commands_collect_eval_summary.sh
+# cd ./VLM_Distillation-main
+# bash project_commands_collect_eval_summary.sh
 # bash project_commands.sh
 
 # cd ./offline_olmo7b_b200
