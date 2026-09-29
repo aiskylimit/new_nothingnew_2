@@ -588,6 +588,7 @@ def evaluate_model_vllm(checkpoint_dir, cfg, tag, vllm_gpu_ids, vllm_base_port=8
                 min_p=cfg["eval"].get("min_p", 0.0) or None,
             )
             golds = [p.answer for p in problems]
+            tick(f"[{tag}] {bench_name}: generating {len(prompts)} problems x {cfg['eval']['k']} samples Done!")
 
             res = score_generations(bench_name, generations, golds)
             results[bench_name] = res
