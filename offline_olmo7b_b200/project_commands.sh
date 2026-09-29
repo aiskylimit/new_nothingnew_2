@@ -19,14 +19,22 @@ export TROPIC_EVAL_DATA_DIR="${BASE_DIR}/data/eval"
 
 # ============================================================
 # 2. GPU topology - 2 GPUs (0,1): GPU 0 (main/training) + GPU 1 (1 vLLM
-#    replica) - same 2-GPU shape as offline_rlsd_sdpo_b200/offline_tropic_g_b200.
-#    Kept at 2 GPUs per explicit request - throughput is instead improved by
-#    using GPU 1's VRAM more efficiently (VLLM_MAX_MODEL_LEN below), not by
-#    adding more replica GPUs. Change MAIN_GPU/VLLM_GPU_IDS below if that
-#    ever changes.
+#    replica) during TRAINING - same 2-GPU shape as
+#    offline_rlsd_sdpo_b200/offline_tropic_g_b200, kept as-is per explicit
+#    request (no extra replica GPUs reserved for the whole run).
+#
+#    EVAL is different: by the time eval_checkpoint() runs, it is a
+#    SEPARATE process invocation (train already fully exited) - GPU 0 is
+#    genuinely idle then, not just "freed in-process". So eval uses BOTH
+#    GPU 0 and GPU 1 as 2 data-parallel vLLM replicas (EVAL_VLLM_GPU_IDS),
+#    splitting each benchmark's problems across them for ~2x eval
+#    throughput - no vLLM sleep/wake_up trickery needed, since there is no
+#    process ever alive on GPU 0 at the same time eval's replicas start.
+#    Change MAIN_GPU/VLLM_GPU_IDS/EVAL_VLLM_GPU_IDS below if that ever changes.
 # ============================================================
 MAIN_GPU=0
 VLLM_GPU_IDS="1"
+EVAL_VLLM_GPU_IDS="0,1"
 VLLM_BASE_PORT=8100
 VLLM_EXECUTABLE="vllm"
 GPU_MEM_UTIL=0.9
@@ -53,7 +61,12 @@ CHECKPOINTS_TROPIC="10 15 20 25 40 50 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {
-  local script=$1 model_path=$2 output_dir=$3
+  local script=$1 model_path=$2 output_dir=$3 tag=$4
+  local final_ckpt="${output_dir}/${tag}_checkpoint_step100"
+  if [ -d "$final_ckpt" ]; then
+    echo "skip (already trained): $final_ckpt exists"
+    return 0
+  fi
   echo "=== training: $script -> $output_dir ==="
   env CUDA_VISIBLE_DEVICES=${MAIN_GPU} python "scripts/${script}" \
       --model-path "${model_path}" --seed 0 --output-dir "${output_dir}" --skip-eval \
@@ -84,6 +97,11 @@ train_dry_run() {
 eval_checkpoint() {
   local script=$1 model_path=$2 output_dir=$3 tag=$4 step=$5
   local ckpt="${output_dir}/${tag}_checkpoint_step${step}"
+  local eval_log="${output_dir}_eval_step${step}.log"
+  if [ -f "$eval_log" ] && grep -q "ALL DONE" "$eval_log" 2>/dev/null; then
+    echo "skip (already evaluated): $eval_log shows ALL DONE"
+    return 0
+  fi
   if [ ! -d "$ckpt" ]; then
     echo "skip (no checkpoint): $ckpt"
     return 0
@@ -93,7 +111,7 @@ eval_checkpoint() {
       --model-path "${model_path}" --skip-train \
       --checkpoint-path "$ckpt" \
       --output-dir "${output_dir}" \
-      --eval-engine vllm --vllm-gpu-ids "${VLLM_GPU_IDS}" --vllm-base-port ${VLLM_BASE_PORT} \
+      --eval-engine vllm --vllm-gpu-ids "${EVAL_VLLM_GPU_IDS}" --vllm-base-port ${VLLM_BASE_PORT} \
       --vllm-executable "${VLLM_EXECUTABLE}" --vllm-gpu-memory-utilization ${GPU_MEM_UTIL} \
       --vllm-max-model-len ${VLLM_MAX_MODEL_LEN} \
       --eval-benchmarks ${BENCHMARKS} \
@@ -154,10 +172,10 @@ train_dry_run run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
 #    SDPO already ran on Qwen3-4B/8B separately (offline_rlsd_sdpo_b200/) -
 #    this folder is only the OLMo addition, not a re-run of those.
 # ============================================================
-train run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
+train run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b rlsd
 for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b rlsd "$step"; done
 
-train run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b
+train run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b sdpo
 for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b sdpo "$step"; done
 
 aggregate_results baseline_results.json "results_rlsd_olmo7b_eval_step*.log" "results_sdpo_olmo7b_eval_step*.log"
@@ -172,7 +190,7 @@ echo "RLSD+SDPO DONE - see baseline_results.json for the aggregated table (TROPI
 #    (grep the results_tropic_g*_eval_step*.log files, or re-run
 #    aggregate_results against them) rather than waiting on this script to finish.
 # ============================================================
-train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b
+train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo "$step"; done
 
 # ============================================================
@@ -183,7 +201,7 @@ for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.p
 #    (TROPIC-L's own cadence, includes the early 5/10/15 regardless of
 #    CHECKPOINTS_TROPIC below which only controls which get EVALUATED here).
 # ============================================================
-train run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b
+train run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b tropic_l_olmo
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b tropic_l_olmo "$step"; done
 
 # ============================================================
