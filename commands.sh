@@ -1,4 +1,4 @@
-#1 +70
+#2
 #opsd
 #v1
 
@@ -21,5 +21,5 @@ export NCCL_DEBUG=WARN
 # cd ./offline_olmo7b_b200
 # bash ./project_commands.sh
 
-cd ./opsd
-bash ./project_commands.sh
+# cd ./opsd
+# bash ./project_commands.sh
