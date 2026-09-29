@@ -1,4 +1,4 @@
-#2 -4
+#1 +5
 #vlm
 #v2
 
@@ -14,7 +14,8 @@ export HF_DATASETS_OFFLINE=1
 export NCCL_DEBUG=WARN
 
 
-# cd ./VLM_Distillation-main
+cd ./VLM_Distillation-main
+bash project_commands_collect_eval_summary.sh
 # bash project_commands.sh
 
 # cd ./offline_olmo7b_b200
