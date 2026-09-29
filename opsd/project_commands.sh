@@ -34,12 +34,6 @@ python "${PROJECT_ROOT}/data/prepare_data.py" \
 # bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 8b
 # bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b opsd
 
-bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 4b
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b sft
-
-bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 8b
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b sft
-
 bash "${PROJECT_ROOT}/scripts/run_training.sh" grpo 4b
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b grpo
 
@@ -48,3 +42,20 @@ bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b grpo
 
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b base
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b base
+
+bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 4b
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b sft
+
+bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 8b
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b sft
+
+bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd olmo7b
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b opsd
+
+bash "${PROJECT_ROOT}/scripts/run_training.sh" grpo olmo7b
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b grpo
+
+bash "${PROJECT_ROOT}/scripts/run_training.sh" sft olmo7b
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b sft
+
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b base

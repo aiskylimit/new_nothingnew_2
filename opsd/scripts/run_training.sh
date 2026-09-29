@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-METHOD="${1:?Usage: bash scripts/run_training.sh <sft|grpo|opsd> <4b|8b>}"
-MODEL_SIZE="${2:?Usage: bash scripts/run_training.sh <sft|grpo|opsd> <4b|8b>}"
+METHOD="${1:?Usage: bash scripts/run_training.sh <sft|grpo|opsd> <4b|8b|olmo7b>}"
+MODEL_SIZE="${2:?Usage: bash scripts/run_training.sh <sft|grpo|opsd> <4b|8b|olmo7b>}"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "${PROJECT_ROOT}/experiment_settings.env"
@@ -25,6 +25,10 @@ MAIN_PROCESS_PORT="${MAIN_PROCESS_PORT:-auto}"
 if [[ "${MAIN_PROCESS_PORT}" == "auto" ]]; then
     MAIN_PROCESS_PORT="$(python -c 'import socket; s = socket.socket(); s.bind(("", 0)); print(s.getsockname()[1]); s.close()')"
 fi
+# Torchrun reads PET_* defaults before Accelerate overlays its launch arguments.
+# Ignore cluster-injected rendezvous settings so the selected local port is used.
+unset PET_RDZV_ENDPOINT PET_RDZV_ID PET_RDZV_BACKEND PET_RDZV_CONF
+unset PET_MASTER_ADDR PET_MASTER_PORT PET_STANDALONE
 NUM_PROCESSES="${NUM_PROCESSES:-${TRAIN_NUM_PROCESSES}}"
 VLLM_GPU_MEMORY_UTILIZATION="${VLLM_GPU_MEMORY_UTILIZATION:-0.6}"
 
@@ -34,15 +38,24 @@ case "${MODEL_SIZE}" in
         PER_DEVICE_BATCH="${PER_DEVICE_BATCH_4B}"
         GRADIENT_ACCUMULATION="${GRADIENT_ACCUMULATION_4B}"
         OPSD_CLIP="${OPSD_CLIP_4B}"
+        MODEL_TAG="qwen3_4b"
         ;;
     8b)
         MODEL_PATH="${MODEL_ROOT}/Qwen3-8B"
         PER_DEVICE_BATCH="${PER_DEVICE_BATCH_8B}"
         GRADIENT_ACCUMULATION="${GRADIENT_ACCUMULATION_8B}"
         OPSD_CLIP="${OPSD_CLIP_8B}"
+        MODEL_TAG="qwen3_8b"
+        ;;
+    olmo7b)
+        MODEL_PATH="${MODEL_ROOT}/Olmo-3-7B-Think"
+        PER_DEVICE_BATCH="${PER_DEVICE_BATCH_OLMO7B}"
+        GRADIENT_ACCUMULATION="${GRADIENT_ACCUMULATION_OLMO7B}"
+        OPSD_CLIP="${OPSD_CLIP_OLMO7B}"
+        MODEL_TAG="olmo3_7b_think"
         ;;
     *)
-        echo "Unsupported model size: ${MODEL_SIZE}. Expected 4b or 8b." >&2
+        echo "Unsupported model size: ${MODEL_SIZE}. Expected 4b, 8b, or olmo7b." >&2
         exit 2
         ;;
 esac
@@ -62,7 +75,7 @@ if [[ "${ACTUAL_EFFECTIVE_BATCH}" -ne "${EFFECTIVE_BATCH_SIZE}" ]]; then
     exit 1
 fi
 
-RUN_CONFIG="${METHOD}_qwen3_${MODEL_SIZE}_paper"
+RUN_CONFIG="${METHOD}_${MODEL_TAG}_paper"
 METHOD_OUTPUT_ROOT="${OUTPUT_ROOT}/${METHOD}"
 mkdir -p "${METHOD_OUTPUT_ROOT}"
 

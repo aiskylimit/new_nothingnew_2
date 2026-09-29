@@ -1,10 +1,14 @@
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 from datasets import DatasetDict, load_from_disk
 from math_verify import parse, verify
 from transformers import AutoTokenizer
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from chat_prompts import apply_generation_prompt
 
 
 for name, value in {
@@ -322,9 +326,7 @@ def evaluate_math500(
     # Apply chat template to all messages
     all_prompts = []
     for messages in all_messages:
-        text = tokenizer.apply_chat_template(
-            messages, tokenize=False, add_generation_prompt=True, enable_thinking=enable_thinking
-        )
+        text = apply_generation_prompt(tokenizer, messages, enable_thinking)
         all_prompts.append(text)
 
     # Print dtype info before generation

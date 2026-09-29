@@ -7,3 +7,4 @@
 # models
 --hf Qwen/Qwen3-4B /mnt/local/@PROJECT@/OPSD/models/Qwen3-4B
 --hf Qwen/Qwen3-8B /mnt/local/@PROJECT@/OPSD/models/Qwen3-8B
+--hf allenai/Olmo-3-7B-Think /mnt/local/@PROJECT@/OPSD/models/Olmo-3-7B-Think

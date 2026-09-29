@@ -41,7 +41,7 @@ evaluate_checkpoint() {
     local checkpoint_path="$5"
 
     for dataset in "${DATASETS[@]}"; do
-        local output_dir="${RESULTS_ROOT}/raw/qwen3-${model_size}/${method}/${step}"
+        local output_dir="${RESULTS_ROOT}/raw/${model_tag}/${method}/${step}"
         local output_file="${output_dir}/${dataset}.json"
         mkdir -p "${output_dir}"
 
@@ -73,12 +73,23 @@ evaluate_checkpoint() {
     done
 }
 
-for model_size in 4b 8b; do
+for model_size in 4b 8b olmo7b; do
     if [[ -n "${MODEL_FILTER}" && "${model_size}" != "${MODEL_FILTER}" ]]; then
         continue
     fi
 
-    model_path="${MODEL_ROOT}/Qwen3-${model_size^^}"
+    case "${model_size}" in
+        4b|8b)
+            model_path="${MODEL_ROOT}/Qwen3-${model_size^^}"
+            model_tag="qwen3-${model_size}"
+            run_tag="qwen3_${model_size}"
+            ;;
+        olmo7b)
+            model_path="${MODEL_ROOT}/Olmo-3-7B-Think"
+            model_tag="olmo3-7b-think"
+            run_tag="olmo3_7b_think"
+            ;;
+    esac
     if [[ ! -d "${model_path}" ]]; then
         echo "Missing local model: ${model_path}" >&2
         exit 1
@@ -93,7 +104,7 @@ for model_size in 4b 8b; do
             continue
         fi
 
-        run_dir="${OUTPUT_ROOT}/${method}/${method}_qwen3_${model_size}_paper"
+        run_dir="${OUTPUT_ROOT}/${method}/${method}_${run_tag}_paper"
         case "${method}" in
             sft) steps="${SFT_EVAL_STEPS}" ;;
             opsd) steps="${OPSD_EVAL_STEPS}" ;;

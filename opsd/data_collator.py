@@ -1,4 +1,5 @@
 import torch
+from chat_prompts import apply_generation_prompt
 
 
 class SelfDistillationDataCollator:
@@ -68,9 +69,7 @@ class SelfDistillationDataCollator:
             student_messages = [{"role": "user", "content": student_user_message}]
 
             # Apply chat template for student (matching evaluation)
-            student_prompt = self.tokenizer.apply_chat_template(
-                student_messages, tokenize=False, add_generation_prompt=True, enable_thinking=self.student_thinking
-            )
+            student_prompt = apply_generation_prompt(self.tokenizer, student_messages, self.student_thinking)
             student_prompts.append(student_prompt)
 
             if self.reason_first:
@@ -104,9 +103,7 @@ class SelfDistillationDataCollator:
                 teacher_messages = [{"role": "user", "content": teacher_user_message}]
 
                 # Apply chat template for teacher
-                teacher_prompt = self.tokenizer.apply_chat_template(
-                    teacher_messages, tokenize=False, add_generation_prompt=True, enable_thinking=self.teacher_thinking
-                )
+                teacher_prompt = apply_generation_prompt(self.tokenizer, teacher_messages, self.teacher_thinking)
                 teacher_prompts.append(teacher_prompt)
 
         # Tokenize WITHOUT padding first to get true lengths
