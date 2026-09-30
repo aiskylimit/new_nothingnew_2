@@ -1,11 +1,10 @@
-#1 +50
+#3
 #opsd
 #v1
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 nvidia-smi
 
-ls OPSD/results/raw/olmo3-7b-think/opsd/
 
 export PATH=/usr/local/cuda/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
