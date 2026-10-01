@@ -53,6 +53,7 @@ real training run - see CONFIG's own comment in whichever script sets
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 import torch
@@ -239,7 +240,13 @@ def load_opsd_math_examples(
     Set small for a fast CPU dry run (see notebooks/TROPIC_vs_OPSD.ipynb's
     DRY_RUN flag); OPSD's own real run uses 20000.
     """
-    ds = load_dataset(OPSD_DATASET_PATH, split=split)
+    # Offline deployment: same TROPIC_TRAIN_DATA_PATH override as
+    # tropic/verifier_data.py's load_opsd_math_examples_with_answer (that
+    # loader has its OWN load_dataset() call site, so the override must be
+    # duplicated here too) - falls back to the real HF repo id when unset
+    # (online cluster behavior, unchanged).
+    dataset_path = os.environ.get("TROPIC_TRAIN_DATA_PATH", OPSD_DATASET_PATH)
+    ds = load_dataset(dataset_path, split=split)
     if only_correct and "correct" in ds.column_names:
         ds = ds.filter(lambda r: bool(r["correct"]))
     ds = ds.shuffle(seed=seed).select(range(min(num_examples, len(ds))))
