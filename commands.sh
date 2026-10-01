@@ -4,7 +4,6 @@
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 nvidia-smi
-ls OPSD/results/raw/olmo3-7b-think/opsd/
 
 export PATH=/usr/local/cuda/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
@@ -13,6 +12,10 @@ export TRANSFORMERS_OFFLINE=1
 export HF_DATASETS_OFFLINE=1
 export NCCL_DEBUG=WARN
 
+# ls OPSD/results/raw/olmo3-7b-think/opsd/
+cd OPSD
+mkdir -p ./res_tar
+tar -czf - ./results/raw/olmo3-7b-think/opsd/ | split -b 24M - ./res_tar/opsd.tar.gz.part-
 
 # cd ./VLM_Distillation-main
 # bash project_commands_collect_eval_summary.sh
