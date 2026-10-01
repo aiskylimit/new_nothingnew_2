@@ -1,4 +1,4 @@
-#2 -7 +a
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OPSD/res_tar/opsd.tar.gz.part-aa +a
 #opsd_check
 #v1
 
