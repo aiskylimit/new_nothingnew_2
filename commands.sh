@@ -1,4 +1,4 @@
-#2 -3 +a
+#i tropic.txt
 #opsd
 #v2
 
