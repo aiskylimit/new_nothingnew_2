@@ -13,9 +13,9 @@ export HF_DATASETS_OFFLINE=1
 export NCCL_DEBUG=WARN
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
-cd OPSD
-mkdir -p ./res_tar
-tar -czf - ./results/raw/olmo3-7b-think/opsd/ | split -b 24M - ./res_tar/opsd.tar.gz.part-
+ls OPSD/res_tar
+# mkdir -p ./res_tar
+# tar -czf - ./results/raw/olmo3-7b-think/opsd/ | split -b 24M - ./res_tar/opsd.tar.gz.part-
 
 # cd ./VLM_Distillation-main
 # bash project_commands_collect_eval_summary.sh
