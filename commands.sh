@@ -1,4 +1,4 @@
-#2 -12
+#1 +5
 #vlm_check
 #v1
 
@@ -17,8 +17,8 @@ export NCCL_DEBUG=WARN
 # mkdir -p ./res_tar
 # tar -czf - ./results/raw/olmo3-7b-think/opsd/ | split -b 24M - ./res_tar/opsd.tar.gz.part-
 
-# cd ./VLM_Distillation-main
-# bash project_commands_collect_eval_summary.sh
+cd ./VLM_Distillation-main
+bash project_commands_collect_eval_summary.sh
 # bash project_commands.sh
 
 # cd ./offline_olmo7b_b200
