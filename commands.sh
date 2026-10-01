@@ -1,5 +1,5 @@
-#1 +5
-#vlm_check
+#3
+#opsd_check
 #v1
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
@@ -17,8 +17,8 @@ export NCCL_DEBUG=WARN
 # mkdir -p ./res_tar
 # tar -czf - ./results/raw/olmo3-7b-think/opsd/ | split -b 24M - ./res_tar/opsd.tar.gz.part-
 
-cd ./VLM_Distillation-main
-bash project_commands_collect_eval_summary.sh
+# cd ./VLM_Distillation-main
+# bash project_commands_collect_eval_summary.sh
 # bash project_commands.sh
 
 # cd ./offline_olmo7b_b200
