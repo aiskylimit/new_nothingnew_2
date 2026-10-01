@@ -81,6 +81,8 @@ The authoritative executable configuration is `experiment_settings.env`.
 | Learning rate | 5e-6 | 5e-6 |
 | LoRA rank / alpha | 64 / 128 | 64 / 128 |
 
+GRPO uses a smaller per-GPU microbatch of 2 with 8 gradient-accumulation steps on two GPUs (effective batch 32). This bounds the memory used to score its 8 long generations per prompt while retaining the 16,000-token completion limit. SFT and OPSD keep the per-GPU batch sizes above.
+
 Paper-aligned method settings:
 
 - SFT: 100 steps and maximum sequence length 16,000.

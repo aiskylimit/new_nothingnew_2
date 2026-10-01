@@ -60,6 +60,11 @@ case "${MODEL_SIZE}" in
         ;;
 esac
 
+if [[ "${METHOD}" == "grpo" ]]; then
+    PER_DEVICE_BATCH="${GRPO_PER_DEVICE_BATCH}"
+    GRADIENT_ACCUMULATION="${GRPO_GRADIENT_ACCUMULATION}"
+fi
+
 if [[ ! -d "${MODEL_PATH}" ]]; then
     echo "Missing local model: ${MODEL_PATH}" >&2
     exit 1

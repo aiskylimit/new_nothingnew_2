@@ -22,10 +22,11 @@ export VLLM_GPU_MEMORY_UTILIZATION=0.6
 export GPU_MEMORY_UTILIZATION=0.9
 export MAIN_PROCESS_PORT=auto
 
-python "${PROJECT_ROOT}/data/prepare_data.py" \
-    --raw_root "${RAW_DATA_ROOT}" \
-    --output_root "${PREPARED_DATA_ROOT}" \
-    --overwrite
+# Already prepared before the completed OPSD and base evaluations.
+# python "${PROJECT_ROOT}/data/prepare_data.py" \
+#     --raw_root "${RAW_DATA_ROOT}" \
+#     --output_root "${PREPARED_DATA_ROOT}" \
+#     --overwrite
 
 # Evaluate each base model once, independently of method training and checkpoint evaluation.
 # bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 4b
@@ -34,11 +35,12 @@ python "${PROJECT_ROOT}/data/prepare_data.py" \
 # bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd 8b
 # bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b opsd
 
-bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd olmo7b
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b opsd
+# bash "${PROJECT_ROOT}/scripts/run_training.sh" opsd olmo7b  # completed
+# bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b opsd  # completed
 
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b base
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b base
+# bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b base  # completed
+# bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b base  # completed
+bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b base
 
 bash "${PROJECT_ROOT}/scripts/run_training.sh" grpo 4b
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b grpo
@@ -57,5 +59,3 @@ bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b grpo
 
 bash "${PROJECT_ROOT}/scripts/run_training.sh" sft olmo7b
 bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b sft
-
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b base
