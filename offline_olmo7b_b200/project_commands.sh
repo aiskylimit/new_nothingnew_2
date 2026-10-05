@@ -50,13 +50,10 @@ GPU_MEM_UTIL=0.9
 VLLM_MAX_MODEL_LEN=41000
 
 # Per-method eval cadence (checkpoints are still SAVED at all steps below by
-# each script's own CHECKPOINT_STEPS - 8 steps for RLSD/SDPO, 10 for
-# TROPIC-G (adds 10/15) - this only controls which of those get EVALUATED,
-# per the user's explicit choice: RLSD/SDPO (baselines) eval less densely
-# than TROPIC-G (the proposal). SDPO's cadence is ASSUMED same as RLSD (not
-# separately specified) - flag if that's wrong.
-CHECKPOINTS_RLSD="25 50 75 100"
-CHECKPOINTS_SDPO="25 50 75 100"
+# each script's own CHECKPOINT_STEPS - 10 for TROPIC-G (adds 10/15) - this
+# only controls which of those get EVALUATED. RLSD/SDPO's own cadence
+# (CHECKPOINTS_RLSD/CHECKPOINTS_SDPO="25 50 75 100") no longer applies here -
+# both already fully trained+evaluated in a prior run (see section 3 below).
 CHECKPOINTS_TROPIC="10 15 20 25 40 50 75 100"
 BENCHMARKS="aime25 aime26 hmmt25"
 
@@ -119,9 +116,9 @@ eval_checkpoint() {
 }
 
 # Aggregates avg@12/pass@12 lines from whichever eval log(s) match the given
-# glob pattern(s) into one JSON + printed table - called separately for
-# RLSD+SDPO (so those results are visible as soon as the baselines finish,
-# without waiting on TROPIC-G) and again at the very end for everything.
+# glob pattern(s) into one JSON + printed table - called once at the very
+# end for all 5 methods (RLSD/SDPO's own eval logs are already on disk from
+# a prior run - see section 3 below).
 aggregate_results() {
   local outfile=$1
   shift
@@ -158,35 +155,23 @@ PYEOF
 }
 
 # ============================================================
-# 3. Dry run first - a few training steps on RLSD/OLMo, to surface
-#    path/GPU/env mistakes cheaply AND to sanity-check the empty-think-
-#    prefill trick before committing to the full run below. Inspect
-#    results_rlsd_olmo7b_dryrun_train.log; only proceed once it's clean.
+# 3. RLSD and SDPO on OLMo-3-7B-Think already trained+evaluated (all 4
+#    checkpoints each, confirmed ALL DONE in a prior run of this script -
+#    see results_rlsd_olmo7b/ and results_sdpo_olmo7b/ already on disk).
+#    Their scripts/modules were removed from this package (run_rlsd_
+#    experiment_olmo7b.py, run_sdpo_experiment_olmo7b.py, tropic/sdpo.py,
+#    tropic/verifier_data.py) so this script no longer re-trains or
+#    re-evaluates them - rerunning this file now goes straight to
+#    TROPIC-G/TROPIC-L below. The existing results_rlsd_olmo7b_eval_step*.log/
+#    results_sdpo_olmo7b_eval_step*.log files are untouched and still feed
+#    into the final aggregate_results call at the bottom of this script.
 # ============================================================
-train_dry_run run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b
 
 # ============================================================
-# 4. Train + eval RLSD, then SDPO on OLMo-3-7B-Think - EACH METHOD'S TRAIN+EVAL
-#    FULLY FINISHES before the next one starts. Baselines only: results print
-#    immediately below once both are done, WITHOUT waiting on TROPIC-G. RLSD/
-#    SDPO already ran on Qwen3-4B/8B separately (offline_rlsd_sdpo_b200/) -
-#    this folder is only the OLMo addition, not a re-run of those.
-# ============================================================
-train run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b rlsd
-for step in $CHECKPOINTS_RLSD; do eval_checkpoint run_rlsd_experiment_olmo7b.py "${MODEL_OLMO}" results_rlsd_olmo7b rlsd "$step"; done
-
-train run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b sdpo
-for step in $CHECKPOINTS_SDPO; do eval_checkpoint run_sdpo_experiment_olmo7b.py "${MODEL_OLMO}" results_sdpo_olmo7b sdpo "$step"; done
-
-aggregate_results baseline_results.json "results_rlsd_olmo7b_eval_step*.log" "results_sdpo_olmo7b_eval_step*.log"
-echo "RLSD+SDPO DONE - see baseline_results.json for the aggregated table (TROPIC-G still running below)."
-
-# ============================================================
-# 5. Train + eval TROPIC-G (top-k64 only - the real baseline's sparsification
+# 4. Train + eval TROPIC-G (top-k64 only - the real baseline's sparsification
 #    setting; the full-vocab variant was dropped from this package) - the
-#    proposal, runs only after RLSD+SDPO above are completely done. Already
-#    ran on Qwen3-4B/8B separately (offline_tropic_g_b200/) - this is only
-#    the OLMo addition. Check its own results later with a separate command
+#    proposal. Already ran on Qwen3-4B/8B separately (offline_tropic_g_b200/)
+#    - this is only the OLMo addition. Check its own results later with a separate command
 #    (grep the results_tropic_g*_eval_step*.log files, or re-run
 #    aggregate_results against them) rather than waiting on this script to finish.
 # ============================================================
@@ -194,7 +179,7 @@ train run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_g_topk64_olmo7b.py "${MODEL_OLMO}" results_tropic_g_topk64_olmo7b tropic_g_topk64_olmo "$step"; done
 
 # ============================================================
-# 6. Train + eval TROPIC-L (leverage-allocated trust regions, TROPIC_Proposal_v8)
+# 5. Train + eval TROPIC-L (leverage-allocated trust regions, TROPIC_Proposal_v8)
 #    - runs only after TROPIC-G above is completely done. Self-value (SV)
 #    process credit only (the only credit source built anywhere in this
 #    codebase) - checkpoints saved at 5/10/15/20/25/40/50/60/75/80/100
@@ -205,7 +190,7 @@ train run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b tropic_l_ol
 for step in $CHECKPOINTS_TROPIC; do eval_checkpoint run_tropic_l_olmo7b.py "${MODEL_OLMO}" results_tropic_l_olmo7b tropic_l_olmo "$step"; done
 
 # ============================================================
-# 7. Aggregate every avg@12/pass@12 line (all 5 methods) into one final
+# 6. Aggregate every avg@12/pass@12 line (all 5 methods) into one final
 #    table + JSON.
 # ============================================================
 aggregate_results final_results.json "results_*_eval_step*.log"
