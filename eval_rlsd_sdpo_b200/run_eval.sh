@@ -1,6 +1,7 @@
 #!/bin/bash
 # Re-eval RLSD and SDPO on OLMo-3-7B-Think using checkpoints already on the B200 server.
-# The two methods run in parallel on separate GPU pairs; steps within a method run sequentially.
+# Runs on GPU 0 (main) + GPU 0,1 (vLLM replicas), the same 2-GPU layout as project_commands.sh.
+# RLSD runs first, then SDPO; steps within each method run sequentially.
 # Outputs go to *_reeval directories so the original eval logs/results are not overwritten.
 set -uo pipefail
 
@@ -33,7 +34,6 @@ reeval_chain() {
   done
 }
 
-reeval_chain run_rlsd_experiment_olmo7b.py rlsd "0,1" 8100 0 &
-reeval_chain run_sdpo_experiment_olmo7b.py sdpo "2,3" 8200 2 &
-wait
+reeval_chain run_rlsd_experiment_olmo7b.py rlsd "0,1" 8100 0
+reeval_chain run_sdpo_experiment_olmo7b.py sdpo "0,1" 8100 0
 echo "ALL DONE - re-eval RLSD and SDPO finished"
