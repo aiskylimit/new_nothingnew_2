@@ -532,27 +532,33 @@ def evaluate_model_vllm(checkpoint_dir, cfg, tag, vllm_gpu_ids, vllm_base_port=8
         results = {}
         all_generations = {}
         top_k_cfg = cfg["eval"].get("top_k", -1)
-        for bench_name in cfg["eval"]["benchmarks"]:
-            problems = load_benchmark(bench_name, num_problems=cfg["eval"]["num_problems"])
-            prompts = []
-            for p in problems:
+        benchmarks = cfg["eval"]["benchmarks"]
+        problems_by_bench = {b: load_benchmark(b, num_problems=cfg["eval"]["num_problems"]) for b in benchmarks}
+        all_prompts, spans = [], {}
+        for bench_name in benchmarks:
+            start = len(all_prompts)
+            for p in problems_by_bench[bench_name]:
                 messages = [{"role": "user", "content": p.problem + "\n\nPlease reason step by step, and put your final answer within \\boxed{}."}]
-                text = tokenizer.apply_chat_template(
+                all_prompts.append(tokenizer.apply_chat_template(
                     messages, tokenize=False, add_generation_prompt=True,
                     enable_thinking=cfg["eval"]["enable_thinking"],
-                )
-                prompts.append(text)
+                ))
+            spans[bench_name] = (start, len(all_prompts))
 
-            tick(f"[{tag}] {bench_name}: generating {len(prompts)} problems x {cfg['eval']['k']} samples via vLLM")
-            generations = generate_eval_batch_parallel(
-                ports, prompts,
-                max_tokens=cfg["eval"]["max_new_tokens"], temperature=cfg["eval"]["temperature"],
-                top_p=cfg["eval"]["top_p"], n=cfg["eval"]["k"],
-                top_k=top_k_cfg if top_k_cfg and top_k_cfg > 0 else None,
-                min_p=cfg["eval"].get("min_p", 0.0) or None,
-            )
+        tick(f"[{tag}] {len(all_prompts)} problems x {cfg['eval']['k']} samples across {', '.join(benchmarks)} in one vLLM batch")
+        all_outputs = generate_eval_batch_parallel(
+            ports, all_prompts,
+            max_tokens=cfg["eval"]["max_new_tokens"], temperature=cfg["eval"]["temperature"],
+            top_p=cfg["eval"]["top_p"], n=cfg["eval"]["k"],
+            top_k=top_k_cfg if top_k_cfg and top_k_cfg > 0 else None,
+            min_p=cfg["eval"].get("min_p", 0.0) or None,
+        )
+
+        for bench_name in benchmarks:
+            start, end = spans[bench_name]
+            problems = problems_by_bench[bench_name]
+            generations = all_outputs[start:end]
             golds = [p.answer for p in problems]
-
             res = score_generations(bench_name, generations, golds)
             results[bench_name] = res
             all_generations[bench_name] = {
@@ -562,12 +568,9 @@ def evaluate_model_vllm(checkpoint_dir, cfg, tag, vllm_gpu_ids, vllm_base_port=8
             }
             tick(f"[{tag}] {bench_name} avg@{res.k}={res.avg_at_k:.3f} pass@{res.k}={res.pass_at_k:.3f}")
 
-            # Written after EVERY benchmark (not just once at the end) so a
-            # crash on a LATER benchmark doesn't lose already-computed
-            # generations/scores for benchmarks that already finished.
-            (RESULTS_DIR / f"{tag}_generations.json").write_text(json.dumps(all_generations, indent=2))
-            serializable = {k: {"avg_at_k": v.avg_at_k, "pass_at_k": v.pass_at_k, "k": v.k} for k, v in results.items()}
-            (RESULTS_DIR / f"{tag}_eval_results.json").write_text(json.dumps(serializable, indent=2))
+        (RESULTS_DIR / f"{tag}_generations.json").write_text(json.dumps(all_generations, indent=2))
+        serializable = {k: {"avg_at_k": v.avg_at_k, "pass_at_k": v.pass_at_k, "k": v.k} for k, v in results.items()}
+        (RESULTS_DIR / f"{tag}_eval_results.json").write_text(json.dumps(serializable, indent=2))
 
         tick(f"[{tag}] eval done (vLLM) - scores + raw generations saved under {RESULTS_DIR}/")
         return results
