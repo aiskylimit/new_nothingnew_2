@@ -6,11 +6,12 @@
 # configs/sgl/methods/iwc-gain-nocapture.yaml) with the train batch set per model (BATCH_<key> below); only where resources come from differs: the venv, every model and every benchmark are read from
 # fixed local paths (override with the env vars below), and every network path is switched off, so a missing
 # file fails instead of being downloaded.
-#   bash project_commands_b200_gain.sh                           # both models, one after the other, GPU 0
+#   bash project_commands_b200_gain.sh                           # default (= "parallel"): qwen25-7b (batch 8, GPU 6) and
+#                                                                # qwen3-8b (batch 32, GPU 7) at the same time, then one
+#                                                                # summary: SUMMARY_FILE (GPU_QWEN25 / GPU_QWEN3 override)
+#   MODELS="qwen25-7b qwen3-8b" bash project_commands_b200_gain.sh  # both models one after the other, on GPUS (default 0)
 #   MODELS=qwen3-8b GPUS=1 bash project_commands_b200_gain.sh    # one model on another GPU
 #   EXTRA_EVAL_SEEDS="43 44" bash project_commands_b200_gain.sh  # + the paper's other sampling seeds
-#   bash project_commands_b200_gain.sh parallel                  # qwen25-7b (batch 8, GPU 6) and qwen3-8b (batch 32, GPU 7)
-#                                                                # at the same time, then one summary: SUMMARY_FILE
 #   DRY_RUN=1 bash project_commands_b200_gain.sh                 # print every stage command, run nothing
 # Every stage runs from scratch, data included (prepare -> capture -> answer gain -> gain signal -> weights
 # -> train -> eval), even when its output exists. RESUME=1 instead skips stages whose output exists, to continue
@@ -29,7 +30,8 @@ if [[ "${1:-}" == summary ]]; then
   python scripts/summarize_gain_nocap.py --results-dir "${RESULTS_DIR}" --output "${SUMMARY_FILE}"
   exit 0
 fi
-if [[ "${1:-}" == parallel ]]; then
+# parallel is the default; the per-model children below set MODELS, so they fall through to the single-model path
+if [[ "${1:-}" == parallel || ( -z "${1:-}" && -z "${MODELS:-}" ) ]]; then
   mkdir -p logs
   # one process per model, each on its own GPU and batch; the summary is written once both have finished
   MODELS=qwen25-7b GPUS="${GPU_QWEN25:-6}" TRAIN_BATCH=8 SKIP_COMPARE=1 bash "${BASH_SOURCE[0]}" > logs/b200-gain-qwen25-7b.log 2>&1 &
