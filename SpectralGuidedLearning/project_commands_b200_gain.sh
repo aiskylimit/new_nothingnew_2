@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Offline B200 driver: answer-gain allocation (IWC-Stable, lambda 0.5, no spectral gate) with
+# Offline B200 driver: answer-gain allocation (IWC-Stable, lambda 1, no spectral gate) with
 # LoRA on Qwen2.5-7B-Instruct and Qwen3-8B -> eval under the P-ALIGN protocol. The arms are
 # configs/sgl/<model>-palign/iwc-gain-nocap-l05-lora.yaml
 # (answer gain, no spectral gate, and NO gradient capture: the capture stage is skipped, see
@@ -26,6 +26,7 @@ cd "${BASE}"
 
 RESULTS_DIR="${RESULTS_DIR:-results_b200}"
 SUMMARY_FILE="${SUMMARY_FILE:-${RESULTS_DIR}/summary-iwc-gain-nocap.md}"
+LAMBDA="${LAMBDA:-${IWC_INTERPOLATION:-1}}"
 if [[ "${1:-}" == summary ]]; then
   python scripts/summarize_gain_nocap.py --results-dir "${RESULTS_DIR}" --output "${SUMMARY_FILE}"
   exit 0
@@ -34,9 +35,9 @@ fi
 if [[ "${1:-}" == parallel || ( -z "${1:-}" && -z "${MODELS:-}" ) ]]; then
   mkdir -p logs
   # one process per model, each on its own GPU and batch; the summary is written once both have finished
-  MODELS=qwen25-7b GPUS="${GPU_QWEN25:-6}" TRAIN_BATCH=8 SKIP_COMPARE=1 bash "${BASH_SOURCE[0]}" > logs/b200-gain-qwen25-7b.log 2>&1 &
+  MODELS=qwen25-7b GPUS="${GPU_QWEN25:-6}" TRAIN_BATCH=8 LAMBDA="${LAMBDA}" SKIP_COMPARE=1 bash "${BASH_SOURCE[0]}" > logs/b200-gain-qwen25-7b.log 2>&1 &
   pid7=$!
-  MODELS=qwen3-8b GPUS="${GPU_QWEN3:-7}" TRAIN_BATCH=32 SKIP_COMPARE=1 bash "${BASH_SOURCE[0]}" > logs/b200-gain-qwen3-8b.log 2>&1 &
+  MODELS=qwen3-8b GPUS="${GPU_QWEN3:-7}" TRAIN_BATCH=32 LAMBDA="${LAMBDA}" SKIP_COMPARE=1 bash "${BASH_SOURCE[0]}" > logs/b200-gain-qwen3-8b.log 2>&1 &
   pid8=$!
   status=0
   wait "${pid7}" || { echo "qwen25-7b failed (logs/b200-gain-qwen25-7b.log)" >&2; status=1; }
@@ -56,6 +57,7 @@ RESULTS_DIR="${RESULTS_DIR:-results_b200}"
 EVALSEED_RESULTS_DIR="${EVALSEED_RESULTS_DIR:-results_b200_evalseed}"
 GAIN_GPU_MEM_UTIL="${GAIN_GPU_MEM_UTIL:-0.4}"
 EVAL_GPU_MEM_UTIL="${EVAL_GPU_MEM_UTIL:-0.5}"
+LAMBDA="${LAMBDA:-${IWC_INTERPOLATION:-1}}"
 
 # No network: Hugging Face reads local files only, vLLM sends no usage stats, FlashInfer never fetches cubins
 # (it raises instead; install flashinfer-cubin of the same version in the venv if a kernel is missing).
@@ -102,6 +104,8 @@ for key in ${MODELS}; do
     "model.name=$(model_dir "${key}")"
     "stages.answer_gain.args.gpu-memory-utilization=${GAIN_GPU_MEM_UTIL}"
     "stages.eval.args.gpu-memory-utilization=${EVAL_GPU_MEM_UTIL}"
+    "iwc.interpolation=${LAMBDA}"
+    "stages.weights.args.interpolation=${LAMBDA}"
   )
   # effective batch (sequences per optimizer step); unset keeps the recipe's 32
   [[ -z "${TRAIN_BATCH:-}" ]] || overrides+=("stages.train.effective_batch=${TRAIN_BATCH}")
