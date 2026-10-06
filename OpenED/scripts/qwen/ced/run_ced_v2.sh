@@ -11,6 +11,10 @@
 #   --kd-scope M         replay | pl (KD also on old-event tokens of pseudo rows) [replay]
 #   --balanced-epoch 0|1 extra calibration epoch on type-balanced pool [0]
 #   --balance-per-type N [10]   --balance-lr L [2e-5]
+#   --sd 0|1             on-policy self-distillation, EMA teacher reads gold+PL answer [0]
+#   --w-sd W [1.0]   --sd-mu M [0.99]   --sd-temp T [1.0]   --sd-div fkl|rkl [fkl]
+#   ablation only, defaults = SDFT: --sd-top-p P [1.0]  --sd-skip-unparsed 0|1 [0]  --sd-warmup F [0]
+#   --sd-omask 0|1 [0]   omission-mask: keep grounded old records missing from y~ out of the SD loss
 
 set -euo pipefail
 
@@ -19,8 +23,16 @@ KD_RATIO=0.9; W_SPAN=2.0; KD_TYPE=sfkl; SKEW=0.1; SPAN_METRIC=cosine; LAYERS="22
 BS=2; ACC=8; LR=0.0002; LR_LATER=""; EPOCHS=5; SEED=42; RANK=8; ALPHA=64
 GREEDY=0; START_TASK=0; END_TASK=""   # empty = derive from streams.json (ACE 5 tasks, CRE 10)
 PL=0; BOOST=1; KD_SCOPE=replay; BAL=0; BAL_PT=10; BAL_LR=0.00002
+PL_DEDUP=1      # H2: drop pseudo events whose trigger overlaps a gold trigger (any type)
+PL_CONF=none    # H1: teacher-confidence filter {none, percentile, thresh}
+PL_CONF_PCT=70; PL_CONF_THRESH=""
+PL_LEXICON=1    # F2: (trigger,type) must occur in the old tasks' gold train data
+BAL_DIST=uniform  # H3: calibration pool distribution {uniform (legacy F4), matched (CL-DETR-style)}
 SELECT_BEST=0   # 1 = merge best-dev-F1 epoch per task instead of last epoch
 KDNEW=0         # LwF: KD weight on new-task rows' non-new-type tokens (0 = off)
+SD=0; W_SD=1.0; SD_MU=0.99; SD_TEMP=1.0; SD_DIV=fkl   # on-policy self-distillation (SDFT)
+SD_TOP_P=1.0; SD_SKIP_UNPARSED=0; SD_WARMUP=0       # SD ablation knobs, SDFT defaults
+SD_OMASK=0
 GPUS_ARG="0 1"  # which GPUs to use (space-separated); e.g. "0" for single-GPU
 EXTRA_ARGS=""   # raw extra flags appended to the ced_finetune step (e.g. DistiLLM off-policy)
 TASK0_SOURCE_RUN=""
@@ -53,6 +65,12 @@ while [[ $# -gt 0 ]]; do
         --start-task) START_TASK=$2; shift 2;;
         --end-task) END_TASK=$2; shift 2;;
         --pl) PL=$2; shift 2;;
+        --pl-dedup) PL_DEDUP=$2; shift 2;;
+        --pl-conf) PL_CONF=$2; shift 2;;
+        --pl-conf-pct) PL_CONF_PCT=$2; shift 2;;
+        --pl-conf-thresh) PL_CONF_THRESH=$2; shift 2;;
+        --pl-lexicon) PL_LEXICON=$2; shift 2;;
+        --balance-dist) BAL_DIST=$2; shift 2;;
         --replay-boost) BOOST=$2; shift 2;;
         --kd-scope) KD_SCOPE=$2; shift 2;;
         --balanced-epoch) BAL=$2; shift 2;;
@@ -60,6 +78,15 @@ while [[ $# -gt 0 ]]; do
         --balance-lr) BAL_LR=$2; shift 2;;
         --select-best-dev) SELECT_BEST=$2; shift 2;;
         --kd-ratio-new) KDNEW=$2; shift 2;;
+        --sd) SD=$2; shift 2;;
+        --w-sd) W_SD=$2; shift 2;;
+        --sd-mu) SD_MU=$2; shift 2;;
+        --sd-temp) SD_TEMP=$2; shift 2;;
+        --sd-div) SD_DIV=$2; shift 2;;
+        --sd-top-p) SD_TOP_P=$2; shift 2;;
+        --sd-skip-unparsed) SD_SKIP_UNPARSED=$2; shift 2;;
+        --sd-warmup) SD_WARMUP=$2; shift 2;;
+        --sd-omask) SD_OMASK=$2; shift 2;;
         --gpus) GPUS_ARG=$2; shift 2;;
         --extra) EXTRA_ARGS=$2; shift 2;;
         --task0-source-run) TASK0_SOURCE_RUN=$2; shift 2;;
@@ -83,7 +110,11 @@ fi
 export PATH=${ENV_BIN}:$PATH
 
 BASE_PATH=.
-BASE_MODEL="Qwen/Qwen3-0.6B"
+# local copy from download.txt when present (see run.sh), else the hub name
+[ -f models/Qwen3-0.6B/config.json ] && MODEL_PATH=${MODEL_PATH:-models/Qwen3-0.6B}
+BASE_MODEL=${MODEL_PATH:-Qwen/Qwen3-0.6B}
+# qwen | llama | gemma (chat_format.py): the tokenizer's processed_data/<dir>/<MODEL_TYPE>/ subdir
+MODEL_TYPE=${MODEL_TYPE:-qwen}
 GPUS_PER_NODE=${#GPUS[@]}
 
 RUN_ROOT="${BASE_PATH}/results/qwen3/ced/${RUN_NAME}"
@@ -110,7 +141,7 @@ fi
 mkdir -p ${RUN_ROOT}
 MANIFEST="${RUN_ROOT}/run_manifest.json"
 MANIFEST_METHOD=${KD_TYPE}; [ "${MODE}" = "sft" ] && MANIFEST_METHOD=sft
-MANIFEST_CONFIG="mode=${MODE};kd_ratio=${KD_RATIO};w_span=${W_SPAN};kd_type=${KD_TYPE};skew=${SKEW};span_metric=${SPAN_METRIC};layers=${LAYERS};pl=${PL};boost=${BOOST};kd_scope=${KD_SCOPE};balance=${BAL}/${BAL_PT}/${BAL_LR};select_best=${SELECT_BEST};kd_new=${KDNEW};lr=${LR}/${LR_LATER};train_num=${TRAIN_NUM};dev_num=${DEV_NUM};smoke_rows=${SMOKE_ROWS};eval_bs=${EVAL_BS};extra=${EXTRA_ARGS}"
+MANIFEST_CONFIG="mode=${MODE};kd_ratio=${KD_RATIO};w_span=${W_SPAN};kd_type=${KD_TYPE};skew=${SKEW};span_metric=${SPAN_METRIC};layers=${LAYERS};pl=${PL};pl_dedup=${PL_DEDUP};pl_conf=${PL_CONF}/${PL_CONF_PCT}/${PL_CONF_THRESH};pl_lexicon=${PL_LEXICON};boost=${BOOST};kd_scope=${KD_SCOPE};balance=${BAL}/${BAL_PT}/${BAL_LR}/${BAL_DIST};select_best=${SELECT_BEST};kd_new=${KDNEW};sd=${SD}/${W_SD}/${SD_MU}/${SD_TEMP}/${SD_DIV}/top_p=${SD_TOP_P}/skip_unparsed=${SD_SKIP_UNPARSED}/warmup=${SD_WARMUP}/omask=${SD_OMASK};lr=${LR}/${LR_LATER};train_num=${TRAIN_NUM};dev_num=${DEV_NUM};smoke_rows=${SMOKE_ROWS};eval_bs=${EVAL_BS};extra=${EXTRA_ARGS}"
 MANIFEST_ARGS=(
     init --output "${MANIFEST}" --run "${RUN_NAME}" --method "${MANIFEST_METHOD}"
     --permutation "${PERM}" --seed "${SEED}" --data-root "${BASE_PATH}/data/${DATA_PREFIX}${PERM}"
@@ -119,14 +150,17 @@ MANIFEST_ARGS=(
     --runtime-file "${BASE_PATH}/arguments.py"
     --runtime-file "${BASE_PATH}/finetune.py"
     --runtime-file "${BASE_PATH}/ced_finetune.py"
+    --runtime-file "${BASE_PATH}/ced_omask.py"
     --runtime-file "${BASE_PATH}/data_utils/lm_datasets.py"
     --runtime-file "${BASE_PATH}/distillm/buffer.py"
     --runtime-file "${BASE_PATH}/distillm/losses.py"
     --runtime-file "${BASE_PATH}/distillm/sampler.py"
     --runtime-file "${BASE_PATH}/utils.py"
+    --runtime-file "${BASE_PATH}/chat_format.py"
     --runtime-file "${BASE_PATH}/ed_eval.py"
     --runtime-file "${BASE_PATH}/configs/deepspeed/ds_config_bf16.json"
     --runtime-file "${BASE_PATH}/scripts/qwen/ced/run_ced_v2.sh"
+    --runtime-file "${BASE_PATH}/tools/ced_sd_prompts.py"
     --model "${BASE_MODEL}" --rank "${RANK}" --alpha "${ALPHA}" --dropout 0.1
     --gpu-count "${GPUS_PER_NODE}" --micro-batch "${BS}"
     --gradient-accumulation "${ACC}" --epochs "${EPOCHS}" --start-task "${START_TASK}"
@@ -141,21 +175,21 @@ if [ "${RESUME}" = "1" ]; then
         rm -rf "${RUN_ROOT}/task${STALE_TASK}"
     done
 fi
-echo "run=${RUN_NAME} mode=${MODE} perm=${PERM} data=${DATA_PREFIX} pl=${PL} boost=${BOOST} kd_scope=${KD_SCOPE} bal=${BAL}/${BAL_PT}/${BAL_LR} kd_ratio=${KD_RATIO} w_span=${W_SPAN} ${KD_TYPE}/${SKEW}/${SPAN_METRIC} layers='${LAYERS}' bs=${BS}x${ACC} lr=${LR}/${LR_LATER} ep=${EPOCHS} seed=${SEED} lora=${RANK}/${ALPHA} greedy=${GREEDY} task0_source=${TASK0_SOURCE_RUN:-none}" \
+echo "run=${RUN_NAME} mode=${MODE} perm=${PERM} data=${DATA_PREFIX} pl=${PL} boost=${BOOST} kd_scope=${KD_SCOPE} bal=${BAL}/${BAL_PT}/${BAL_LR} kd_ratio=${KD_RATIO} w_span=${W_SPAN} ${KD_TYPE}/${SKEW}/${SPAN_METRIC} layers='${LAYERS}' bs=${BS}x${ACC} lr=${LR}/${LR_LATER} ep=${EPOCHS} seed=${SEED} lora=${RANK}/${ALPHA} greedy=${GREEDY} sd=${SD}/${W_SD}/${SD_MU}/${SD_TEMP}/${SD_DIV}/top_p=${SD_TOP_P}/skip_unparsed=${SD_SKIP_UNPARSED}/warmup=${SD_WARMUP}/omask=${SD_OMASK} task0_source=${TASK0_SOURCE_RUN:-none}" \
     | tee ${RUN_ROOT}/run_config.txt
 
-tokenize () {  # $1=raw dir  $2=processed dir
+tokenize () {  # $1=raw dir  $2=processed dir  [$3=teacher prompt cap, default 640]
     PYTHONPATH=${BASE_PATH} ${ENV_BIN}/python ${BASE_PATH}/tools/process_data.py \
         --data-dir $1/ --processed-data-dir $2 \
         --model-path ${BASE_MODEL} --data-process-workers 4 \
-        --max-prompt-length 460 --t-max-prompt-length 640 \
-        --dev-num 1000 --model-type qwen
+        --max-prompt-length 460 --t-max-prompt-length ${3:-640} \
+        --dev-num 1000 --model-type ${MODEL_TYPE}
 }
 
 train_once () {  # $1=engine $2=init $3=data_dir $4=save $5=lr $6=epochs $7=extra opts
-    local MASTER_PORT=66$(($RANDOM%90+10))
+    local MASTER_PORT=${MASTER_PORT:-66$(($RANDOM%90+10))}   # project_commands.sh pins one per GPU
     local OPTS=""
-    OPTS+=" --base-path ${BASE_PATH} --model-path $2 --ckpt-name qwen3-0.6B --model-type qwen --n-gpu ${GPUS_PER_NODE}"
+    OPTS+=" --base-path ${BASE_PATH} --model-path $2 --ckpt-name qwen3-0.6B --model-type ${MODEL_TYPE} --n-gpu ${GPUS_PER_NODE}"
     OPTS+=" --data-dir $3 --num-workers 0 --train-num ${TRAIN_NUM} --dev-num ${DEV_NUM} --ced-smoke-rows ${SMOKE_ROWS}"
     OPTS+=" --lr $5 --batch-size ${BS} --eval-batch-size ${EVAL_BS} --gradient-accumulation-steps ${ACC}"
     OPTS+=" --warmup-iters 0 --warmup-ratio 0.1 --lr-decay-style wrmup_cosine --weight-decay 1e-2 --clip-grad 1.0"
@@ -200,7 +234,7 @@ fi
 for T in $(seq ${START_TASK} ${END_TASK})
 do
     RAW_DIR="${BASE_PATH}/data/${DATA_PREFIX}${PERM}/${T}"
-    DATA_DIR="${BASE_PATH}/processed_data/${DATA_PREFIX}${PERM}/${T}/qwen/"
+    DATA_DIR="${BASE_PATH}/processed_data/${DATA_PREFIX}${PERM}/${T}/${MODEL_TYPE}/"
     SAVE_PATH="${RUN_ROOT}/task${T}"
     TASK_LR=${LR}; [ ${T} -gt 0 ] && TASK_LR=${LR_LATER}
     STAGE=${RAW_DIR}
@@ -209,10 +243,16 @@ do
         if [ "${PL}" = "1" ]; then
             PL_DIR="${BASE_PATH}/data/stage_${RUN_NAME}/${T}_pl"
             echo "===== ${RUN_NAME} task${T}: pseudo-labeling (teacher=${INIT_MODEL}) ====="
-            ${ENV_BIN}/python ${BASE_PATH}/tools/ced_pseudo_label.py \
+            # keeping generate() scores for the confidence filter costs ~6GB VRAM
+            # -> halve the generation batch when the filter is on
+            PL_BS=64; [ "${PL_CONF}" != "none" ] && PL_BS=32
+            PL_OPTS="--conflict-dedup ${PL_DEDUP} --conf-filter ${PL_CONF} --conf-percentile ${PL_CONF_PCT}"
+            PL_OPTS+=" --lexicon-filter ${PL_LEXICON}"
+            [ -n "${PL_CONF_THRESH}" ] && PL_OPTS+=" --conf-thresh ${PL_CONF_THRESH}"
+            PYTHONPATH=${BASE_PATH} ${ENV_BIN}/python ${BASE_PATH}/tools/ced_pseudo_label.py \
                 --teacher ${INIT_MODEL} --data-dir ${STAGE} \
                 --streams ${STREAMS_FILE} --task-id ${T} \
-                --batch-size 64 \
+                --batch-size ${PL_BS} ${PL_OPTS} \
                 --out ${PL_DIR} > ${RUN_ROOT}/pl_task${T}.log 2>&1
             STAGE=${PL_DIR}
         fi
@@ -224,10 +264,25 @@ do
                 --boost ${BOOST} --out ${BO_DIR} >> ${RUN_ROOT}/pl_task${T}.log 2>&1
             STAGE=${BO_DIR}
         fi
+        T_CAP=640
+        if [ "${SD}" = "1" ]; then
+            # last data step: the teacher reference must be the final gold+PL answer
+            SD_DIR="${BASE_PATH}/data/stage_${RUN_NAME}/${T}_sd"
+            echo "===== ${RUN_NAME} task${T}: self-distillation teacher prompts ====="
+            ${ENV_BIN}/python ${BASE_PATH}/tools/ced_sd_prompts.py \
+                --data-dir ${STAGE} --out ${SD_DIR} >> ${RUN_ROOT}/pl_task${T}.log 2>&1
+            STAGE=${SD_DIR}
+            # prompt + template + reference answer. The gold-only teacher prompt peaks at 676
+            # tokens over all CED train rows (0 above 800), but the reference here is gold+PL,
+            # which pseudo-labels make longer and nobody has measured. [:max] truncation drops
+            # the tail, i.e. the <|im_start|>assistant suffix, so give it room: sd_probe counts
+            # any row that still ends up cut.
+            T_CAP=1000
+        fi
         if [ "${STAGE}" != "${RAW_DIR}" ]; then
             PROC="${BASE_PATH}/processed_data/stage_${RUN_NAME}/${T}"
-            tokenize ${STAGE} ${PROC} >> ${RUN_ROOT}/pl_task${T}.log 2>&1
-            DATA_DIR="${PROC}/qwen/"
+            tokenize ${STAGE} ${PROC} ${T_CAP} >> ${RUN_ROOT}/pl_task${T}.log 2>&1
+            DATA_DIR="${PROC}/${MODEL_TYPE}/"
         fi
     fi
 
@@ -242,6 +297,17 @@ do
         EXTRA+=" --ced-kd-ratio-new ${KDNEW}"
         EXTRA+=" --teacher_layer_mapping ${LAYERS} --student_layer_mapping ${LAYERS}"
         EXTRA+=" --w-span-loss ${W_SPAN} --span_metric ${SPAN_METRIC}"
+        if [ "${SD}" = "1" ]; then
+            EXTRA+=" --ced-sd --ced-sd-weight ${W_SD} --ced-sd-ema-mu ${SD_MU}"
+            EXTRA+=" --ced-sd-temperature ${SD_TEMP} --ced-sd-div ${SD_DIV}"
+            EXTRA+=" --ced-sd-top-p ${SD_TOP_P} --ced-sd-warmup ${SD_WARMUP}"
+            if [ "${SD_SKIP_UNPARSED}" = "1" ]; then
+                EXTRA+=" --ced-sd-skip-unparsed"
+            fi
+            if [ "${SD_OMASK}" = "1" ]; then
+                EXTRA+=" --ced-sd-omission-mask"
+            fi
+        fi
         EXTRA+=" ${EXTRA_ARGS}"
     else
         EXTRA+=" --type lm"
@@ -265,11 +331,11 @@ do
         echo "===== ${RUN_NAME} task${T}: balanced calibration epoch ====="
         ${ENV_BIN}/python ${BASE_PATH}/tools/ced_balance_pool.py \
             --data-dir ${STAGE} --streams ${STREAMS_FILE} --task-id ${T} \
-            --per-type ${BAL_PT} --seed ${SEED} \
+            --per-type ${BAL_PT} --dist ${BAL_DIST} --seed ${SEED} \
             --out ${POOL_RAW} > ${RUN_ROOT}/bal_task${T}.log 2>&1
         tokenize ${POOL_RAW} ${POOL_PROC} >> ${RUN_ROOT}/bal_task${T}.log 2>&1
         BAL_SAVE="${SAVE_PATH}_bal"
-        train_once finetune.py ${INIT_MODEL} ${POOL_PROC}/qwen/ ${BAL_SAVE} ${BAL_LR} 1 \
+        train_once finetune.py ${INIT_MODEL} ${POOL_PROC}/${MODEL_TYPE}/ ${BAL_SAVE} ${BAL_LR} 1 \
             " --type lm --peft-path ${LAST_CKPT}"
         BAL_CKPT=$(last_adapter ${BAL_SAVE})
         [ -n "${BAL_CKPT}" ] && LAST_CKPT=${BAL_CKPT}
