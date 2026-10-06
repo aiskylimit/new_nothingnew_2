@@ -1,8 +1,8 @@
 #1 +60
 #iwc
-#v2
+#v1
 
-cd SpectralGuidedLearning && GPUS=6 bash project_commands_b200_gain.sh 
+cd SpectralGuidedLearning && bash project_commands_b200_gain.sh 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 nvidia-smi
 
