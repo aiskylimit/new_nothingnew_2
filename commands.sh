@@ -34,4 +34,14 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 cd ./OpenED
+for name in ace_all maven_all rams_all geneva_all tacred_all fewrel_all; do
+    dir="${name}.tar.gz"
+    tmp="/tmp/${name}.tar.gz"
+
+    mv "$dir/$dir" "$tmp" &&
+    rm -rf "$dir" &&
+    mv "$tmp" "$dir"
+
+    echo "Done: $dir"
+done
 bash ./project_commands_7.sh
