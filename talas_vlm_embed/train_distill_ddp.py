@@ -149,12 +149,14 @@ class Trainer:
         kd_mse_losses, kd_penultimate_losses = [], []
         span_losses, cross_modal_losses = [], []
         
-        # Tính tổng số bước (steps) trong epoch để log step
+        
         steps_per_epoch = len(self.train_data.dataset) // self.training_args.per_device_train_batch_size // self.training_args.gradient_accumulation_steps // dist.get_world_size()
         
         progress_bar = tqdm(total=steps_per_epoch, 
                             desc=f"Epoch {epoch}",
+                            dynamic_ncols=True,
                             disable=not dist.get_rank() == 0)
+                            
         for batch_idx, batch in enumerate(self.train_data):
             batch = to_device(batch, self.device)
             loss_dict = self.distiller(self.criterion, batch)
@@ -191,7 +193,9 @@ class Trainer:
             batch_kd_loss_mse = sum(kd_mse_losses) / len(kd_mse_losses)
             batch_kd_penultimate_loss = sum(kd_penultimate_losses) / len(kd_penultimate_losses)
             
+            
             loss.backward()
+            
             if (batch_idx + 1) % self.training_args.gradient_accumulation_steps == 0:
                 self.optimizer.step()
                 self.lr_scheduler.step()
@@ -209,14 +213,15 @@ class Trainer:
                         'kd_dtw_loss': f"{batch_kd_dtw_loss:.4f}",
                         'kd_loss_mse': f"{batch_kd_loss_mse:.4f}",
                         'kd_penultimate_loss': f"{batch_kd_penultimate_loss:.4f}",
-                        'lr': f"{self.lr_scheduler.get_last_lr()[0]:.6f}",
+                        'lr': f"{current_lr:.6f}"
                     })
                     progress_bar.update(1)
 
-                    
-            torch.cuda.empty_cache()
+            # LƯU Ý VỀ HIỆU NĂNG: Xóa cache liên tục mỗi batch sẽ làm quá trình training bị chậm đi rất nhiều.
+            # torch.cuda.empty_cache()
+
         progress_bar.close()
-        
+
     def train(self):
 
         for epoch in range(self.training_args.num_train_epochs):

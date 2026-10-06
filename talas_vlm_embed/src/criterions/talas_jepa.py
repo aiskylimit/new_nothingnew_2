@@ -142,95 +142,74 @@ class TalasJepa(nn.Module):
 
         return sigreg_per_slice.mean()
 
-    def sigreg_sinkhorn(self, z_list: list[torch.Tensor], 
-                        concept_queries: torch.Tensor, num_slices=256,
-                        tau: float = 0.05, n_iters: int = 3, alpha: float = 0.9):
-        B = len(z_list)
-        if B == 0: return 0.0
-        
-        device, dtype = z_list[0].device, z_list[0].dtype
-        D = z_list[0].shape[-1]
-        
-        # ==========================================
-        # 0. PADDING & MASKING (Chuẩn bị Tensor vuông)
-        # ==========================================
-        # Lấy độ dài thực tế của từng ảnh
-        lengths = torch.tensor([x.size(0) for x in z_list], device=device)
-        N_max = lengths.max().item()
-        
-        # Pad các tensor bằng 0 để gom thành khối [B, N_max, D]
-        z_padded = pad_sequence(z_list, batch_first=True, padding_value=0.0) 
-        
-        # Tạo Mask boolean [B, 1, N_max]: True là token thật, False là token rác (padding)
-        idx = torch.arange(N_max, device=device).unsqueeze(0).unsqueeze(0) # [1, 1, N_max]
-        mask = idx < lengths.view(B, 1, 1) # [B, 1, N_max]
-        
-        # ==========================================
-        # 1. BATCH-WISE MASKED SINKHORN
-        # ==========================================
-        queries_norm = F.normalize(concept_queries, p=2, dim=-1) # [K, D]
-        z_norm = F.normalize(z_padded, p=2, dim=-1)              # [B, N_max, D]
-        
-        # [B, K, N_max]
-        cost_matrix = 1.0 - torch.einsum('kd,bnd->bkn', queries_norm, z_norm)
-        log_Q = -cost_matrix / tau
-        
-        log_Q = log_Q.masked_fill(~mask, -float('inf'))
-        
-        with torch.no_grad():
-            for _ in range(n_iters - 1):
-                # Cân bằng K (dim=1)
-                log_Q = log_Q - torch.logsumexp(log_Q, dim=1, keepdim=True)
-                log_Q = log_Q.masked_fill(~mask, -float('inf'))
-                
-                # Cân bằng N (dim=2)
-                log_Q = log_Q - torch.logsumexp(log_Q, dim=2, keepdim=True)
-                log_Q = log_Q.masked_fill(~mask, -float('inf'))
-                
-        # Vòng cuối (Mở gradient)
-        log_Q = log_Q - torch.logsumexp(log_Q, dim=1, keepdim=True)
-        log_Q = log_Q.masked_fill(~mask, -float('inf'))
-        log_Q = log_Q - torch.logsumexp(log_Q, dim=2, keepdim=True)
-        log_Q = log_Q.masked_fill(~mask, -float('inf'))
-        
-        # Chuyển về không gian xác suất
-        affinity = torch.exp(log_Q) # [B, K, N_max]
-        
-        # Rút ra K centroids
-        z_centroids = torch.bmm(affinity, z_padded) 
-        
-        # ==========================================
-        # 2. CHUẨN BỊ KHÔNG GIAN BẰNG RMSNorm & THÊM NOISE
-        # ==========================================
-        z_k_concepts = z_centroids.transpose(0, 1) # [K, B, D]
-        z_normed = z_k_concepts / z_k_concepts.norm(p=2, dim=-1, keepdim=True).clamp_min(1e-12) * math.sqrt(D)
-        
-        if alpha < 1.0:
-            noise = torch.randn_like(z_normed)
-            z_mixed = math.sqrt(alpha) * z_normed + math.sqrt(1.0 - alpha) * noise
-        else:
-            z_mixed = z_normed
-            
-        # ==========================================
-        # 3. SIGREG TRÊN KHÔNG GIAN ĐÃ MIX NOISE
-        # ==========================================
-        A = torch.randn(D, num_slices, device=device, dtype=dtype)
-        A = A / A.norm(p=2, dim=0, keepdim=True).clamp_min(1e-12)
-        t = torch.linspace(-5, 5, 17, device=device, dtype=dtype)
-        exp_f = torch.exp(-0.5 * t.square())
-        
-        x_proj = z_mixed @ A                   # [K, B, num_slices]
-        x_t = x_proj.unsqueeze(-1) * t         # [K, B, num_slices, 17]
-        ecf = torch.exp(1j * x_t).mean(dim=1)  # [K, num_slices, 17]
-        
-        err = (ecf - exp_f).abs().square().mul(exp_f)
-        loss_sigreg = torch.trapezoid(err, t, dim=-1).mean(dim=-1) * B 
-        
-        return loss_sigreg.mean()
+    def sketched_participation_ratio_erank(self, z_list_first: list[torch.Tensor], 
+                                           z_list_last: list[torch.Tensor],
+                                           num_slices: int = 256, 
+                                           min_valid_tokens: int = 4, eps: float = 1e-8):
+ 
+        B = len(z_list_last)
+        if B == 0:
+            return 0.0
 
-    def sigreg_erank(self, z_list_first: list[torch.Tensor], z_list_last: list[torch.Tensor],
-                     num_slices: int = 256, T: int = 17, R: float = 5.0,
-                     min_valid_tokens: int = 4, eps: float = 1e-8):
+        device, dtype = z_list_last[0].device, z_list_last[0].dtype
+        D = z_list_last[0].shape[-1]
+
+        def _pad_and_mask(z_list):
+            lengths = torch.tensor([x.size(0) for x in z_list], device=device)
+            z_padded = pad_sequence(z_list, batch_first=True, padding_value=0.0)
+            N_max = z_padded.size(1)
+            idx = torch.arange(N_max, device=device).unsqueeze(0)
+            mask = idx < lengths.unsqueeze(1)
+            return z_padded, mask, lengths
+
+        z0_padded, mask0, len0 = _pad_and_mask(z_list_first)
+        zL_padded, maskL, lenL = _pad_and_mask(z_list_last)
+
+        z0_padded = z0_padded.detach().float()
+        zL_padded = zL_padded.float()
+
+        A = torch.randn(D, num_slices, device=device, dtype=torch.float32)
+        A = A / A.norm(p=2, dim=0, keepdim=True).clamp_min(eps)   # [D, M]
+
+        def _participation_ratio(z_padded, mask, lengths):
+            mask_f = mask.unsqueeze(-1).float()                                        # [B, N_max, 1]
+            n_valid = lengths.clamp(min=2).float()                                     # [B]
+
+            # Center (giống bước 0 cũ) — bắt buộc để proj mang đúng ý nghĩa "centered"
+            mean = (z_padded * mask_f).sum(dim=1, keepdim=True) / n_valid.view(-1, 1, 1)
+            z_c = (z_padded - mean) * mask_f                                           # [B, N_max, D], padding = 0
+
+            # --- Bậc 1: trace(Cov) — CHÍNH XÁC như code cũ ---
+            proj = z_c @ A                                                             # [B, N_max, M]
+            var_proj = (proj ** 2).sum(dim=1) / (n_valid - 1.0).unsqueeze(-1)          # [B, M] = a^T Cov a
+            trace1 = D * var_proj.mean(dim=-1)                                         # [B]  ≈ trace(Cov)
+
+            # --- Bậc 2: trace(Cov^2) — THÊM MỘT MATMUL, KHÔNG LẶP ---
+            # Cov @ a_m  =  Z_c^T @ (Z_c @ a_m) / (n-1)   với mỗi m cùng lúc:
+            Cov_A = torch.bmm(z_c.transpose(1, 2), proj) / (n_valid - 1.0).view(-1, 1, 1)  # [B, D, M]
+            term2 = (Cov_A ** 2).sum(dim=1)                                            # [B, M] = a^T Cov^2 a
+            trace2 = D * term2.mean(dim=-1)                                            # [B]  ≈ trace(Cov^2)
+
+            pr = trace1.pow(2) / trace2.clamp_min(eps)                                 # [B]  participation ratio
+            valid = lengths >= min_valid_tokens
+            return pr, valid
+
+        z0_normed = z0_padded
+        zL_normed = zL_padded
+
+        pr0, valid0 = _participation_ratio(z0_normed, mask0, len0)
+        prL, validL = _participation_ratio(zL_normed, maskL, lenL)
+
+        valid = valid0 & validL
+        if not valid.any():
+            return zL_padded.sum() * 0.0
+
+        loss_per_sample = F.relu(pr0 - prL)
+
+        return loss_per_sample[valid].mean().to(dtype)
+    
+    def sketched_std_erank(self, z_list_first: list[torch.Tensor], z_list_last: list[torch.Tensor],
+                                num_slices: int = 256, min_valid_tokens: int = 4, eps: float = 1e-8):
 
         B = len(z_list_last)
         if B == 0:
@@ -244,7 +223,7 @@ class TalasJepa(nn.Module):
         )
 
         # ==========================================
-        # 0. PADDING & MASKING — riêng cho từng phía (N_max có thể khác nhau)
+        # 0. PADDING & MASKING — Xử lý số lượng token không đồng đều
         # ==========================================
         def _pad_and_mask(z_list):
             lengths = torch.tensor([x.size(0) for x in z_list], device=device)
@@ -257,70 +236,139 @@ class TalasJepa(nn.Module):
         z0_padded, mask0, len0 = _pad_and_mask(z_list_first)
         zL_padded, maskL, lenL = _pad_and_mask(z_list_last)
 
-        # Layer đầu là TARGET cố định — không tối ưu ngược nó
-        z0_padded = z0_padded.detach()
-
-        # ==========================================
-        # 1. SLICED SPECTRAL FINGERPRINT — projected energies, vector hoá theo batch
-        # ==========================================
-        A = torch.randn(D, num_slices, device=device, dtype=torch.float32)
-        A = A / A.norm(p=2, dim=0, keepdim=True).clamp_min(eps)  # [D, M], dùng chung 2 phía
-
-        z0_padded = z0_padded.float()
+        z0_padded = z0_padded.detach().float()
         zL_padded = zL_padded.float()
 
-        def _projected_energies(z_padded, mask, lengths):
-            mask_f = mask.unsqueeze(-1).to(dtype)                          # [B, N_max, 1]
-            n_valid = lengths.clamp(min=1).unsqueeze(-1)                   # [B, 1]
+        # ==========================================
+        # 1. RANDOM PROJECTIONS — Chiếu xuống M hướng để ước lượng Trace
+        # ==========================================
+        
+        A = torch.randn(D, num_slices, device=device, dtype=torch.float32)
+        A = A / A.norm(p=2, dim=0, keepdim=True).clamp_min(eps)  # [D, M]
 
-            mean_tok = (z_padded * mask_f).sum(dim=1) / n_valid            # [B, D]
-            centered = (z_padded - mean_tok.unsqueeze(1)) * mask_f         # [B, N_max, D], pad vẫn = 0
+        def _projected_variance(z_padded, mask, lengths):
+            mask_f = mask.unsqueeze(-1).to(dtype=torch.float32)                # [B, N_max, 1]
+            n_valid = lengths.clamp(min=2).to(torch.float32)                   # [B]
 
-            fro_norm = centered.reshape(z_padded.size(0), -1).norm(p=2, dim=-1).clamp_min(eps)
-            centered = centered / fro_norm.view(-1, 1, 1)
+            proj = z_padded @ A                                                # [B, N_max, M]
 
-            proj = centered @ A                                             # [B, N_max, M]
-            energies = (proj ** 2 * mask_f).sum(dim=1) / n_valid            # [B, M]
-            energies = energies / energies.mean(dim=-1, keepdim=True).clamp_min(eps)
+            mean_proj = (proj * mask_f).sum(dim=1, keepdim=True) / n_valid.view(-1, 1, 1) # [B, 1, M]
+            centered_proj = (proj - mean_proj) * mask_f                        # [B, N_max, M]
+            var_proj = (centered_proj ** 2).sum(dim=1) / (n_valid - 1.0).unsqueeze(-1)    # [B, M]
 
-            valid = lengths >= min_valid_tokens                             # [B]
-            return energies, valid
+            valid = lengths >= min_valid_tokens                                # [B]
+            return var_proj, valid
 
-        energies_0, valid_0 = _projected_energies(z0_padded, mask0, len0)
-        energies_L, valid_L = _projected_energies(zL_padded, maskL, lenL)
+        var_0, valid_0 = _projected_variance(z0_padded, mask0, len0)
+        var_L, valid_L = _projected_variance(zL_padded, maskL, lenL)
 
         valid = valid_0 & valid_L
         if not valid.any():
-            return zL_padded.sum() * 0.0  # graph hợp lệ, gradient = 0, không crash
+            return zL_padded.sum() * 0.0
 
         # ==========================================
-        # 2. UNPAIRED CF-MATCHING (Epps-Pulley) — vector hoá theo batch
+        # 2. HINGE VARIANCE LOSS — Phạt nếu Erank của Layer L xẹp hơn Layer 0
         # ==========================================
-        t = torch.linspace(-R, R, T, device=device, dtype=torch.float32)   # [T]
-        w = torch.exp(-0.5 * t ** 2)                                # [T]
+        # std_0 = torch.sqrt(var_0 + eps)
+        # std_L = torch.sqrt(var_L + eps)
+        
+        # loss_per_slice = F.relu(std_0 - std_L)              # [B, M]
+        # loss_per_sample = loss_per_slice.mean(dim=1)        # [B]
+        
+        sum_var_0 = var_0.sum(dim=1, keepdim=True).clamp_min(eps)
+        sum_var_L = var_L.sum(dim=1, keepdim=True).clamp_min(eps)
 
-        x0t = energies_0.unsqueeze(-1) * t   # [B, M, T]
-        xLt = energies_L.unsqueeze(-1) * t   # [B, M, T]
+        p_0 = var_0 / sum_var_0  # [B, M]
+        p_L = var_L / sum_var_L  # [B, M]
 
-        phi0_real, phi0_imag = torch.cos(x0t).mean(dim=1), torch.sin(x0t).mean(dim=1)  # [B, T]
-        phiL_real, phiL_imag = torch.cos(xLt).mean(dim=1), torch.sin(xLt).mean(dim=1)
+        # Tính Shannon Entropy (-sum(p * log(p)))
+        entropy_0 = -(p_0 * torch.log(p_0 + eps)).sum(dim=1)  # [B]
+        entropy_L = -(p_L * torch.log(p_L + eps)).sum(dim=1)  # [B]
 
-        err = (phi0_real - phiL_real) ** 2 + (phi0_imag - phiL_imag) ** 2  # [B, T]
-        err = err * w
+        # Hinge Loss: Ép độ phân tán năng lượng (Entropy) của Layer L >= Layer 0
+        loss_per_sample = F.relu(entropy_0 - entropy_L)       # [B]
+        # loss_per_sample = (entropy_0 - entropy_L) ** 2
 
-        loss_per_sample = torch.trapezoid(err, t, dim=-1) * num_slices / 2  # [B]
         return loss_per_sample[valid].mean().to(dtype)
 
+    def sigreg_dualview(self, z_list: list[torch.Tensor], eos_query: torch.Tensor,
+                        num_slices: int = 256, tau: float = 0.05, alpha: float = 0.9):
+        B = len(z_list)
+        if B == 0:
+            return 0.0
+
+        device, dtype = z_list[0].device, z_list[0].dtype
+        D = z_list[0].shape[-1]
+
+        # ==========================================
+        # 0. PADDING & MASK
+        # ==========================================
+        lengths = torch.tensor([x.size(0) for x in z_list], device=device)
+        N_max = lengths.max().item()
+        z_padded = pad_sequence(z_list, batch_first=True, padding_value=0.0)  # [B, N_max, D]
+
+        idx = torch.arange(N_max, device=device).unsqueeze(0)   # [1, N_max]
+        mask = idx < lengths.view(B, 1)                          # [B, N_max]
+
+        # ==========================================
+        # 1. VIEW 1: ATTENTION-WEIGHTED POOLING
+        # ==========================================
+        q = F.normalize(eos_query.to(device=device, dtype=dtype), p=2, dim=-1)   # [B, D]
+        k = F.normalize(z_padded, p=2, dim=-1)                                   # [B, N_max, D]
+
+        score = torch.einsum('bd,bnd->bn', q, k) / tau                           # [B, N_max]
+        score = score.masked_fill(~mask, -float('inf'))
+        attn_w = torch.softmax(score, dim=-1)                                    # [B, N_max]
+
+        attn_view = torch.einsum('bn,bnd->bd', attn_w, z_padded)                 # [B, D]
+
+        z_k_concepts = attn_view.unsqueeze(0)
+
+        if alpha < 1.0:
+            noise = torch.randn_like(z_k_concepts)
+            z_mixed = math.sqrt(alpha) * z_k_concepts + math.sqrt(1.0 - alpha) * noise
+        else:
+            z_mixed = z_k_concepts
+
+        if self.process_rank == 0:
+            projection_seed = random.randint(0, 2**63 - 1)
+        else:
+            projection_seed = 0
+        g = torch.Generator(device=device)
+        g.manual_seed(projection_seed)
+        
+        A = torch.randn(D, num_slices, generator=g, device=device, dtype=dtype)
+        A = A / A.norm(p=2, dim=0, keepdim=True).clamp_min(1e-12)
+        t = torch.linspace(-5, 5, 17, device=device, dtype=dtype)
+        exp_f = torch.exp(-0.5 * t.square())
+
+        x_proj = z_mixed @ A                   # [K, B, num_slices]
+        x_t = x_proj.unsqueeze(-1) * t         # [K, B, num_slices, 17]
+
+        ecf_real = torch.cos(x_t).mean(dim=1)  # [K, num_slices, 17]
+        ecf_imag = torch.sin(x_t).mean(dim=1)  # [K, num_slices, 17]
+
+        err = ((ecf_real - exp_f).square() + ecf_imag.square()).mul(exp_f)
+
+        loss_sigreg = torch.trapezoid(err, t, dim=-1).mean(dim=-1) * B
+
+        return loss_sigreg.mean()
+
     def _compute_modality_distill(self, student_hidden_states, image_features, 
-                                  text_token_counts, attention_mask, concept_queries):
+                                  text_token_counts, attention_mask):
         """
         Hàm này chỉ còn nhiệm vụ trích xuất text và vision representations 
         của student, cùng với việc tính toán SIGReg loss.
         """
-        k_layers = self.args.num_layers
+
         batch_size = attention_mask.size(0)
         last_layer_idx = len(student_hidden_states) - 1
-        layers = [0, int(last_layer_idx / 10), int(last_layer_idx / 5), last_layer_idx]
+
+        layer_mapping = self.args.student_layer_mapping
+        if 0 in layer_mapping and last_layer_idx in layer_mapping:
+            layers = layer_mapping
+        else:
+            layers = [0, int(last_layer_idx / 2), int(4 * last_layer_idx / 5), last_layer_idx]
         
         stu_img_tokens = {l: [] for l in layers}
         stu_text_reps = []
@@ -362,13 +410,24 @@ class TalasJepa(nn.Module):
 
             warmup_factor = min(1.0, self.counter / max(1, self.warm_up_sigreg))
             total_sigreg = 0.0
-            
-            for l in layers[1:-1]:
-                total_sigreg += self.sigreg_sinkhorn(stu_img_tokens[l], concept_queries)
+            sigreg_erank_loss = 0.0
 
-            sigreg_erank_loss = self.sigreg_erank(stu_img_tokens[0], stu_img_tokens[last_layer_idx])
-            
-            sigreg_final = warmup_factor * (total_sigreg / max(1, k_layers)) + sigreg_erank_loss
+            k_layers = 0
+            num_slides = self.args.num_layers
+            for l in layers[1:-1]:
+                k_layers += 1
+                # eos_query = pooling(student_hidden_states[l], attention_mask, 
+                #                     mode='eos', normalize=True).detach()
+                # total_sigreg += self.sigreg_dualview(stu_img_tokens[l], eos_query, 
+                #                                      tau=0.1, alpha=0.9)
+                # total_sigreg += self.sigreg_sinkhorn(stu_img_tokens[l], concept_queries)
+
+                sigreg_erank_loss += self.sketched_participation_ratio_erank(stu_img_tokens[0], 
+                                                                             stu_img_tokens[l], 
+                                                                             num_slices=num_slides)
+
+            if self.args.use_sigreg_loss:
+                sigreg_final = sigreg_erank_loss  / max(1, k_layers)
 
         return stacked_stu_text_reps, stu_img_final_reps, sigreg_final
     
@@ -376,7 +435,6 @@ class TalasJepa(nn.Module):
         student_model = model_wrapper.model
         student_processor = model_wrapper.get_processor()
         student_tokenizer = student_processor.tokenizer
-        concept_queries = model_wrapper.concept_queries      
 
         student_qry_input = input_data['qry']
         student_pos_input = input_data['pos']
@@ -433,6 +491,10 @@ class TalasJepa(nn.Module):
                                              teacher_qry_reps, teacher_pos_reps, 
                                              tau=self.args.d_cse_temperature)
 
+        # all_stu_reps = torch.cat([last_stu_qry_hidden_state, last_stu_pos_hidden_state], dim=0)
+        # all_tea_reps = torch.cat([teacher_qry_reps, teacher_pos_reps], dim=0)
+        # kd_simcse += self.structure_loss(all_stu_reps, all_tea_reps) / self.args.d_cse_temperature
+
         ##################################
         student_special_ids = torch.tensor(
             list(set(list(student_tokenizer.added_tokens_encoder.values()) + student_tokenizer.all_special_ids) 
@@ -449,17 +511,15 @@ class TalasJepa(nn.Module):
             student_hidden_states=student_qry_hidden_states, 
             image_features=student_qry_image_features,
             text_token_counts=num_student_text_qry_tokens, 
-            attention_mask=student_qry_input['attention_mask'], 
-            concept_queries=concept_queries
+            attention_mask=student_qry_input['attention_mask']
         )
 
         # Trích xuất Representations từ POS
         pos_stu_txt, pos_stu_img, pos_sigreg = self._compute_modality_distill(
             student_hidden_states=student_pos_hidden_states, 
             image_features=student_pos_image_features,
-            text_token_counts=num_student_text_pos_tokens, 
-            attention_mask=student_pos_input['attention_mask'], 
-            concept_queries=concept_queries
+            text_token_counts=num_student_text_pos_tokens,
+            attention_mask=student_pos_input['attention_mask']
         )
 
         stu_modality_features = []

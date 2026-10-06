@@ -72,7 +72,7 @@ D_SIGREG=$(bool_to_int "$USE_SIGREG_LOSS")
 # Tên experiment
 # ============================================================
 
-EXP_NAME="talas_jepa_v0_d${D_DISTILL}_cse${D_CSE}_vis${D_VISION}_sig${D_SIGREG}_kd${KD_WEIGHT}_sw${SIGREG_WEIGHT}_l${NUM_LAYER}_dt${D_TAU}"
+EXP_NAME="talas_jepa_v2_d${D_DISTILL}_cse${D_CSE}_vis${D_VISION}_sig${D_SIGREG}_kd${KD_WEIGHT}_sw${SIGREG_WEIGHT}_l${NUM_LAYER}_dt${D_TAU}"
 
 MODEL="training/FastVLM-0.5B_cls_${EXP_NAME}/checkpoint-epoch-0"
 # MODEL="training/llava_ov-0.5B_cls_${EXP_NAME}/checkpoint-epoch-0"
@@ -110,10 +110,14 @@ python $INFER_SCRIPT \
     --report_to None
 
 # analyze erank
+echo "normalize"
 python ./er_statistic.py \
     --pt_dir "infer/FastVLM-0.5B_${EXP_NAME}"/${INFER_SUBSETS[0]}/query \
-    --start_idx 0 \
-    --end_idx 49 \
-    --normalize \
+    --normalize_by_min_dim \
+    --output_file "analyze/FastVLM-0.5B_${EXP_NAME}.txt"
+
+echo "no normalize"
+python ./er_statistic.py \
+    --pt_dir "infer/FastVLM-0.5B_${EXP_NAME}"/${INFER_SUBSETS[0]}/query \
     --output_file "analyze/FastVLM-0.5B_${EXP_NAME}.txt"
 

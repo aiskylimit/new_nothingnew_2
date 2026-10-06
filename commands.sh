@@ -1,4 +1,4 @@
-#i opened.txt
+#i talas-vlm-embed.txt
 #opsd
 #v2
 
