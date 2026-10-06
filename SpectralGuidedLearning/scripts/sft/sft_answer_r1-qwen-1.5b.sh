@@ -5,7 +5,7 @@
 # Every response token of that target is supervised (all-ones mask) and every hyperparameter below
 # is identical to the vanilla arm in sft_r1-qwen-1.5b.sh, so the arms differ in supervised content
 # only. FULL fine-tuning
-# with src/train_sft.py (HF Trainer, no LoRA) in the main env (spectral_guided_learning.txt) --
+# with src/sgl/training/train.py (HF Trainer, no LoRA) in the main env (spectral_guided_learning.txt) --
 # no Unsloth, so no separate train venv. Runs under torchrun on every GPU in GPUS; GRAD_ACC is
 # derived so the effective batch stays 32 regardless of GPU count. Hyperparameters follow the
 # P-ALIGN training setup: 3 epochs, eff. batch 32 (bs1 x ga32 on 1 GPU), lr 5e-5, cosine to 0 with
@@ -86,6 +86,6 @@ if [[ -n "${DS_CONFIG:-}" ]]; then
   OPTS+=" --deepspeed-config ${DS_CONFIG}"
 fi
 
-CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
+CMD="torchrun ${DISTRIBUTED_ARGS} -m sgl.training.train ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/answer-r1-qwen-1.5b.log"

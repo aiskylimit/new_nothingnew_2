@@ -1,7 +1,7 @@
 [project]
 name = "spectral-guided-learning"
 version = "0.1.0"
-description = "Spectral-guided reasoning distillation pipeline (Qwen3/Qwen2.5, plus a Pru-CoT baseline)."
+description = "Step-level selection and allocation for long-CoT distillation: SGL, IWC, answer-gain, P-ALIGN and Segment-Selective SFT in one framework."
 requires-python = ">=3.12,<3.13"
 dependencies = [
     # Keep torch/torchvision/torchaudio/vllm pinned together -- vllm's own kernel/CUDA
@@ -29,8 +29,20 @@ dependencies = [
     "pytest",
 ]
 
+[project.scripts]
+sgl = "sgl.cli:sgl_main"
+palign = "sgl.cli:palign_main"
+ssft = "sgl.cli:ssft_main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sgl"]
+
 [tool.uv]
-package = false
+package = true
 
 [tool.uv.sources]
 torch = { index = "pytorch", marker = "sys_platform == 'linux'" }
@@ -41,3 +53,20 @@ torchaudio = { index = "pytorch", marker = "sys_platform == 'linux'" }
 name = "pytorch"
 url = "https://download.pytorch.org/whl/cu130"
 explicit = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["regression: end-to-end pipeline regression against golden outputs (~1 min, CPU)"]
+
+[tool.ruff]
+line-length = 120
+extend-exclude = ["references", "src/sgl/eval/graders/oat.py", "paper"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# unsloth must be imported before transformers/torch
+"src/sgl/training/backends/unsloth.py" = ["I001"]
+# P-ALIGN's judge prompt, kept byte for byte
+"src/sgl/palign/truncate.py" = ["E501"]

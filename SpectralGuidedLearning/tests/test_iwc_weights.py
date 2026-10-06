@@ -2,8 +2,8 @@ import math
 
 import pytest
 
-from build_iwc_datasets import build_example
-from iwc_weights import (
+from sgl.allocation.build import build_example
+from sgl.allocation.iwc import (
     reverse_iwc_step_weights,
     shuffled_iwc_step_weights,
     stable_iwc_step_weights,
@@ -76,7 +76,7 @@ def test_shuffled_control_preserves_token_mass_but_changes_assignment():
     stable = stable_iwc_step_weights(entropies, lengths, temperature=0.8, clip=2.0)
     shuffled = shuffled_iwc_step_weights(entropies, lengths, temperature=0.8, clip=2.0, seed=1)
 
-    assert sum(l * w for l, w in zip(lengths, shuffled)) == pytest.approx(sum(lengths))
+    assert sum(n * w for n, w in zip(lengths, shuffled)) == pytest.approx(sum(lengths))
     assert shuffled != stable  # same entropy set, different step assignment
 
 
@@ -95,7 +95,7 @@ def test_reverse_control_flips_the_entropy_to_weight_ranking():
 
     assert stable[0] < stable[1] < stable[2]
     assert reversed_weights[0] > reversed_weights[1] > reversed_weights[2]
-    assert sum(l * w for l, w in zip(lengths, reversed_weights)) == pytest.approx(sum(lengths))
+    assert sum(n * w for n, w in zip(lengths, reversed_weights)) == pytest.approx(sum(lengths))
 
 
 def test_build_example_supports_lambda0_shuffled_and_reverse_variants():

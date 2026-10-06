@@ -3,8 +3,8 @@
 import torch
 import torch.nn as nn
 
-from data_collator import MaskedSFTCollator
-from transition_loss import (
+from sgl.training.collator import MaskedSFTCollator
+from sgl.training.transition_loss import (
     HiddenStateCapture,
     TransitionPredictor,
     default_transition_layer,
@@ -133,7 +133,8 @@ def test_find_decoder_layers_and_default_depth():
 
 def test_collator_pads_transition_fields_with_minus_one():
     collator = MaskedSFTCollator(pad_token_id=0)
-    a = {"input_ids": [1, 2, 3, 4], "loss_mask": [0, 1, 1, 1], "step_id": [-1, 0, 0, 1], "step_end": [2, 3], "num_steps": 2, "pair_src": [0]}
+    a = {"input_ids": [1, 2, 3, 4], "loss_mask": [0, 1, 1, 1], "step_id": [-1, 0, 0, 1], "step_end": [2, 3],
+         "num_steps": 2, "pair_src": [0]}
     b = {"input_ids": [1, 2], "loss_mask": [0, 1], "step_id": [-1, 0], "step_end": [1], "num_steps": 1, "pair_src": []}
     batch = collator([a, b])
     assert batch["step_id"].tolist() == [[-1, 0, 0, 1], [-1, 0, -1, -1]]
@@ -146,7 +147,7 @@ def test_collator_pads_transition_fields_with_minus_one():
 
 def test_hidden_grad_probe_splits_nll_and_transition_shares():
     """The probe must recover ||dL_NLL/dH|| and ||dL_trans/dH|| from one backward pass."""
-    from transition_trainer import _HiddenGradProbe
+    from sgl.training.transition_trainer import _HiddenGradProbe
 
     torch.manual_seed(1)
     hidden, step_id, step_end, pairs = _sequence([4, 5, 6, 3])

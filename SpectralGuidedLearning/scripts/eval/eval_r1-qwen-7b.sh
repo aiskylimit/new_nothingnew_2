@@ -71,6 +71,6 @@ else
 fi
 OPTS+=" --results-dir ${RESULTS_DIR}"
 
-CMD="python ${BASE_PATH}/src/evaluate.py ${OPTS}"
+CMD="python -m sgl.eval.evaluate ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/eval-${TAG}.log"

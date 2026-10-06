@@ -5,26 +5,26 @@
 # path later (capture -> masks_r1-qwen-1.5b.sh --vanilla) rewrites train-vanilla.jsonl with the
 # same all-ones masks over the subset of samples that have spectral strengths.
 set -euo pipefail
+# Data/checkpoint namespace: r1-qwen-1.5b = s1K-1.1 track; e.g. r1-qwen-1.5b-palign = P-ALIGN data.
+TRACK="${TRACK:-r1-qwen-1.5b}"
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${BASE_PATH}"
-PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
+PROJECT_ENV="${PROJECT_ENV:-$(cd "${BASE_PATH}/.." && pwd)/iwc}"
 if [[ -z "${VIRTUAL_ENV:-}" ]]; then
   [[ -f "${PROJECT_ENV}/bin/activate" ]] || ./scripts/setup.sh
   source "${PROJECT_ENV}/bin/activate"
 fi
 export PYTHONPATH="${BASE_PATH}/src"
-mkdir -p logs "data/r1-qwen-1.5b"
+mkdir -p logs "data/${TRACK}"
 
-# Offline server: no HF Hub access, load from local mirrors (see download.txt).
-LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
-LOCAL_DATA_ROOT="${LOCAL_DATA_ROOT:-/mnt/local/_data/aiskylimit_new_nothingnew_2}"
-MODEL_NAME="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-1.5B"
+# Model / dataset default to HF Hub ids: downloaded on first use, then read from the HF cache.
+MODEL_NAME="${MODEL_NAME:-deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B}"
 # s1K-1.1, same corpus as the qwen25-7b / qwen3-8b tracks (and P-ALIGN): its
 # deepseek_thinking_trajectory + deepseek_attempt are a real DeepSeek-R1 long CoT, which is
 # exactly the format R1-Distill was distilled into.
-DATASET_NAME="${DATASET_NAME:-${LOCAL_DATA_ROOT}/s1K-1.1}"
-OUTPUT_PATH="data/r1-qwen-1.5b/train-segmented.jsonl"
+DATASET_NAME="${DATASET_NAME:-simplescaling/s1K-1.1}"
+OUTPUT_PATH="data/${TRACK}/train-segmented.jsonl"
 N_SAMPLES="${N_SAMPLES:-}"
 MAX_TOKENS="${MAX_TOKENS:-32768}"
 # true (right default here): the long CoT is supervised inside the <think> block R1-Distill's
@@ -33,6 +33,9 @@ MAX_TOKENS="${MAX_TOKENS:-32768}"
 # those templates have no thinking block to fill. Keep this in step with ENABLE_THINKING in
 # scripts/eval/eval_r1-qwen-1.5b.sh.
 ENABLE_THINKING="${ENABLE_THINKING:-true}"
+# true (with ENABLE_THINKING=false): close <think> as P-ALIGN / eval --palign-prompt do
+# ("<think>\n\n</think>\n\n"), so the training prompt tokenizes exactly like the eval prompt.
+PALIGN_PROMPT="${PALIGN_PROMPT:-false}"
 
 OPTS=""
 OPTS+=" --dataset-name ${DATASET_NAME}"
@@ -41,15 +44,16 @@ OPTS+=" --tokenizer ${MODEL_NAME}"
 OPTS+=" --output-path ${OUTPUT_PATH}"
 OPTS+=" --chat-template"
 [[ "${ENABLE_THINKING}" == true ]] && OPTS+=" --enable-thinking" || OPTS+=" --no-enable-thinking"
+[[ "${PALIGN_PROMPT}" == true ]] && OPTS+=" --palign-prompt"
 if [[ -n "${N_SAMPLES}" ]]; then
   OPTS+=" --n-samples ${N_SAMPLES}"
 fi
 
-CMD="python ${BASE_PATH}/src/data_prep.py ${OPTS}"
+CMD="python -m sgl.data.prepare ${OPTS}"
 echo "${CMD}"
-${CMD} 2>&1 | tee logs/r1-qwen-1.5b-data.log
+${CMD} 2>&1 | tee logs/${TRACK}-data.log
 
 # All-ones mask = every response token supervised = plain SFT on the full long CoT.
-CMD="python ${BASE_PATH}/src/build_masks.py --data-path ${OUTPUT_PATH} --vanilla-only"
+CMD="python -m sgl.selection.build_masks --data-path ${OUTPUT_PATH} --vanilla-only"
 echo "${CMD}"
-${CMD} 2>&1 | tee logs/r1-qwen-1.5b-vanilla-masks.log
+${CMD} 2>&1 | tee logs/${TRACK}-vanilla-masks.log

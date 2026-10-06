@@ -22,7 +22,7 @@ OPTS+=" --strengths ${STRENGTHS_PATH}"
 OPTS+=" --energy-threshold-p ${ENERGY_THRESHOLD_P}"
 OPTS+=" --vanilla"
 
-CMD="python ${BASE_PATH}/src/build_masks.py ${OPTS}"
+CMD="python -m sgl.selection.build_masks ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee logs/r1-qwen-1.5b-masks.log
 

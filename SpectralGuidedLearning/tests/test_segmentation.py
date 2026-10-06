@@ -1,9 +1,9 @@
 """Segmentation tests use a whitespace-free character tokenizer so token offsets are
-exactly predictable; the real-tokenizer round-trip is checked by data_prep.py itself."""
+exactly predictable; the real-tokenizer round-trip is checked by sgl.data.prepare itself."""
 
 import re
 
-from segmentation import segment_response_token_spans, solution_step_start, split_into_step_texts
+from sgl.segment.sentence import segment_response_token_spans, solution_step_start, split_into_step_texts
 
 
 class CharTokenizer:

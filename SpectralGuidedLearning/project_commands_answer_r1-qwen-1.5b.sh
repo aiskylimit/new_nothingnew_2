@@ -12,6 +12,7 @@
 set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
+export PYTHONPATH="${BASE}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 # Which GPU(s) each phase runs on (space-separated ids). Training runs torchrun over the whole
 # list (effective batch fixed at 32, so 1/2/4/8 GPUs); eval uses the whole list too.
@@ -41,4 +42,4 @@ ENABLE_THINKING="${ENABLE_THINKING_EVAL:-false}" \
 
 # =========================== COMPARE ==========================
 # writes results/comparison-table.md and results/eval-summary.json
-"${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" "${BASE}/src/compare_results.py"
+"${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" -m sgl.eval.compare

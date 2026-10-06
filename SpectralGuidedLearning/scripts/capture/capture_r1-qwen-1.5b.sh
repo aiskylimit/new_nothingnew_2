@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Phase 3: gradient capture (--verify) for the DeepSeek-R1-Distill-Qwen-1.5B track.
 set -euo pipefail
+# Data/checkpoint namespace: r1-qwen-1.5b = s1K-1.1 track; e.g. r1-qwen-1.5b-palign = P-ALIGN data.
+TRACK="${TRACK:-r1-qwen-1.5b}"
 
 read -ra GPUS <<< "${GPUS:-0 1}"
 export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${BASE_PATH}"
-PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
+PROJECT_ENV="${PROJECT_ENV:-$(cd "${BASE_PATH}/.." && pwd)/iwc}"
 if [[ -z "${VIRTUAL_ENV:-}" ]]; then
   [[ -f "${PROJECT_ENV}/bin/activate" ]] || ./scripts/setup.sh
   source "${PROJECT_ENV}/bin/activate"
@@ -15,11 +17,10 @@ fi
 export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p logs
 
-LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
-MODEL_NAME="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-1.5B"
-DATA_PATH="data/r1-qwen-1.5b/train-segmented.jsonl"
-OUTPUT_DIR="data/r1-qwen-1.5b/spectral"
-STRENGTHS_PATH="data/r1-qwen-1.5b/spectral-strengths.parquet"
+MODEL_NAME="${MODEL_NAME:-deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B}"
+DATA_PATH="data/${TRACK}/train-segmented.jsonl"
+OUTPUT_DIR="data/${TRACK}/spectral"
+STRENGTHS_PATH="data/${TRACK}/spectral-strengths.parquet"
 ENERGY_CUTOFF=0.95
 CHUNK_SIZE=1024
 
@@ -33,23 +34,23 @@ OPTS+=" --chunk-size ${CHUNK_SIZE}"
 
 NUM_SHARDS=${#GPUS[@]}
 # One compute shard per GPU (no in-process multi-GPU path); final --num-shards 1 pass merges.
-echo ">>> launching ${NUM_SHARDS} shards (one per GPU: ${GPUS[*]}) of ${BASE_PATH}/src/gradient_capture.py"
+echo ">>> launching ${NUM_SHARDS} shards (one per GPU: ${GPUS[*]}) of src/sgl/signals/capture.py"
 pids=()
 for i in "${!GPUS[@]}"; do
-  CUDA_VISIBLE_DEVICES="${GPUS[$i]}" python -u "${BASE_PATH}/src/gradient_capture.py" ${OPTS} --verify \
+  CUDA_VISIBLE_DEVICES="${GPUS[$i]}" python -u -m sgl.signals.capture ${OPTS} --verify \
     --num-shards "${NUM_SHARDS}" --shard-index "${i}" \
-    > "logs/r1-qwen-1.5b-capture-shard${i}.log" 2>&1 &
+    > "logs/${TRACK}-capture-shard${i}.log" 2>&1 &
   pids+=($!)
 done
 shard_fail=0
 for i in "${!pids[@]}"; do
-  wait "${pids[$i]}" || { echo "shard ${i} failed -- see logs/r1-qwen-1.5b-capture-shard${i}.log" >&2; shard_fail=1; }
+  wait "${pids[$i]}" || { echo "shard ${i} failed -- see logs/${TRACK}-capture-shard${i}.log" >&2; shard_fail=1; }
 done
 [[ ${shard_fail} -eq 0 ]] || exit 1
 
 # Merge pass: every npz exists, so this only rebuilds the parquet (still loads the model).
-CMD="python -u ${BASE_PATH}/src/gradient_capture.py ${OPTS}"
+CMD="python -u -m sgl.signals.capture ${OPTS}"
 echo "${CMD}"
-CUDA_VISIBLE_DEVICES="${GPUS[0]}" ${CMD} 2>&1 | tee logs/r1-qwen-1.5b-capture.log
+CUDA_VISIBLE_DEVICES="${GPUS[0]}" ${CMD} 2>&1 | tee logs/${TRACK}-capture.log
 
 echo ">>> STOP AND READ: check 'k*/T mean ratio' and 'strength spread' above (docs/server-runbook.md)."

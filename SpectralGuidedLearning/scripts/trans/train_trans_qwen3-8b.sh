@@ -111,6 +111,6 @@ OPTS+=" --trans-grad-log-interval ${TRANS_GRAD_LOG_INTERVAL}"
 [[ "${CONTROL}" == "shuffle" ]] && OPTS+=" --trans-shuffle-targets"
 [[ "${RESUME:-0}" == "1" ]] && OPTS+=" --resume"
 
-CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
+CMD="torchrun ${DISTRIBUTED_ARGS} -m sgl.training.train ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/${TAG}.log"

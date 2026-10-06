@@ -22,4 +22,4 @@ mkdir -p "${BASE_PATH}/logs"
 RUN_DIR="${RESULTS_DIR:-${BASE_PATH}/results}/${TAG}"
 [[ -d "${RUN_DIR}/raw" ]] || { echo "ERROR: no generations at ${RUN_DIR}/raw -- run the eval script first" >&2; exit 1; }
 
-python "${BASE_PATH}/src/evaluate.py" --rescore "${RUN_DIR}" 2>&1 | tee "${BASE_PATH}/logs/rescore-${TAG}.log"
+python -m sgl.eval.evaluate --rescore "${RUN_DIR}" 2>&1 | tee "${BASE_PATH}/logs/rescore-${TAG}.log"

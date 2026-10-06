@@ -1,7 +1,7 @@
-"""Tests for iwc_diagnostics.py against synthetic (no-GPU) data.
+"""Tests for sgl.diagnostics.iwc against synthetic (no-GPU) data.
 
 Mirrors the record factory in test_build_masks.py; strengths/entropies are supplied directly
-since no real gradient_capture.py output is needed to test the diagnostics maths/plots.
+since no real sgl.signals.capture output is needed to test the diagnostics maths/plots.
 """
 
 import json
@@ -9,7 +9,7 @@ import json
 import pandas as pd
 import pytest
 
-from iwc_diagnostics import (
+from sgl.diagnostics.iwc import (
     compute_correlations,
     main,
     partial_pearson,
@@ -154,7 +154,7 @@ def test_main_end_to_end_writes_expected_artifacts(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "sys.argv",
         [
-            "iwc_diagnostics.py",
+            "sgl.diagnostics.iwc",
             "--data-path", str(data_path),
             "--strengths", str(strengths_path),
             "--output-dir", str(output_dir),

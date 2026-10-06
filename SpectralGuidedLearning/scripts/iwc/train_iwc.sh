@@ -55,6 +55,6 @@ OPTS+=" --use-lora --lora-r 16 --lora-alpha ${LORA_ALPHA:-16} --lora-dropout 0.0
 OPTS+=" --lora-target-modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj --no-lora-merge"
 OPTS+=" --deepspeed-config ${DS_CONFIG} --max-seq-len 32768"
 
-CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
+CMD="torchrun ${DISTRIBUTED_ARGS} -m sgl.training.train ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/${VARIANT}-${TRACK}.log"

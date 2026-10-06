@@ -1,6 +1,6 @@
 """Answer-only SFT target: the ground-truth solution, with no model-generated reasoning."""
 
-from data_prep import answer_only_response, reconcile_thinking_markers
+from sgl.data.prepare import answer_only_response, reconcile_thinking_markers
 
 S1K_ROW = {
     "solution": "128",

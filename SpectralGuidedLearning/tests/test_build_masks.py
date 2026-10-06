@@ -4,7 +4,7 @@ docs/system-architecture.md and plans/reports/review-260805-plan-code-vs-paper.m
 
 import json
 
-from build_masks import emit_masked_dataset, sweep_thresholds
+from sgl.selection.build_masks import emit_masked_dataset, sweep_thresholds
 
 
 def _record(record_id: int, step_lengths: list[int]) -> dict:

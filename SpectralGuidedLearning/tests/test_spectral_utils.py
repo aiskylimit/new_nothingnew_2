@@ -1,6 +1,6 @@
 import torch
 
-from spectral_utils import (
+from sgl.signals.spectral import (
     analyze_gradient_matrix,
     cumulative_energy,
     effective_rank,

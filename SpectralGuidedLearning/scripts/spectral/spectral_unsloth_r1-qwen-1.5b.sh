@@ -67,6 +67,6 @@ OPTS+=" --lora-alpha ${LORA_ALPHA}"
 OPTS+=" --lora-dropout ${LORA_DROPOUT}"
 OPTS+=" --lora-target-modules ${LORA_TARGET_MODULES}"
 
-CMD="python ${BASE_PATH}/src/train_sft_unsloth.py ${OPTS}"
+CMD="python -m sgl.training.backends.unsloth ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/spectral-unsloth-r1-qwen-1.5b.log"

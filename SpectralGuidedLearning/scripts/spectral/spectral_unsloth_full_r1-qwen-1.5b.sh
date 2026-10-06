@@ -59,6 +59,6 @@ OPTS+=" --optim ${OPTIM}"
 OPTS+=" --max-seq-len ${MAX_SEQ_LEN}"
 OPTS+=" --no-use-lora"
 
-CMD="python ${BASE_PATH}/src/train_sft_unsloth.py ${OPTS}"
+CMD="python -m sgl.training.backends.unsloth ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/spectral-full-r1-qwen-1.5b.log"

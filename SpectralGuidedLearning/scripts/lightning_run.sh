@@ -21,6 +21,7 @@ export BENCH_DATA_ROOT=""                                                   # ""
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${BASE_PATH}"
+export PYTHONPATH="${BASE_PATH}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 # 1) uv
 if ! command -v uv >/dev/null; then
@@ -75,4 +76,4 @@ bash scripts/spectral/spectral_qwen25-7b.sh
 bash scripts/eval/eval_qwen25-7b.sh checkpoints/spectral-qwen25-7b spectral-qwen25-7b
 
 # 5) comparison table (single-model run -- still writes results/comparison-table.md)
-python3 src/compare_results.py
+python3 -m sgl.eval.compare

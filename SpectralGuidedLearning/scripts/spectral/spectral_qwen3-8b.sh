@@ -84,6 +84,6 @@ OPTS+=" --no-lora-merge"
 OPTS+=" --deepspeed-config ${DS_CONFIG}"
 OPTS+=" --max-seq-len ${MAX_SEQ_LEN}"
 
-CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
+CMD="torchrun ${DISTRIBUTED_ARGS} -m sgl.training.train ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/spectral-qwen3-8b.log"

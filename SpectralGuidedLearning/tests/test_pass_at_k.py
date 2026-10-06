@@ -1,6 +1,6 @@
 import json
 
-from evaluate import score_file
+from sgl.eval.evaluate import score_file
 
 
 def write_raw(tmp_path, name, rows):

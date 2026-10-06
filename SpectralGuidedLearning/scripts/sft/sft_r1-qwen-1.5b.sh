@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Phase 5: SFT Long CoT (vanilla arm) -- DeepSeek-R1-Distill-Qwen-1.5B track.
 # Every response token supervised (all-ones mask from data_r1-qwen-1.5b.sh), FULL fine-tuning
-# with src/train_sft.py (HF Trainer, no LoRA) in the main env (spectral_guided_learning.txt) --
+# with src/sgl/training/train.py (HF Trainer, no LoRA) in the main env (spectral_guided_learning.txt) --
 # no Unsloth, so no separate train venv. Runs under torchrun on every GPU in GPUS; GRAD_ACC is
 # derived so the effective batch stays 32 regardless of GPU count. Hyperparameters follow the
 # P-ALIGN training setup: 3 epochs, eff. batch 32 (bs1 x ga32 on 1 GPU), lr 5e-5, cosine to 0 with
@@ -82,6 +82,6 @@ if [[ -n "${DS_CONFIG:-}" ]]; then
   OPTS+=" --deepspeed-config ${DS_CONFIG}"
 fi
 
-CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
+CMD="torchrun ${DISTRIBUTED_ARGS} -m sgl.training.train ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/vanilla-r1-qwen-1.5b.log"

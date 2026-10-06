@@ -19,6 +19,6 @@ TEMPERATURE="${IWC_TEMPERATURE:-1.0}"
 INTERPOLATION="${IWC_INTERPOLATION:-1.0}"
 CLIP="${IWC_CLIP:-2.0}"
 
-CMD="python ${BASE_PATH}/src/build_iwc_datasets.py --data-path ${DATA_PATH} --strengths ${STRENGTHS_PATH} --energy-threshold-p ${ENERGY_THRESHOLD_P} --temperature ${TEMPERATURE} --interpolation ${INTERPOLATION} --clip ${CLIP}"
+CMD="python -m sgl.allocation.build --data-path ${DATA_PATH} --strengths ${STRENGTHS_PATH} --energy-threshold-p ${ENERGY_THRESHOLD_P} --temperature ${TEMPERATURE} --interpolation ${INTERPOLATION} --clip ${CLIP}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee logs/qwen25-7b-iwc-masks.log

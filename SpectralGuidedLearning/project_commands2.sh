@@ -9,6 +9,7 @@
 set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
+export PYTHONPATH="${BASE}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
 # Which GPU(s) every phase script runs on (space-separated ids). Override: GPUS="0" ./project_commands2.sh
 # Must NOT be the GPU project_commands.sh is training on: eval reserves 90% of its GPU for vLLM.
@@ -71,4 +72,4 @@ bash scripts/eval/eval_qwen3-8b.sh checkpoints/iwc-stable-qwen3-8b iwc-stable-qw
 
 # =========================== COMPARE ==========================
 # writes results/comparison-table.md and results/eval-summary.json (regenerated from all results/<tag>/)
-"${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" "${BASE}/src/compare_results.py"
+"${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" -m sgl.eval.compare

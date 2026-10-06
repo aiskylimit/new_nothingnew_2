@@ -32,6 +32,6 @@ if [[ -n "${N_SAMPLES}" ]]; then
   OPTS+=" --n-samples ${N_SAMPLES}"
 fi
 
-CMD="python ${BASE_PATH}/src/data_prep.py ${OPTS}"
+CMD="python -m sgl.data.prepare ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee logs/qwen3-8b-data.log

@@ -21,7 +21,7 @@ MODEL_NAME="${LOCAL_MODELS_ROOT}/Qwen3-8B"
 DATA_DIR="data/qwen3-8b"
 MIN_STEP_TOKENS="${MIN_STEP_TOKENS:-8}"
 
-CMD="python ${BASE_PATH}/src/build_trans_dataset.py \
+CMD="python -m sgl.transforms.build_transitions \
   --segmented ${DATA_DIR}/train-segmented.jsonl \
   --masked ${DATA_DIR}/train-${VARIANT}.jsonl \
   --output ${DATA_DIR}/train-${VARIANT}-trans.jsonl \

@@ -12,6 +12,7 @@ set -euo pipefail
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${BASE_PATH}"
+export PYTHONPATH="${BASE_PATH}/src${PYTHONPATH:+:${PYTHONPATH}}"
 export GPUS="${GPUS:-0}"
 export RESULTS_DIR="${RESULTS_DIR:-${BASE_PATH}/results-32k}"
 TRACKS="${TRACKS:-qwen25-7b qwen3-8b}"
@@ -54,5 +55,5 @@ for track in ${TRACKS}; do
 done
 
 # regenerated from every <RESULTS_DIR>/<tag>/summary.json -> comparison-table.md + eval-summary.json
-"${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" src/compare_results.py --results-dir "${RESULTS_DIR}"
+"${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}/bin/python" -m sgl.eval.compare --results-dir "${RESULTS_DIR}"
 cat "${RESULTS_DIR}/comparison-table.md"

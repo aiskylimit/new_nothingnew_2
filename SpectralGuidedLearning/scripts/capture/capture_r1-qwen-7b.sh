@@ -33,10 +33,10 @@ OPTS+=" --chunk-size ${CHUNK_SIZE}"
 
 NUM_SHARDS=${#GPUS[@]}
 # One compute shard per GPU (no in-process multi-GPU path); final --num-shards 1 pass merges.
-echo ">>> launching ${NUM_SHARDS} shards (one per GPU: ${GPUS[*]}) of ${BASE_PATH}/src/gradient_capture.py"
+echo ">>> launching ${NUM_SHARDS} shards (one per GPU: ${GPUS[*]}) of src/sgl/signals/capture.py"
 pids=()
 for i in "${!GPUS[@]}"; do
-  CUDA_VISIBLE_DEVICES="${GPUS[$i]}" python -u "${BASE_PATH}/src/gradient_capture.py" ${OPTS} --verify \
+  CUDA_VISIBLE_DEVICES="${GPUS[$i]}" python -u -m sgl.signals.capture ${OPTS} --verify \
     --num-shards "${NUM_SHARDS}" --shard-index "${i}" \
     > "logs/r1-qwen-7b-capture-shard${i}.log" 2>&1 &
   pids+=($!)
@@ -48,7 +48,7 @@ done
 [[ ${shard_fail} -eq 0 ]] || exit 1
 
 # Merge pass: every npz exists, so this only rebuilds the parquet (still loads the model).
-CMD="python -u ${BASE_PATH}/src/gradient_capture.py ${OPTS}"
+CMD="python -u -m sgl.signals.capture ${OPTS}"
 echo "${CMD}"
 CUDA_VISIBLE_DEVICES="${GPUS[0]}" ${CMD} 2>&1 | tee logs/r1-qwen-7b-capture.log
 

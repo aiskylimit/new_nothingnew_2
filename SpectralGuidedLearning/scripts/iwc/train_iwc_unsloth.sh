@@ -50,6 +50,6 @@ OPTS+=" --optim ${OPTIM} --max-seq-len 32768"
 OPTS+=" --use-lora --lora-r 16 --lora-alpha 16 --lora-dropout 0.05"
 OPTS+=" --lora-target-modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj"
 
-CMD="python ${BASE_PATH}/src/train_sft_unsloth.py ${OPTS}"
+CMD="python -m sgl.training.backends.unsloth ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/${VARIANT}-unsloth-${TRACK}.log"

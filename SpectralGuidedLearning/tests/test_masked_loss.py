@@ -2,9 +2,9 @@ import pytest
 import torch
 import torch.nn.functional as F
 
-from data_collator import MaskedSFTCollator
-from masked_loss import IGNORE_INDEX, masked_cross_entropy
-from training_utils import compensate_global_token_mean, set_training_seed
+from sgl.training.collator import MaskedSFTCollator
+from sgl.training.losses import IGNORE_INDEX, masked_cross_entropy
+from sgl.training.utils import compensate_global_token_mean, set_training_seed
 
 
 def _random_batch(batch_size=2, seq_len=12, vocab=17, seed=0):

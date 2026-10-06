@@ -1,4 +1,4 @@
-from answer_scoring import extract_boxed, extract_choice, normalize_math, score_generation
+from sgl.eval.graders.answer_scoring import extract_boxed, extract_choice, normalize_math, score_generation
 
 
 def test_extract_last_boxed_answer():

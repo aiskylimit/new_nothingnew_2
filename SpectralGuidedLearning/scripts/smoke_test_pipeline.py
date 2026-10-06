@@ -15,12 +15,12 @@ from transformers import AutoConfig, AutoModelForCausalLM, AutoTokenizer
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from data_collator import MaskedSFTCollator  # noqa: E402
-from gradient_utils import capture_sequence_gradients  # noqa: E402
-from masked_loss import masked_cross_entropy  # noqa: E402
-from segmentation import segment_response_token_spans  # noqa: E402
-from spectral_utils import analyze_gradient_matrix  # noqa: E402
-from step_selection import build_loss_mask, select_steps_by_energy, selection_stats  # noqa: E402
+from sgl.segment.sentence import segment_response_token_spans  # noqa: E402
+from sgl.selection.energy import build_loss_mask, select_steps_by_energy, selection_stats  # noqa: E402
+from sgl.signals.gradients import capture_sequence_gradients  # noqa: E402
+from sgl.signals.spectral import analyze_gradient_matrix  # noqa: E402
+from sgl.training.collator import MaskedSFTCollator  # noqa: E402
+from sgl.training.losses import masked_cross_entropy  # noqa: E402
 
 TOKENIZER_NAME = "Qwen/Qwen3-0.6B-Base"
 

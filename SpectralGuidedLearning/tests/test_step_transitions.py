@@ -1,6 +1,6 @@
 """\\n\\n-step structure for L_trans. A one-char-per-token tokenizer makes offsets exact."""
 
-from step_transitions import (
+from sgl.transforms.step_transitions import (
     build_transition_fields,
     cot_char_span,
     merge_short_steps,

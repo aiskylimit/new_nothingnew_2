@@ -1,6 +1,6 @@
 import pytest
 
-from step_selection import build_loss_mask, select_steps_by_energy, selection_stats
+from sgl.selection.energy import build_loss_mask, select_steps_by_energy, selection_stats
 
 
 def test_selects_minimal_set_reaching_threshold():

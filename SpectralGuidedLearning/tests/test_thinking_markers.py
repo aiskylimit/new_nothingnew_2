@@ -1,4 +1,4 @@
-from data_prep import close_open_thinking, reconcile_thinking_markers
+from sgl.data.prepare import close_open_thinking, reconcile_thinking_markers
 
 S1K_RESPONSE = "<think>\nfirst step\nsecond step\n</think>\n\nThe answer is \\boxed{42}."
 

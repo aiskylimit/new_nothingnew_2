@@ -56,6 +56,6 @@ OPTS+=" --save-total-limit ${SAVE_TOTAL_LIMIT}"
 OPTS+=" --seed ${SEED}"
 OPTS+=" --max-seq-len ${MAX_SEQ_LEN}"
 
-CMD="python ${BASE_PATH}/src/train_sft_unsloth.py ${OPTS}"
+CMD="python -m sgl.training.backends.unsloth ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/spectral-r1-qwen-1.5b.log"

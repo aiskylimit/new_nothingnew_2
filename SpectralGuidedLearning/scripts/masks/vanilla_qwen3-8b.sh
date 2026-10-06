@@ -14,6 +14,6 @@ fi
 export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p logs
 
-CMD="python ${BASE_PATH}/src/build_masks.py --data-path data/qwen3-8b/train-segmented.jsonl --vanilla-only"
+CMD="python -m sgl.selection.build_masks --data-path data/qwen3-8b/train-segmented.jsonl --vanilla-only"
 echo "${CMD}"
 ${CMD} 2>&1 | tee logs/qwen3-8b-masks-vanilla.log

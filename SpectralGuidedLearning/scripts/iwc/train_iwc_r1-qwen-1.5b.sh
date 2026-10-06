@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
-# Phase 5: IWC arm -- DeepSeek-R1-Distill-Qwen-1.5B track, set up exactly like the SFT Long CoT
-# arm (scripts/sft/sft_r1-qwen-1.5b.sh): FULL fine-tuning, 3 epochs, eff. batch 32, lr 5e-5 cosine
-# to 0, warmup 0.1, max_seq_len 32768. The only difference is the data: train-<variant>.jsonl keeps
+# Phase 5: IWC arm -- DeepSeek-R1-Distill-Qwen-1.5B track, set up exactly like the spectral full-FT
+# arm (scripts/spectral/spectral_full_r1-qwen-1.5b.sh): FULL fine-tuning, 3 epochs, eff. batch 32,
+# lr 5e-5 cosine to 1e-5, warmup 0.1, max_seq_len 32768, DeepSpeed ZeRO-2 offload. The only difference is the data: train-<variant>.jsonl keeps
 # train-spectral's token selection and adds loss_weights, which train_sft.py's MaskedSFTTrainer
 # applies. Never train IWC through train_sft_unsloth.py: it drops the weights.
 # Usage: scripts/iwc/train_iwc_r1-qwen-1.5b.sh [iwc-stable|iwc]
-# Optional: DS_CONFIG=configs/deepspeed/ds_config_zero2_offload.json for extra memory headroom.
+# DeepSpeed is on by default (not just for memory): train_sft.py loads the model in bf16 and only
+# DeepSpeed keeps fp32 master weights. Without it AdamW updates the bf16 weights directly and most
+# lr~5e-5 steps round away (the SFT Long-CoT arm trained that way and ended below zero-shot).
+# DS_CONFIG= (empty) turns it off.
 set -euo pipefail
+# Data/checkpoint namespace: r1-qwen-1.5b = s1K-1.1 track; e.g. r1-qwen-1.5b-palign = P-ALIGN data.
+TRACK="${TRACK:-r1-qwen-1.5b}"
 
 VARIANT="${1:-iwc-stable}"
 case "${VARIANT}" in
@@ -38,7 +43,7 @@ DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE --rdzv_backend static \
                   --master_port $MASTER_PORT"
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
+PROJECT_ENV="${PROJECT_ENV:-$(cd "${BASE_PATH}/.." && pwd)/iwc}"
 if [[ -z "${VIRTUAL_ENV:-}" ]]; then
   [[ -f "${PROJECT_ENV}/bin/activate" ]] || "${BASE_PATH}/scripts/setup.sh"
   source "${PROJECT_ENV}/bin/activate"
@@ -46,13 +51,12 @@ fi
 export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p "${BASE_PATH}/logs"
 
-LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
-MODEL_NAME="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-1.5B"
-DATA_PATH="${BASE_PATH}/data/r1-qwen-1.5b/train-${VARIANT}.jsonl"
-OUTPUT_DIR="${BASE_PATH}/checkpoints/${VARIANT}-r1-qwen-1.5b"
+MODEL_NAME="${MODEL_NAME:-deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B}"
+DATA_PATH="${BASE_PATH}/data/${TRACK}/train-${VARIANT}.jsonl"
+OUTPUT_DIR="${BASE_PATH}/checkpoints/${VARIANT}-${TRACK}"
 EPOCHS=3
-LR=5.0e-5
-MIN_LR=0               # min_lr_rate 0 -> cosine_with_min_lr is exactly plain cosine-with-warmup
+LR="${LR:-5.0e-5}"
+MIN_LR="${MIN_LR:-1.0e-5}"
 WARMUP_RATIO=0.1
 BATCH_SIZE=1
 EFFECTIVE_BATCH=32
@@ -64,6 +68,7 @@ SEED=42
 SAVE_STRATEGY=epoch
 SAVE_TOTAL_LIMIT=2
 MAX_SEQ_LEN=32768
+DS_CONFIG="${DS_CONFIG-${BASE_PATH}/configs/deepspeed/ds_config_zero2_offload.json}"
 
 [[ -f "${DATA_PATH}" ]] || { echo "missing ${DATA_PATH} -- run scripts/masks/iwc_r1-qwen-1.5b.sh first" >&2; exit 1; }
 
@@ -88,6 +93,6 @@ if [[ -n "${DS_CONFIG:-}" ]]; then
   OPTS+=" --deepspeed-config ${DS_CONFIG}"
 fi
 
-CMD="torchrun ${DISTRIBUTED_ARGS} ${BASE_PATH}/src/train_sft.py ${OPTS}"
+CMD="torchrun ${DISTRIBUTED_ARGS} -m sgl.training.train ${OPTS}"
 echo "${CMD}"
-${CMD} 2>&1 | tee "${BASE_PATH}/logs/${VARIANT}-r1-qwen-1.5b.log"
+${CMD} 2>&1 | tee "${BASE_PATH}/logs/${VARIANT}-${TRACK}.log"

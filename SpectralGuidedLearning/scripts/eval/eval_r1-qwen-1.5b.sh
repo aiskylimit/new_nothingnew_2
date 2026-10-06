@@ -14,11 +14,11 @@ export CUDA_VISIBLE_DEVICES=$(IFS=,; echo "${GPUS[*]}")
 export TOKENIZERS_PARALLELISM=false
 export HF_HUB_DISABLE_SYMLINKS_WARNING=1
 export VLLM_LOGGING_LEVEL="${VLLM_LOGGING_LEVEL:-WARNING}"
-# Offline server: benchmarks.py resolves aime24/aime25/math500/amc12 from here (see download.txt).
-export BENCH_DATA_ROOT="${BENCH_DATA_ROOT-/mnt/local/_data/aiskylimit_new_nothingnew_2}"
+# Empty BENCH_DATA_ROOT -> benchmarks.py loads HF repo ids (HF cache); set it to use local mirrors.
+export BENCH_DATA_ROOT="${BENCH_DATA_ROOT:-}"
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
+PROJECT_ENV="${PROJECT_ENV:-$(cd "${BASE_PATH}/.." && pwd)/iwc}"
 # Always switch to the eval env: the driver may have left the unsloth train env active, which has no vLLM.
 if [[ "${VIRTUAL_ENV:-}" != "${PROJECT_ENV}" ]]; then
   [[ -f "${PROJECT_ENV}/bin/activate" ]] || {
@@ -30,13 +30,12 @@ fi
 export PYTHONPATH="${BASE_PATH}/src"
 mkdir -p "${BASE_PATH}/logs"
 
-LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
 MODEL="${BASE_PATH}/checkpoints/vanilla-r1-qwen-1.5b"
-BASE_MODEL="${LOCAL_MODELS_ROOT}/DeepSeek-R1-Distill-Qwen-1.5B"
+BASE_MODEL="${BASE_MODEL:-deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B}"
 TAG="vanilla-r1-qwen-1.5b"
 [[ -n "${1:-}" ]] && MODEL="$1"
 [[ -n "${2:-}" ]] && TAG="$2"
-BENCHMARKS="math500,aime24,aime25,amc12"
+BENCHMARKS="${BENCHMARKS:-math500,aime24,aime25,amc12}"
 # P-ALIGN test.py sampling, verbatim.
 TEMPERATURE=0.6
 TOP_P=0.9
@@ -49,8 +48,8 @@ MAX_TOKENS="${MAX_TOKENS:-4096}"
 MAX_MODEL_LEN="${MAX_TOKENS}"
 # Problems per generate() call; finished ones are written after each batch, so a stop keeps them.
 BATCH_SIZE="${BATCH_SIZE:-64}"
-GPU_MEM_UTIL=0.8       # P-ALIGN test.py
-SEED=42
+GPU_MEM_UTIL="${GPU_MEM_UTIL:-0.8}"   # P-ALIGN test.py default; lower it on a shared GPU
+SEED="${EVAL_SEED:-42}"   # vLLM sampling seed
 CHAT_TEMPLATE=true
 # Thinking OFF, as in test.py. R1-Distill's template ignores enable_thinking and hard-codes an
 # open <think>; --palign-prompt closes it exactly as test.py apply_chat() does
@@ -94,6 +93,6 @@ else
 fi
 OPTS+=" --results-dir ${RESULTS_DIR}"
 
-CMD="python ${BASE_PATH}/src/evaluate.py ${OPTS}"
+CMD="python -m sgl.eval.evaluate ${OPTS}"
 echo "${CMD}"
 ${CMD} 2>&1 | tee "${BASE_PATH}/logs/eval-${TAG}.log"

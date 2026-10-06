@@ -61,4 +61,4 @@ tag = sys.argv[1]
 print_summary_table(tag, json.loads((Path("results") / tag / "summary.json").read_text()))
 PYEOF
 echo
-"${PY}" "${BASE}/src/compare_results.py"
+"${PY}" -m sgl.eval.compare

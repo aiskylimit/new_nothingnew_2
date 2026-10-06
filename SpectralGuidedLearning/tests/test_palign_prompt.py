@@ -1,4 +1,4 @@
-from evaluate import palign_close_thinking
+from sgl.eval.evaluate import palign_close_thinking
 
 R1_PROMPT = "<｜begin▁of▁sentence｜><｜User｜>q<｜Assistant｜><think>\n"
 
