@@ -1,1 +1,6 @@
 P-ALIGN/data/palign_sft_qwen2.5-7b.json
+
+# Ban sao nam trong SpectralGuidedLearning/references/P-ALIGN (giu repo < 30MB)
+P-ALIGN/data/*.json.gz
+P-ALIGN/figs/
+SpectralGuidedLearning/experiments/logs/
