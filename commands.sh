@@ -1,4 +1,4 @@
-#1 +10
+#2 -0-5
 #pga
 #v1
 
@@ -30,5 +30,5 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash ./project_commands.sh
 
-cd ./talas_vlm_embed
-bash ./project_commands.sh
+# cd ./talas_vlm_embed
+# bash ./project_commands.sh
