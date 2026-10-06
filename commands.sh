@@ -1,5 +1,5 @@
-#1 +60
-#iwc
+#1 +10
+#pga
 #v1
 
 # cd SpectralGuidedLearning && bash project_commands_b200_gain.sh 
