@@ -216,8 +216,9 @@ def add_distillm_args(parser: argparse.ArgumentParser):
     group.add_argument("--student_layer_mapping", nargs='+', type=int, default=[-1])
     group.add_argument("--teacher_layer_mapping", nargs='+', type=int, default=[-1])
     group.add_argument("--split_layer_mapping", nargs='+', type=int, default=[0, 0, 0, 0])
-    group.add_argument("--span_metric", type=str, default="cosine", choices=["cosine", "dot", "l2"],
-                       help="span relational distance: cosine | dot | l2(euclidean)")
+    group.add_argument("--span_metric", type=str, default="cosine", choices=["cosine", "dot", "l2", "cka"],
+                       help="span relational distance: cosine | dot | l2(euclidean) | cka "
+                            "(linear CKA per batch item; drops the omega_ik weighting)")
     group.add_argument("--use_dsa", action="store_true")
     group.add_argument("--use_hs", action="store_true")
 
@@ -270,6 +271,40 @@ def add_ced_args(parser: argparse.ArgumentParser):
                        help="hard cap on --ced-kd-ratio-new")
     group.add_argument("--ced-smoke-rows", type=int, default=0,
                        help="test only: balanced number of new/replay train rows (0 = full data)")
+    # on-policy self-distillation (SDFT): EMA teacher reads the augmented answer in its prompt
+    group.add_argument("--ced-sd", action="store_true",
+                       help="add on-policy self-distillation (needs teacher prompts from tools/ced_sd_prompts.py)")
+    group.add_argument("--ced-sd-weight", type=float, default=1.0,
+                       help="weight of the SD loss, added on top of the existing objective")
+    group.add_argument("--ced-sd-ema-mu", type=float, default=0.99,
+                       help="EMA teacher decay per optimizer step (SDFT: 0.99)")
+    group.add_argument("--ced-sd-temperature", type=float, default=1.0,
+                       help="sampling temperature of the on-policy response")
+    group.add_argument("--ced-sd-div", type=str, default="fkl", choices=["fkl", "rkl"],
+                       help="fkl = KL(teacher||student) (SDFT code default), rkl = KL(student||teacher)")
+    group.add_argument("--ced-sd-omission-mask", action="store_true",
+                       help="drop from the SD loss the tokens of sampled old-type records that are "
+                            "grounded in the sentence but absent from the reference y~ (ced_omask.py)")
+    group.add_argument("--ced-sd-mix", type=str, default="sum", choices=["sum", "random"],
+                       help="sum = token KD and SD on every step; random = each optimizer step keeps "
+                            "one of the two KL terms (p = 0.5). Span loss and CE are unchanged.")
+    group.add_argument("--ced-sd-probe", type=int, default=64,
+                       help="rows used to check, before training, that the teacher copies the reference (0 = off)")
+    # Ablation knobs. The defaults reproduce SDFT; none of these is part of the method.
+    # (Samples cut off by the token budget are always dropped from the SD loss, no flag.)
+    group.add_argument("--ced-sd-top-p", type=float, default=1.0,
+                       help="nucleus p of the on-policy sample (SDFT: 1.0)")
+    group.add_argument("--ced-sd-skip-unparsed", action="store_true",
+                       help="also drop samples that are not valid JSON from the SD loss")
+    group.add_argument("--ced-sd-warmup", type=float, default=0.0,
+                       help="fraction of total_iters to train before SD starts (0 = from step 1)")
+    # SDFT as a baseline on its own (main.py of the SDFT release)
+    group.add_argument("--ced-sd-only", action="store_true",
+                       help="SDFT baseline: the update is the SD loss alone (no CE, no KD from the "
+                            "previous model)")
+    group.add_argument("--ced-sd-skip-tokens", type=int, default=0,
+                       help="leave the first N sampled tokens of each response out of the SD loss "
+                            "(SDFT num_loss_tokens_to_skip; its main.py uses 3)")
     # CL-LoRA baselines (cl_lora/): which method + its reg/ratio knobs
     group.add_argument("--cl-method", type=str, default=None,
                        choices=["inclora", "olora", "migu", "tree",

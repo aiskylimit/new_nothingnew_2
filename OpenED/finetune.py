@@ -36,6 +36,7 @@ from utils import save_rank
 from utils import all_gather
 from utils import load_parallel, save_parallel
 from utils import get_tokenizer, get_model
+from chat_format import stop_ids
 
 from distillm import forward_kl, reverse_kl, js_distance, tv_distance
 from distillm import skewed_forward_kl, skewed_reverse_kl, csd
@@ -459,7 +460,7 @@ def evaluate(args, tokenizer, model, dataset: LMTrainDataset, split, epoch, devi
         repetition_penalty=args.repetition_penalty,
         max_length=args.max_length,
         min_length=None,
-        eos_token_id=[tokenizer.eos_token_id, 151643],
+        eos_token_id=list(stop_ids(tokenizer)),   # [151645, 151643] on Qwen
         pad_token_id=tokenizer.eos_token_id,
         return_dict_in_generate=True,
         output_scores=False

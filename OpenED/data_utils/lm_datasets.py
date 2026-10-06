@@ -28,6 +28,7 @@ from .distributed_indexed import DistributedMMapIndexedDataset
 
 from torch.distributed import get_rank, get_world_size, barrier
 from utils import print_rank
+from chat_format import CHAT_MODEL_TYPES
 from utils import save_rank
 
 
@@ -239,7 +240,7 @@ class LMTrainDataset(Dataset):
         source_len = 1
         
         prompt = None
-        if self.args.model_type in ["qwen"] and 4294967295 in input_ids:
+        if self.args.model_type in CHAT_MODEL_TYPES and 4294967295 in input_ids:
             source_len = np.where(input_ids==4294967295)[0][0]
             prompt = input_ids[:source_len]
             input_ids = np.concatenate([input_ids[:source_len], input_ids[source_len+1:]], axis=0)
@@ -326,7 +327,14 @@ class LMTrainDataset(Dataset):
 
             for i, samp in enumerate(samples):
                 self._process_lm(i, {"input_ids": samp["t_input_ids"]}, t_model_data, t_no_model_data, None)
-        
+
+            # SD: teacher prompt tokens (the part before the sentinel), kept unpadded;
+            # the sampled response is appended to them at train time.
+            no_model_data["t_prompt_ids"] = [
+                torch.tensor(samp["t_input_ids"][:np.where(samp["t_input_ids"] == 4294967295)[0][0]], dtype=torch.long)
+                for samp in samples
+            ]
+
         return model_data, no_model_data, gen_data, t_model_data, t_no_model_data
 
 
@@ -368,7 +376,7 @@ class LMEvalDataset(Dataset):
         source_len = 1
         
         prompt = None
-        if self.args.model_type in ["qwen"] and 4294967295 in input_ids:
+        if self.args.model_type in CHAT_MODEL_TYPES and 4294967295 in input_ids:
             source_len = np.where(input_ids==4294967295)[0][0]
             prompt = input_ids[:source_len]
             input_ids = np.concatenate([input_ids[:source_len], input_ids[source_len+1:]], axis=0)

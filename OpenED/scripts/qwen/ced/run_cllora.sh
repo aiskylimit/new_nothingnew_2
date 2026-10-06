@@ -8,6 +8,9 @@
 set -euo pipefail
 
 cd "$(dirname "$0")/../../.."
+# local copy from download.txt when present (see run.sh), else the hub name
+[ -f models/Qwen3-0.6B/config.json ] && MODEL_PATH=${MODEL_PATH:-models/Qwen3-0.6B}
+MODEL_PATH=${MODEL_PATH:-Qwen/Qwen3-0.6B}
 
 METHOD=""; DATA_ROOT="data_ced/ace_b10_perm0"; NUM_TASKS=5; RANK=16; ALPHA=64
 LR=0.0002; EPOCHS=5; BS=2; GA=16; EBS=16; REG=0.5; MIGU=0.7; SEED=42; GPU=0
@@ -81,7 +84,13 @@ RESUME_ARG=()
 [ "${RESUME}" = "1" ] && RESUME_ARG+=(--resume)
 END_TASK_ARG=()
 [ -n "${END_TASK}" ] && END_TASK_ARG+=(--end-task "${END_TASK}")
-LOG="logs_${RUN_ID}.log"
+# Flat logs/<ds>_cllora_<method>_perm<p>_: train.log is the engine's whole output. The engine
+# trains every task in one process, so there is one file per perm, not per task; results.log is
+# the per-task metrics from cl_results.json.
+DS=$(basename "${DATA_ROOT}")
+LOG_PRE="logs/${DS%%_*}${MODEL_TAG:+_${MODEL_TAG}}_cllora_${METHOD}_${PERM_TAG}"   # MODEL_TAG: see dist_queue.sh
+mkdir -p logs
+LOG="${LOG_PRE}_train.log"
 if [ "${RESUME}" = "1" ]; then
     echo "===== RESUME $(date -Iseconds) =====" >> "${LOG}"
 else
@@ -92,9 +101,10 @@ ${PY} cl_lora/engine.py \
     --rank "${RANK}" --alpha "${ALPHA}" --lr "${LR}" --epochs "${EPOCHS}" \
     --batch-size "${BS}" --grad-accum "${GA}" --eval-batch-size "${EBS}" \
     --cl-reg "${REG}" --cl-migu-ratio "${MIGU}" --seed "${SEED}" \
-    --limit "${LIMIT}" \
+    --limit "${LIMIT}" --model-path "${MODEL_PATH}" \
     --save "${SAVE}" "${RESUME_ARG[@]}" "${END_TASK_ARG[@]}" \
     >> "${LOG}" 2>&1
+"${PY}" -m json.tool "${SAVE}/cl_results.json" > "${LOG_PRE}_results.log"
 if [ -z "${END_TASK}" ] || [ "${END_TASK}" -eq $((NUM_TASKS - 1)) ]; then
     [ -f "${SAVE}/.complete" ] || { echo "missing completion marker: ${SAVE}"; exit 1; }
     echo "CLLORA RUNNER DONE ${METHOD} -> ${SAVE}"
