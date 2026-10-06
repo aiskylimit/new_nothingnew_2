@@ -1,4 +1,4 @@
-# i spectral_guided_learning.txt
+#i spectral_guided_learning.txt
 #opsd
 #v2
 
