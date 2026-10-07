@@ -10,7 +10,7 @@ TRACK="${TRACK:-r1-qwen-1.5b}"
 
 BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "${BASE_PATH}"
-PROJECT_ENV="${PROJECT_ENV:-$(cd "${BASE_PATH}/.." && pwd)/iwc}"
+PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
 if [[ -z "${VIRTUAL_ENV:-}" ]]; then
   [[ -f "${PROJECT_ENV}/bin/activate" ]] || ./scripts/setup.sh
   source "${PROJECT_ENV}/bin/activate"

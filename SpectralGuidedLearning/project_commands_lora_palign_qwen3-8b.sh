@@ -7,5 +7,5 @@
 #   ARMS="iwc gain" GPUS=0 bash project_commands_lora_palign_qwen3-8b.sh        # optional: add nll (P-ALIGN baseline)
 set -euo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export ARMS="${ARMS:-iwc gain}"
+export ARMS="${ARMS:-gain}"
 exec bash "${BASE}/project_commands_lora_palign.sh" qwen3-8b

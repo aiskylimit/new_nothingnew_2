@@ -5,7 +5,7 @@
 #     qwen3-8b   Qwen/Qwen3-8B             default ARMS="iwc gain"
 #     r1-qwen-7b DeepSeek-R1-Distill-Qwen-7B (the first, mistaken 7B run; kept reproducible)
 # Arms (override with ARMS="iwc gain nll"):
-#   iwc  -> iwc-nogate-l05-lora : IWC-Stable, no gate (p=1.0), lambda 0.5, tau 2, clip 2, weights from the student's per-step ENTROPY
+#   iwc  -> iwc-nogate-l05-lora : IWC-Stable, no gate (p=1.0), lambda IWC_INTERPOLATION (default 1.0), tau 2, clip 2, weights from the student's per-step ENTROPY
 #   gain -> iwc-gain-l05-lora   : same formula, weights from per-step ANSWER-INFORMATION GAIN of the student
 #   nll  -> sft-nll-lora        : plain NLL = P-ALIGN through this pipeline
 # Same data, format and recipe as the 1.5B track (project_commands_iwc_palign_r1-qwen-1.5b.sh): 966 P-ALIGN
@@ -42,6 +42,9 @@ ARMS="${ARMS:-${DEFAULT_ARMS}}"
 DEFAULT_DTYPE=bfloat16
 export MODEL_DTYPE="${MODEL_DTYPE:-${DEFAULT_DTYPE}}"
 FORCE="${FORCE:-0}"
+# Training seed (default 3407); eval always uses sampling seeds 42/43/44. Non-42 seeds get an "-s<seed>" arm suffix so
+# they never collide with the earlier seed-42 checkpoints/results.
+export SEED="${SEED:-3407}"
 
 export TRACK="${MODEL_KEY}-palign"
 [[ "${MODEL_DTYPE}" == float32 ]] && TRACK="${TRACK}-fp32"
@@ -55,11 +58,13 @@ export PALIGN_PROMPT=true
 
 # IWC-Stable, no gate: the settings of the best 1.5B variants.
 export IWC_ENERGY_THRESHOLD_P=1.0
-export IWC_INTERPOLATION="${IWC_INTERPOLATION:-0.5}"
+export IWC_INTERPOLATION="${IWC_INTERPOLATION:-1.0}"
 export IWC_TEMPERATURE="${IWC_TEMPERATURE:-2.0}"
+# Name tag for lambda (0.5 -> l05, 1.0 -> l1) so data/arms of different lambdas never collide.
+LTAG="l$(python3 -c "import sys;v=float(sys.argv[1]);print('%g'%v if v>=1 else ('%g'%v).replace('0.','0'))" "${IWC_INTERPOLATION}")"
 export IWC_CLIP="${IWC_CLIP:-2.0}"
 
-export PROJECT_ENV="${PROJECT_ENV:-$(cd "${BASE}/.." && pwd)/iwc}"
+export PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
 source "${PROJECT_ENV}/bin/activate"
 export PYTHONPATH="${BASE}/src"
 mkdir -p logs
@@ -96,8 +101,8 @@ build_weighted() {   # $1 = signal parquet, $2 = out variant name
 if has_arm iwc; then
   # Spectral capture is the only producer of step entropies (its SVD strengths are ignored at p=1.0).
   [[ -f "${DATA_DIR}/spectral-strengths.parquet" ]] || bash scripts/capture/capture_r1-qwen-1.5b.sh
-  [[ -f "${DATA_DIR}/train-iwc-stable-nogate-l05.jsonl" ]] \
-    || build_weighted "${DATA_DIR}/spectral-strengths.parquet" iwc-stable-nogate-l05
+  [[ -f "${DATA_DIR}/train-iwc-stable-nogate-${LTAG}.jsonl" ]] \
+    || build_weighted "${DATA_DIR}/spectral-strengths.parquet" iwc-stable-nogate-${LTAG}
 fi
 if has_arm gain; then
   GAINS="${DATA_DIR}/signals/step_answer_gain.json"
@@ -108,20 +113,21 @@ if has_arm gain; then
   fi
   [[ -f "${SIGNAL}" ]] || python -m sgl.signals.gain_parquet --data-path "${SEGMENTED}" --gains "${GAINS}" \
     --output "${SIGNAL}" $([[ -f "${DATA_DIR}/spectral-strengths.parquet" ]] && echo "--strengths ${DATA_DIR}/spectral-strengths.parquet")
-  [[ -f "${DATA_DIR}/train-iwc-stable-gain-nogate-l05.jsonl" ]] \
-    || build_weighted "${SIGNAL}" iwc-stable-gain-nogate-l05
+  [[ -f "${DATA_DIR}/train-iwc-stable-gain-nogate-${LTAG}.jsonl" ]] \
+    || build_weighted "${SIGNAL}" iwc-stable-gain-nogate-${LTAG}
 fi
 
 # ====================== TRAIN + EVAL PER ARM ===================
 # arm key -> "<arm name>|<data variant>|<extra train_sft.py args>"
 declare -A ARM_SPEC=(
-  [iwc]="iwc-nogate-l05-lora|iwc-stable-nogate-l05|"
-  [gain]="iwc-gain-l05-lora|iwc-stable-gain-nogate-l05|"
+  [iwc]="iwc-nogate-${LTAG}-lora|iwc-stable-nogate-${LTAG}|"
+  [gain]="iwc-gain-${LTAG}-lora|iwc-stable-gain-nogate-${LTAG}|"
   [nll]="sft-nll-lora|vanilla|--objective nll"
 )
 for key in ${ARMS}; do
   [[ -n "${ARM_SPEC[${key}]:-}" ]] || { echo "unknown arm '${key}' (iwc gain nll)" >&2; exit 2; }
   IFS='|' read -r ARM VARIANT EXTRA <<< "${ARM_SPEC[${key}]}"
+  [[ "${SEED}" == 42 ]] || ARM="${ARM}-s${SEED}"
   CKPT="${BASE}/checkpoints/${ARM}-${TRACK}"
   echo "===================== ARM ${ARM} (${VARIANT}) ====================="
 
