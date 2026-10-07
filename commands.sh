@@ -1,5 +1,5 @@
-#2 -0-10
-#pga2
+#1 +30
+#oed
 #v1
 
 
@@ -38,6 +38,6 @@ export NCCL_DEBUG=WARN
 # cd ./talas_vlm_embed
 # bash ./project_commands.sh
 
-# cd ./OpenED
-# bash gather_logs.sh
-# bash ./project_commands_7.sh
+cd ./OpenED
+bash gather_logs.sh
+GPUS="0 1" bash ./project_commands_8.sh
