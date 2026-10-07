@@ -1,4 +1,4 @@
-#1 +10
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OpenED/collected_logs.tar.gz +a
 #log
 #v2
 
