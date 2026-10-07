@@ -7,7 +7,7 @@ source /mnt/local/uvenvs/talas-vlm-embed/bin/activate
 
 bash set_base_model_path.sh
 # python -c "import zipfile; zipfile.ZipFile('en_core_web_sm.zip/en_core_web_sm.zip').extractall('.')"
-python fix_lib.py
+# python fix_lib.py
 
 # #
 # # 3. Unzip the dataset
@@ -38,10 +38,12 @@ tar -xzf /mnt/local/aiskylimit_new_nothing/talas_vlm_embed/datasets/B3_Qwen2_7B_
 
 
 
-CUDA_VISIBLE_DEVICES=4 bash ./baseline_scripts/train_distill_pga_cls.sh &
-CUDA_VISIBLE_DEVICES=5 bash ./baseline_scripts/train_distill_pga_vqa.sh &
-CUDA_VISIBLE_DEVICES=6 bash ./baseline_scripts/train_distill_ov_pga_cls.sh &
-CUDA_VISIBLE_DEVICES=7 bash ./baseline_scripts/train_distill_ov_pga_vqa.sh &
+# CUDA_VISIBLE_DEVICES=4 bash ./baseline_scripts/train_distill_pga_cls.sh &
+# CUDA_VISIBLE_DEVICES=5 bash ./baseline_scripts/train_distill_pga_vqa.sh &
+# CUDA_VISIBLE_DEVICES=6 bash ./baseline_scripts/train_distill_ov_pga_cls.sh &
+# CUDA_VISIBLE_DEVICES=7 bash ./baseline_scripts/train_distill_ov_pga_vqa.sh &
+# CUDA_VISIBLE_DEVICES=2 bash ./baseline_scripts/train_distill_pga_qwen2-7B_cls.sh &
+# CUDA_VISIBLE_DEVICES=3 bash ./baseline_scripts/train_distill_pga_grounding.sh &
 
 # bash run_time_mem.sh &
 # CUDA_VISIBLE_DEVICES=6 bash ./baseline_scripts/train_distill_span_attn_vqa.sh

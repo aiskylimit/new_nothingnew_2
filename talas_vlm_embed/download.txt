@@ -85,3 +85,4 @@
 --hf apple/FastVLM-0.5B /mnt/local/@PROJECT@/talas_vlm_embed/models/FastVLM-0.5B
 --hf llava-hf/llava-onevision-qwen2-0.5b-ov-hf /mnt/local/@PROJECT@/talas_vlm_embed/models/llava-onevision-qwen2-0.5b-ov-hf
 --hf Qwen/Qwen2-VL-2B-Instruct /mnt/local/@PROJECT@/talas_vlm_embed/models/Qwen/Qwen2-VL-2B-Instruct
+--hf Qwen/Qwen2-VL-7B-Instruct /mnt/local/@PROJECT@/talas_vlm_embed/models/Qwen/Qwen2-VL-7B-Instruct
