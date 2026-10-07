@@ -28,14 +28,26 @@ export GPUS="${GPUS:-${CUDA_GPUS:+${CUDA_GPUS//,/ }}}"
 export GPUS="${GPUS:-0}"
 read -ra GPU_LIST <<< "${GPUS}"
 
+LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
 MODEL_KEY="${1:?usage: $0 <qwen25-7b|qwen3-8b|r1-qwen-7b>}"
 case "${MODEL_KEY}" in
-  qwen25-7b)  MODEL_NAME="Qwen/Qwen2.5-7B-Instruct";                 DEFAULT_ARMS="iwc gain" ;;
-  qwen3-8b)   MODEL_NAME="Qwen/Qwen3-8B";                            DEFAULT_ARMS="iwc gain" ;;
+  qwen25-7b)  MODEL_NAME="${LOCAL_MODELS_ROOT}/Qwen2.5-7B-Instruct";        DEFAULT_ARMS="iwc gain" ;;
+  qwen3-8b)   MODEL_NAME="${LOCAL_MODELS_ROOT}/Qwen3-8B";                   DEFAULT_ARMS="iwc gain" ;;
   r1-qwen-7b) MODEL_NAME="deepseek-ai/DeepSeek-R1-Distill-Qwen-7B";  DEFAULT_ARMS="iwc gain" ;;
   *) echo "unknown model '${MODEL_KEY}' (qwen25-7b | qwen3-8b | r1-qwen-7b)" >&2; exit 2 ;;
 esac
 ARMS="${ARMS:-${DEFAULT_ARMS}}"
+# Local models: never contact huggingface.co (no network on the server -> endless HEAD retries).
+[[ "${MODEL_NAME}" == /* ]] && export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1
+# Preflight: fail loudly now if a local model / benchmark dir is missing (otherwise HF would be contacted or the run dies late).
+if [[ "${MODEL_NAME}" == /* ]]; then
+  [[ -f "${MODEL_NAME}/config.json" ]] || { echo "[preflight] ERROR: ${MODEL_NAME}/config.json not found (download the model there first)" >&2; exit 2; }
+  ls "${MODEL_NAME}" | grep -qE '\.(safetensors|bin)$' || { echo "[preflight] ERROR: no weight files in ${MODEL_NAME}" >&2; exit 2; }
+  LOCAL_DATA_ROOT="${LOCAL_DATA_ROOT:-/mnt/local/_data/aiskylimit_new_nothingnew_2}"
+  for _d in AIME_2024 aime_2025 aimo-validation-amc MATH-500; do
+    [[ -d "${LOCAL_DATA_ROOT}/${_d}" ]] || { echo "[preflight] ERROR: benchmark dir ${LOCAL_DATA_ROOT}/${_d} not found" >&2; exit 2; }
+  done
+fi
 # Weights dtype for training: bfloat16 weights, with fp32 master weights for the trainable (LoRA) parameters kept by DeepSpeed
 # ZeRO-2 -- the same precision scheme as the 1.5B full-FT track. MODEL_DTYPE=float32 (fp32 weights + bf16 autocast, no
 # DeepSpeed) is available but off by default; its outputs get a "-fp32" track suffix so the two never mix.
