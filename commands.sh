@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OpenED/collected_logs.tar.gz +a
+#1 +10
 #log
 #v2
 
@@ -39,7 +39,7 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 cd ./OpenED
-bash gather_logs.sh all
-tar -czf collected_logs.tar.gz collected_logs/all/
+bash gather_logs.sh all2
+tar -czf collected_logs.tar.gz collected_logs/all2/
 ls -lh collected_logs.tar.gz
 # GPUS="0 1" bash ./project_commands_8.sh
