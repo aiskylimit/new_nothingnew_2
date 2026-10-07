@@ -36,7 +36,7 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 cd ./talas_vlm_embed
-ls training
+tree training
 # bash ./project_commands.sh
 
 # cd ./OpenED
