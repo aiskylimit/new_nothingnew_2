@@ -42,8 +42,9 @@ source /mnt/local/uvenvs/talas-vlm-embed/bin/activate
 # CUDA_VISIBLE_DEVICES=5 bash ./baseline_scripts/train_distill_pga_vqa.sh &
 # CUDA_VISIBLE_DEVICES=6 bash ./baseline_scripts/train_distill_ov_pga_cls.sh &
 # CUDA_VISIBLE_DEVICES=7 bash ./baseline_scripts/train_distill_ov_pga_vqa.sh &
-CUDA_VISIBLE_DEVICES=2 bash ./baseline_scripts/train_distill_pga_qwen2-7B_cls.sh &
+# CUDA_VISIBLE_DEVICES=2 bash ./baseline_scripts/train_distill_pga_qwen2-7B_cls.sh &
 # CUDA_VISIBLE_DEVICES=3 bash ./baseline_scripts/train_distill_pga_grounding.sh &
+CUDA_VISIBLE_DEVICES=7 bash ./scripts/train_distill_talas_jepa_llava-ov_cls.sh
 
 wait
 
