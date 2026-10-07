@@ -1,19 +1,4 @@
-#d
-#datasets
---url https://huggingface.co/datasets/VoCuc/vlm-teacher-embedding/resolve/main/B3_Qwen2_2B_grounding.tar.gz /mnt/local/@PROJECT@/talas_vlm_embed/datasets
---url https://huggingface.co/datasets/VoCuc/vlm-teacher-embedding/resolve/main/B3_Qwen2_7B_cls.tar.gz /mnt/local/@PROJECT@/talas_vlm_embed/datasets
---url https://huggingface.co/datasets/TIGER-Lab/MMEB-eval/resolve/main/RefCOCO/test-00000-of-00001.parquet /mnt/local/@PROJECT@/talas_vlm_embed/vlm2vec_eval/MMEB-eval/RefCOCO
---url https://huggingface.co/datasets/TIGER-Lab/MMEB-eval/resolve/main/RefCOCO-Matching/test-00000-of-00001.parquet /mnt/local/@PROJECT@/talas_vlm_embed/vlm2vec_eval/MMEB-eval/RefCOCO-Matching
---url https://huggingface.co/datasets/TIGER-Lab/MMEB-eval/resolve/main/Visual7W-Pointing/test-00000-of-00001.parquet /mnt/local/@PROJECT@/talas_vlm_embed/vlm2vec_eval/MMEB-eval/Visual7W-Pointing
---url https://huggingface.co/datasets/TIGER-Lab/MMEB-eval/resolve/main/MSCOCO/test-00000-of-00001.parquet /mnt/local/@PROJECT@/talas_vlm_embed/vlm2vec_eval/MMEB-eval/MSCOCO
---url https://huggingface.co/datasets/TIGER-Lab/MMEB-train/resolve/main/MSCOCO/diverse_instruction-00000-of-00001.parquet /mnt/local/@PROJECT@/talas_vlm_embed/vlm2vec_train/MMEB-train/MSCOCO
---url https://huggingface.co/datasets/TIGER-Lab/MMEB-train/resolve/main/MSCOCO/original-00000-of-00001.parquet /mnt/local/@PROJECT@/talas_vlm_embed/vlm2vec_train/MMEB-train/MSCOCO
---url https://huggingface.co/datasets/TIGER-Lab/MMEB-train/resolve/main/MSCOCO/train-00000-of-00001.parquet /mnt/local/@PROJECT@/talas_vlm_embed/vlm2vec_train/MMEB-train/MSCOCO
---url https://huggingface.co/datasets/TIGER-Lab/MMEB-eval/resolve/main/MSCOCO/test-00000-of-00001.parquet /mnt/local/@PROJECT@/talas_vlm_embed/vlm2vec_eval/MMEB-eval/MSCOCO
-#models
---hf raghavlite/B3_Qwen2_7B /mnt/local/@PROJECT@/talas_vlm_embed/models/B3_Qwen2_7B
---hf Qwen/Qwen2-VL-7B-Instruct /mnt/local/@PROJECT@/talas_vlm_embed/models/Qwen/Qwen/Qwen2-VL-7B-Instruct
-
+#1 +10
 #log
 #v1
 
@@ -51,8 +36,7 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 cd ./talas_vlm_embed
-JSON_FILTER_DESTINATION="${JSON_FILTER_DESTINATION:-./MMEB-evaloutputs-json}"
-python json_filter.py ./MMEB-eval_outputs "${JSON_FILTER_DESTINATION}" --overwrite
+ls training
 # bash ./project_commands.sh
 
 # cd ./OpenED
