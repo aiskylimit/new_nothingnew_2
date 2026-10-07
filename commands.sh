@@ -1,14 +1,13 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OpenED/collected_logs.tar.gz +a
-#log
+#1 +60
 #v2
 
 
-
+nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
 
 
 # cd SpectralGuidedLearning && cat results_b200/summary-iwc-gain-nocap.md
-# cd SpectralGuidedLearning && bash project_commands_b200_gain.sh 
+cd SpectralGuidedLearning && bash project_commands.sh 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 nvidia-smi
 
@@ -38,8 +37,8 @@ export NCCL_DEBUG=WARN
 # cd ./talas_vlm_embed
 # bash ./project_commands.sh
 
-cd ./OpenED
-bash gather_logs.sh all
-tar -czf collected_logs.tar.gz collected_logs/all/
-ls -lh collected_logs.tar.gz
+# cd ./OpenED
+# bash gather_logs.sh all
+# tar -czf collected_logs.tar.gz collected_logs/all/
+# ls -lh collected_logs.tar.gz
 # GPUS="0 1" bash ./project_commands_8.sh
