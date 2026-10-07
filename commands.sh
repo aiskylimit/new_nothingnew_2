@@ -1,4 +1,7 @@
-#1 +60
+#d
+#datasets
+--url https://huggingface.co/datasets/VoCuc/vlm-teacher-embedding/resolve/main/gmm.tar.gz /mnt/local/@PROJECT@/talas_vlm_embed
+
 #talas
 
 
