@@ -4,7 +4,7 @@
 NUM_GPUS_PER_NODE=1
 
 # Đường dẫn tới file script training của bạn
-TRAIN_SCRIPT="train_ddp_time.py"
+TRAIN_SCRIPT="train_ddp.py"
 
 export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
@@ -13,16 +13,16 @@ export TORCH_DISTRIBUTED_DEBUG=DETAIL
 # =========================================================================
 torchrun --standalone \
     --nproc_per_node=$NUM_GPUS_PER_NODE $TRAIN_SCRIPT \
-    --model_name "models/FastVLM-0.5B" \
+    --model_name "apple/FastVLM-0.5B" \
     --lora True \
     --teacher_lora True \
     --lora_r 64 \
     --lora_alpha 64 \
     --teacher_lora_r 8 \
     --teacher_pooling "eos" \
-    --model_backbone "llava_qwen2" \
+    --model_backbone "llava_qwen2_old" \
     --pooling "eos" \
-    --dataset_name "vlm2vec_train/MMEB-train" \
+    --dataset_name "TIGER-Lab/MMEB-train" \
     --subset_name "ImageNet_1K" "N24News" "HatefulMemes" "VOC2007" "SUN397" \
     --dataset_split "original" \
     --image_dir "vlm2vec_train/MMEB-train" \
@@ -48,7 +48,7 @@ torchrun --standalone \
     --image_resolution "low" \
     --projector_config_path "./config/projector_config_emo.json" \
     --projector_lr 5e-4 \
-    --sigreg_weight -1
+    --sigreg_weight 0.5
 
 
 EVAL_SUBSETS=(
@@ -68,15 +68,15 @@ EVAL_SUBSETS=(
 
 python eval_mmeb.py \
   --model_name "training/FastVLM-0.5B_ckd_sigreg_cls/checkpoint-epoch-0" \
-  --encode_output_path "./MMEB-eval_outputs_v5/FastVLM-0.5B_ckd_sigreg_cls" \
+  --encode_output_path "./MMEB-eval_outputs/FastVLM-0.5B_ckd_sigreg_cls" \
   --lora True \
   --lora_r 64 \
   --lora_alpha 64 \
   --pooling eos \
-  --model_backbone llava_qwen2 \
+  --model_backbone llava_qwen2_old \
   --normalize True \
   --bf16 \
-  --dataset_name vlm2vec_eval/MMEB-eval \
+  --dataset_name TIGER-Lab/MMEB-eval \
   --subset_name "${EVAL_SUBSETS[@]}" \
   --dataset_split test \
   --per_device_eval_batch_size 4 \

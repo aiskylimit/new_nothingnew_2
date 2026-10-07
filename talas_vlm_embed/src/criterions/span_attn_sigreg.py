@@ -1635,13 +1635,10 @@ class SpanSigregCriterionWeighted(nn.Module):
         # =====================================================
         # Total
         # =====================================================
-        if self.args.sigreg_weight < 0:
-            sigreg_loss = torch.zeros_like(contrastive_loss)
+        if num_sigreg_components > 0:
+            sigreg_loss = SIGReg / num_sigreg_components
         else:
-            if num_sigreg_components > 0:
-                sigreg_loss = SIGReg / num_sigreg_components
-            else:
-                sigreg_loss = torch.tensor(0.0, device=contrastive_loss.device)
+            sigreg_loss = torch.tensor(0.0, device=contrastive_loss.device)
         
         # ============ Tổng hợp loss ============
         total_loss = contrastive_loss + self.args.kd_weight * span_loss + \

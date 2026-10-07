@@ -9,6 +9,7 @@ import os
 import sys
 from tqdm import tqdm 
 import math
+import wandb 
 
 import torch
 import torch.nn as nn 
@@ -23,6 +24,7 @@ from accelerate import Accelerator
 from huggingface_hub import HfApi, HfFolder, Repository, create_repo
 from transformers import AutoConfig, AutoProcessor, AutoTokenizer, HfArgumentParser
 from transformers.integrations import HfDeepSpeedConfig
+import itertools
 # Todo
 
 import random
@@ -41,12 +43,12 @@ def seed_everything(seed: int, rank: int = 0):
     torch.cuda.manual_seed_all(seed)
 
     # Nếu bạn muốn deterministic (chậm hơn, đôi khi lỗi với một số ops)
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False
+    # torch.backends.cudnn.deterministic = True
+    # torch.backends.cudnn.benchmark = False
 
     # Bắt buộc với một số ops CUDA mới (matmul, conv...)
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
-    torch.use_deterministic_algorithms(True)
+    # os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    # torch.use_deterministic_algorithms(True)
 
 def seed_worker(worker_id):
     worker_seed = torch.initial_seed() % 2**32
@@ -117,7 +119,17 @@ class Trainer:
         
         self.distiller = DDP(self.distiller, device_ids=[self.gpu_id])
 
+        # <--- [THÊM] Logic kiểm tra report_to="wandb"
         self.use_wandb = False
+        if is_main_process():
+            # Kiểm tra xem report_to có tồn tại và chứa wandb không
+            report_to = getattr(training_args, "report_to", [])
+            if report_to is None: report_to = []
+            if isinstance(report_to, str):
+                report_to = [report_to]
+            
+            if "wandb" in report_to:
+                self.use_wandb = True
     
     def _debug_batch_devices(self, obj, prefix=""):
         if obj is None:
@@ -149,14 +161,12 @@ class Trainer:
         kd_mse_losses, kd_penultimate_losses = [], []
         span_losses, cross_modal_losses = [], []
         
-        
+        # Tính tổng số bước (steps) trong epoch để log step
         steps_per_epoch = len(self.train_data.dataset) // self.training_args.per_device_train_batch_size // self.training_args.gradient_accumulation_steps // dist.get_world_size()
         
         progress_bar = tqdm(total=steps_per_epoch, 
                             desc=f"Epoch {epoch}",
-                            dynamic_ncols=True,
                             disable=not dist.get_rank() == 0)
-                            
         for batch_idx, batch in enumerate(self.train_data):
             batch = to_device(batch, self.device)
             loss_dict = self.distiller(self.criterion, batch)
@@ -193,9 +203,7 @@ class Trainer:
             batch_kd_loss_mse = sum(kd_mse_losses) / len(kd_mse_losses)
             batch_kd_penultimate_loss = sum(kd_penultimate_losses) / len(kd_penultimate_losses)
             
-            
             loss.backward()
-            
             if (batch_idx + 1) % self.training_args.gradient_accumulation_steps == 0:
                 self.optimizer.step()
                 self.lr_scheduler.step()
@@ -213,16 +221,44 @@ class Trainer:
                         'kd_dtw_loss': f"{batch_kd_dtw_loss:.4f}",
                         'kd_loss_mse': f"{batch_kd_loss_mse:.4f}",
                         'kd_penultimate_loss': f"{batch_kd_penultimate_loss:.4f}",
-                        'lr': f"{current_lr:.6f}"
+                        'lr': f"{self.lr_scheduler.get_last_lr()[0]:.6f}",
                     })
                     progress_bar.update(1)
 
-            # LƯU Ý VỀ HIỆU NĂNG: Xóa cache liên tục mỗi batch sẽ làm quá trình training bị chậm đi rất nhiều.
-            # torch.cuda.empty_cache()
-
+                    # <--- [THÊM] Log metrics vào wandb
+                    if self.use_wandb:
+                        # Log loss trung bình (cumulative average) hoặc loss tức thời (instant)
+                        # Ở đây mình log loss trung bình tích lũy giống như progress bar
+                        wandb.log({
+                            "train/loss": batch_loss,
+                            "train/kd_loss": batch_kd_loss,
+                            "train/contrastive_loss": batch_contrastive_loss,
+                            "train/kd_rkd_loss": batch_kd_rkd_loss,
+                            "train/ot_loss": batch_ot_loss,
+                            "train/kd_dtw_loss": batch_kd_dtw_loss,
+                            "train/kd_loss_mse": batch_kd_loss_mse,
+                            "train/kd_penultimate_loss": batch_kd_penultimate_loss,
+                            "train/learning_rate": current_lr,
+                            "train/epoch": epoch + ((batch_idx + 1) / self.training_args.gradient_accumulation_steps) / steps_per_epoch
+                        })
+                
+            torch.cuda.empty_cache()
         progress_bar.close()
-
+        
     def train(self):
+        # <--- [THÊM] Khởi tạo wandb run
+        if self.use_wandb:
+           
+            all_config = {}
+            if self.model_args: all_config.update(vars(self.model_args))
+            if self.data_args: all_config.update(vars(self.data_args))
+            if self.training_args: all_config.update(vars(self.training_args))
+
+            wandb.init(
+                project="VLM_Embed_distill",
+                config=all_config,
+                reinit=True
+            )
 
         for epoch in range(self.training_args.num_train_epochs):
             self.run_epoch(epoch)
@@ -282,6 +318,8 @@ class Trainer:
                 print_rank(f"Warning: Could not save processor: {e}")
             print_rank(f"Saved final model to {final_ckpt_dir}")
             
+            if self.use_wandb:
+                wandb.finish()
 
         dist.barrier()
                 
@@ -300,7 +338,7 @@ def main():
     training_args: TrainingArguments
     
     rank = dist.get_rank()
-    # seed_everything(training_args.seed, rank=rank) 
+    seed_everything(training_args.seed, rank=rank) 
     
     distiller = Distiller(model_args, training_args)
     train_dataset = prepare_dataset(data_args, model_args)
@@ -339,8 +377,14 @@ def main():
             num_trainable_vision += p.numel()
     print_rank(f"Number of trainable vision parameters: {num_trainable_vision}")
     
-    optimizer = AdamW(
+    criterion = build_criterion(training_args)
+    trainable_params = itertools.chain(
         distiller.student.parameters(),
+        criterion.parameters()
+    )
+
+    optimizer = AdamW(
+        trainable_params,
         lr=training_args.learning_rate,
         weight_decay=training_args.weight_decay,
         betas=(0.9, 0.999),
@@ -374,7 +418,7 @@ def main():
             optimizer,
             num_warmup_steps=training_args.warmup_ratio * total_steps,
         )
-    criterion = build_criterion(training_args)
+
     trainer = Trainer(distiller, train_dataloader, optimizer, lr_scheduler, criterion, 
                       model_args, training_args, data_args)
     trainer.train()

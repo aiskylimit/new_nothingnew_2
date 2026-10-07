@@ -4,7 +4,7 @@
 NUM_GPUS_PER_NODE=1
 
 # Đường dẫn tới file script training của bạn
-TRAIN_SCRIPT="train_distill_ddp.py"
+TRAIN_SCRIPT="train_distill_ddp_2.py"
 
 export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
@@ -13,8 +13,8 @@ export TORCH_DISTRIBUTED_DEBUG=DETAIL
 # =========================================================================
 torchrun --standalone \
     --nproc_per_node=$NUM_GPUS_PER_NODE $TRAIN_SCRIPT \
-    --model_name "models/FastVLM-0.5B" \
-    --teacher_model_name "models/B3_Qwen2_2B" \
+    --model_name apple/FastVLM-0.5B \
+    --teacher_model_name "raghavlite/B3_Qwen2_2B" \
     --lora True \
     --teacher_lora True \
     --lora_r 64 \
@@ -22,18 +22,18 @@ torchrun --standalone \
     --teacher_lora_r 8 \
     --teacher_pooling "eos" \
     --teacher_backbone "qwen2_vl" \
-    --model_backbone "llava_qwen2" \
+    --model_backbone "llava_qwen2_old" \
     --pooling "eos" \
-    --dataset_name "vlm2vec_train/MMEB-train" \
+    --dataset_name "TIGER-Lab/MMEB-train" \
     --subset_name "VOC2007" "ImageNet_1K" "N24News" "SUN397" "HatefulMemes" \
     --dataset_split "original" \
     --image_dir "vlm2vec_train/MMEB-train" \
     --percent_data 0.3 \
     --output_dir "training/FastVLM-0.5B_em_sigreg_cls" \
-    --per_device_train_batch_size 16 \
+    --per_device_train_batch_size 8 \
     --gradient_accumulation_steps 1 \
     --learning_rate 1e-4 \
-    --num_train_epochs 1 \
+    --num_train_epochs 2 \
     --bf16 \
     --save_total_limit 5 \
     --logging_steps 1 \
@@ -48,8 +48,7 @@ torchrun --standalone \
     --kd_loss_type "em_sigreg_kd" \
     --image_resolution "low" \
     --projector_config_path "./config/projector_config_emo.json" \
-    --projector_lr 5e-4 \
-    --sigreg_weight -1
+    --projector_lr 5e-5
 
 
 EVAL_SUBSETS=(
@@ -67,17 +66,17 @@ EVAL_SUBSETS=(
 
 
 
-python eval_mmeb.py \
-  --model_name "training/FastVLM-0.5B_ckd_sigreg_cls/checkpoint-epoch-0" \
-  --encode_output_path "./MMEB-eval_outputs_v5/FastVLM-0.5B_ckd_sigreg_cls" \
+python eval_mmeb_2.py \
+  --model_name "training/FastVLM-0.5B_em_sigreg_cls/checkpoint-epoch-0" \
+  --encode_output_path "./MMEB-eval_outputs/FastVLM-0.5B_em_sigreg_cls" \
   --lora True \
   --lora_r 64 \
   --lora_alpha 64 \
   --pooling eos \
-  --model_backbone llava_qwen2 \
+  --model_backbone llava_qwen2_old \
   --normalize True \
   --bf16 \
-  --dataset_name vlm2vec_eval/MMEB-eval \
+  --dataset_name TIGER-Lab/MMEB-eval \
   --subset_name "${EVAL_SUBSETS[@]}" \
   --dataset_split test \
   --per_device_eval_batch_size 4 \

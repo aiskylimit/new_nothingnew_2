@@ -8,15 +8,15 @@ TRAIN_SCRIPT="train_distill_ddp_2.py"
 
 export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
-# python -m spacy download en_core_web_sm
+python -m spacy download en_core_web_sm
 
 # =========================================================================
 # Dùng torchrun để khởi chạy
 # =========================================================================
 torchrun --standalone \
     --nproc_per_node=$NUM_GPUS_PER_NODE $TRAIN_SCRIPT \
-    --model_name "models/FastVLM-0.5B" \
-    --teacher_model_name "models/B3_Qwen2_2B" \
+    --model_name "apple/FastVLM-0.5B" \
+    --teacher_model_name "raghavlite/B3_Qwen2_2B" \
     --lora True \
     --teacher_lora True \
     --lora_r 64 \
@@ -24,9 +24,9 @@ torchrun --standalone \
     --teacher_lora_r 8 \
     --teacher_pooling "eos" \
     --teacher_backbone "qwen2_vl" \
-    --model_backbone "llava_qwen2" \
+    --model_backbone "llava_qwen2_old" \
     --pooling "eos" \
-    --dataset_name "vlm2vec_train/MMEB-train" \
+    --dataset_name "TIGER-Lab/MMEB-train" \
     --subset_name "ImageNet_1K" "N24News" "HatefulMemes" "VOC2007" "SUN397" \
     --dataset_split "original" \
     --image_dir "vlm2vec_train/MMEB-train" \
@@ -47,6 +47,7 @@ torchrun --standalone \
     --lr_scheduler_type "cosine" \
     --warmup_ratio 0.03 \
     --kd_weight 0.3 \
+    --kd_weight 2.5 \
     --w_cross_modal_loss 2.5 \
     --kd_loss_type "span_attn_sigreg_kd" \
     --image_resolution "low" \
@@ -74,15 +75,15 @@ EVAL_SUBSETS=(
 
 python eval_mmeb_2.py \
   --model_name "training/FastVLM-0.5B_span_attn_sigreg_cls/checkpoint-epoch-0" \
-  --encode_output_path "./MMEB-eval_outputs_v5/FastVLM-0.5B_span_attn_sigreg_cls" \
+  --encode_output_path "./MMEB-eval_outputs/FastVLM-0.5B_span_attn_sigreg_cls" \
   --lora True \
   --lora_r 64 \
   --lora_alpha 64 \
   --pooling eos \
-  --model_backbone llava_qwen2 \
+  --model_backbone llava_qwen2_old \
   --normalize True \
   --bf16 \
-  --dataset_name vlm2vec_eval/MMEB-eval \
+  --dataset_name TIGER-Lab/MMEB-eval \
   --subset_name "${EVAL_SUBSETS[@]}" \
   --dataset_split test \
   --per_device_eval_batch_size 4 \

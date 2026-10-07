@@ -109,7 +109,7 @@ python $INFER_SCRIPT \
     --image_dir "eval_images/" \
     --tgt_prefix_mod \
     --encode_output_path "infer/llava_ov-0.5B_${EXP_NAME}" \
-    --per_device_eval_batch_size 1 \
+    --per_device_eval_batch_size 8 \
     --image_resolution "tiny" \
     --load_pretrained_lora True \
     --report_to None
@@ -118,11 +118,15 @@ python $INFER_SCRIPT \
 echo "normalize"
 python ./er_statistic.py \
     --pt_dir "infer/llava_ov-0.5B_${EXP_NAME}"/${INFER_SUBSETS[0]}/query \
-    --normalize_by_min_dim \
+    --start_idx 0 \
+    --end_idx 49 \
+    --normalize \
     --output_file "analyze/llava_ov-0.5B_${EXP_NAME}.txt"
 
 echo "no normalize"
 python ./er_statistic.py \
     --pt_dir "infer/llava_ov-0.5B_${EXP_NAME}"/${INFER_SUBSETS[0]}/query \
+    --start_idx 0 \
+    --end_idx 49 \
     --output_file "analyze/llava_ov-0.5B_${EXP_NAME}.txt"
 

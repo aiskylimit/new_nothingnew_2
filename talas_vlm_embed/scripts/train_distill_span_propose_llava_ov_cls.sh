@@ -4,7 +4,7 @@
 NUM_GPUS_PER_NODE=1
 
 # Đường dẫn tới file script training của bạn
-TRAIN_SCRIPT="train_distill_ddp_2.py"
+TRAIN_SCRIPT="train_distill_ddp.py"
 
 export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
@@ -13,8 +13,8 @@ export TORCH_DISTRIBUTED_DEBUG=DETAIL
 # =========================================================================
 torchrun --standalone \
     --nproc_per_node=$NUM_GPUS_PER_NODE $TRAIN_SCRIPT \
-    --model_name "models/llava-onevision-qwen2-0.5b-ov-hf" \
-    --teacher_model_name "models/B3_Qwen2_2B" \
+    --model_name "llava-hf/llava-onevision-qwen2-0.5b-ov-hf" \
+    --teacher_model_name "raghavlite/B3_Qwen2_2B" \
     --lora True \
     --teacher_lora True \
     --lora_r 64 \
@@ -22,9 +22,9 @@ torchrun --standalone \
     --teacher_lora_r 8 \
     --teacher_pooling "eos" \
     --teacher_backbone "qwen2_vl" \
-    --model_backbone "llava_onevision" \
+    --model_backbone "llava_onevision_old" \
     --pooling "eos" \
-    --dataset_name "vlm2vec_train/MMEB-train" \
+    --dataset_name "TIGER-Lab/MMEB-train" \
     --subset_name "ImageNet_1K" "N24News" "HatefulMemes" "VOC2007" "SUN397" \
     --dataset_split "original" \
     --image_dir "vlm2vec_train/MMEB-train" \
@@ -52,39 +52,3 @@ torchrun --standalone \
     --student_layer_mapping 0 18 21 24 \
     --split_layer_mapping 0 1 4 4 4 \
     --projector_lr 5e-4
-
-
-EVAL_SUBSETS=(
-    "ImageNet-1K"
-    "N24News"
-    "HatefulMemes"
-    "VOC2007"
-    "SUN397"
-    "Place365"
-    "ImageNet-A"
-    "ImageNet-R"
-    "ObjectNet"
-    "Country211"
-)
-
-
-
-python eval_mmeb_2.py \
-  --model_name "training/span_propose_llava_ov_cls_v2/checkpoint-epoch-0" \
-  --encode_output_path "./MMEB-eval_outputs_v5/span_propose_llava_ov_cls_v2" \
-  --lora True \
-  --lora_r 64 \
-  --lora_alpha 64 \
-  --pooling eos \
-  --model_backbone llava_onevision \
-  --normalize True \
-  --bf16 \
-  --dataset_name vlm2vec_eval/MMEB-eval \
-  --subset_name "${EVAL_SUBSETS[@]}" \
-  --dataset_split test \
-  --per_device_eval_batch_size 4 \
-  --image_dir eval_images/ \
-  --image_resolution "low" \
-  --tgt_prefix_mod \
-  --load_pretrained_lora True \
-  --report_to none

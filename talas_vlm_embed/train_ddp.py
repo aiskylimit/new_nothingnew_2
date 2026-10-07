@@ -27,6 +27,7 @@ from transformers.integrations import HfDeepSpeedConfig
 # Todo
 import random
 import numpy as np
+import itertools
 
 def seed_everything(seed: int, rank: int = 0):
     seed = seed + rank  # quan trọng trong DDP
@@ -149,13 +150,13 @@ class Trainer:
         kd_simcse_losses, sigreg_losses, kd_dtw_losses = [], [], []
         kd_mse_losses, kd_penultimate_losses = [], []
         
+        # Tính tổng số bước (steps) trong epoch để log step
         steps_per_epoch = len(self.train_data.dataset) // self.training_args.per_device_train_batch_size // self.training_args.gradient_accumulation_steps // dist.get_world_size()
-        
+
         progress_bar = tqdm(total=steps_per_epoch, 
                             desc=f"Epoch {epoch}",
                             dynamic_ncols=True,
                             disable=not dist.get_rank() == 0)
-                            
         for batch_idx, batch in enumerate(self.train_data):
             batch = to_device(batch, self.device)
             loss_dict = self.model_wrapper(self.criterion, batch)
@@ -177,7 +178,6 @@ class Trainer:
             kd_mse_losses.append(kd_mse_loss.detach().item())
             kd_penultimate_losses.append(kd_penultimate_loss.detach().item())
             
-            
             batch_loss = sum(losses) / len(losses)
             batch_contrastive_loss = sum(contrastive_losses) / len(contrastive_losses)
             batch_kd_loss = sum(kd_losses) / len(kd_losses)
@@ -188,7 +188,6 @@ class Trainer:
             batch_kd_penultimate_loss = sum(kd_penultimate_losses) / len(kd_penultimate_losses)
             
             loss.backward()
-            
             if (batch_idx + 1) % self.training_args.gradient_accumulation_steps == 0:
                 self.optimizer.step()
                 self.lr_scheduler.step()
@@ -205,7 +204,7 @@ class Trainer:
                         'kd_dtw_loss': f"{batch_kd_dtw_loss:.4f}",
                         'kd_loss_mse': f"{batch_kd_loss_mse:.4f}",
                         'kd_penultimate_loss': f"{batch_kd_penultimate_loss:.4f}",
-                        'lr': f"{current_lr:.6f}"
+                        'lr': f"{self.lr_scheduler.get_last_lr()[0]:.6f}",
                     })
                     progress_bar.update(1)
 
@@ -213,9 +212,23 @@ class Trainer:
             # torch.cuda.empty_cache()
             
         progress_bar.close()
-
+        
     def train(self):
+        # <--- [THÊM] Khởi tạo wandb run
+        # if self.use_wandb:
+           
+        #     all_config = {}
+        #     if self.model_args: all_config.update(vars(self.model_args))
+        #     if self.data_args: all_config.update(vars(self.data_args))
+        #     if self.training_args: all_config.update(vars(self.training_args))
 
+        #     wandb.init(
+        #         project="VLM_Embed_distill",
+        #         config=all_config,
+        #         reinit=True
+        #     )
+
+        # print(f"Training Args:{self.training_args}")
         for epoch in range(self.training_args.num_train_epochs):
             self.run_epoch(epoch)
             if is_main_process() and self.training_args.save_strategy == "epoch":
@@ -317,9 +330,15 @@ def main():
             p.data = p.data.to(torch.bfloat16)
             num_trainable_vision += p.numel()
     print_rank(f"Number of trainable vision parameters: {num_trainable_vision}")
-    
-    optimizer = AdamW(
+
+    criterion = build_criterion(training_args)
+    trainable_params = itertools.chain(
         model_wrapper.model.parameters(),
+        criterion.parameters()
+    )
+
+    optimizer = AdamW(
+        trainable_params,
         lr=training_args.learning_rate,
         weight_decay=training_args.weight_decay,
         betas=(0.9, 0.999),
@@ -352,7 +371,8 @@ def main():
             optimizer,
             num_warmup_steps=training_args.warmup_ratio * total_steps,
         )
-    criterion = build_criterion(training_args)
+    
+
     trainer = Trainer(model_wrapper, train_dataloader, optimizer, lr_scheduler, criterion, 
                       model_args, training_args, data_args)
     trainer.train()
