@@ -35,10 +35,10 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash ./project_commands.sh
 
-cd ./talas_vlm_embed
-tree training
+# cd ./talas_vlm_embed
+# tree training
 # bash ./project_commands.sh
 
-# cd ./OpenED
-# bash gather_logs.sh
+cd ./OpenED
+bash gather_logs.sh
 # bash ./project_commands_7.sh
