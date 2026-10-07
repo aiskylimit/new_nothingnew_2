@@ -92,15 +92,49 @@ export SEED=3407 IWC_INTERPOLATION=1.0 ARMS=gain
 GPU_7B="${GPU_7B:-4}"
 GPU_8B="${GPU_8B:-5}"
 mkdir -p logs
-GPUS="${GPU_7B}" bash project_commands_lora_palign_qwen25-7b.sh > logs/run-qwen25-7b-s3407.log 2>&1 &
+
+# ---- preflight: print the environment and fail loudly BEFORE launching anything ----
+echo "[preflight] host=$(hostname) user=$(whoami) pwd=$(pwd)"
+echo "[preflight] PROJECT_ENV=${PROJECT_ENV}"
+echo "[preflight] GPU_7B=${GPU_7B} GPU_8B=${GPU_8B} SEED=${SEED} ARMS=${ARMS}"
+if [[ ! -f "${PROJECT_ENV}/bin/activate" ]]; then
+  echo "[preflight] ERROR: ${PROJECT_ENV}/bin/activate not found." >&2
+  echo "[preflight] venv-like dirs found nearby (re-run with PROJECT_ENV=<one of these>):" >&2
+  for d in /mnt/local/uvenvs /mnt/*/uvenvs "${HOME}/uvenvs" "${HOME}/.venvs" "$(dirname "${PROJECT_ENV}")"; do
+    [[ -d "$d" ]] && { echo "  in $d:" >&2; ls -1 "$d" 2>&1 | sed 's/^/    /' >&2; }
+  done
+  exit 2
+fi
+if ! "${PROJECT_ENV}/bin/python" -c "import torch, vllm" 2>logs/preflight-import.log; then
+  echo "[preflight] WARNING: import torch/vllm failed in ${PROJECT_ENV}:" >&2
+  tail -n 5 logs/preflight-import.log >&2
+fi
+echo "[preflight] python=$("${PROJECT_ENV}/bin/python" --version 2>&1)"
+echo "[preflight] nvidia-smi (memory used on chosen GPUs):"
+nvidia-smi --query-gpu=index,memory.used,memory.total --format=csv,noheader 2>&1 | sed 's/^/  /' || true
+
+show_tail() {   # $1 = label, $2 = log file
+  echo "------ $1: last 30 lines of $2 ------" >&2
+  tail -n 30 "$2" >&2
+  echo "------ end $1 ------" >&2
+}
+
+GPUS="${GPU_7B}" bash project_commands_lora_palign_qwen25-7b.sh > >(tee logs/run-qwen25-7b-s3407.log | sed -u 's/^/[7b] /') 2>&1 &
 PID_7B=$!
+echo "[launch] qwen25-7b pid=${PID_7B} gpu=${GPU_7B} log=logs/run-qwen25-7b-s3407.log"
 # stagger the start so the two 16GB model loads don't hit host RAM at the same moment
-sleep 120
-GPUS="${GPU_8B}" bash project_commands_lora_palign_qwen3-8b.sh > logs/run-qwen3-8b-s3407.log 2>&1 &
+# (also catch an immediate crash, e.g. bad env, instead of silently sleeping)
+for _ in $(seq 1 12); do
+  sleep 10
+  kill -0 "${PID_7B}" 2>/dev/null || break
+done
+GPUS="${GPU_8B}" bash project_commands_lora_palign_qwen3-8b.sh > >(tee logs/run-qwen3-8b-s3407.log | sed -u 's/^/[8b] /') 2>&1 &
 PID_8B=$!
+echo "[launch] qwen3-8b pid=${PID_8B} gpu=${GPU_8B} log=logs/run-qwen3-8b-s3407.log"
 RC=0
-wait "${PID_7B}" || { echo "qwen25-7b run FAILED (see logs/run-qwen25-7b-s3407.log)" >&2; RC=1; }
-wait "${PID_8B}" || { echo "qwen3-8b run FAILED (see logs/run-qwen3-8b-s3407.log)" >&2; RC=1; }
+wait "${PID_7B}" || { E=$?; RC=1; echo "qwen25-7b run FAILED (exit ${E})" >&2; show_tail qwen25-7b logs/run-qwen25-7b-s3407.log; }
+wait "${PID_8B}" || { E=$?; RC=1; echo "qwen3-8b run FAILED (exit ${E})" >&2; show_tail qwen3-8b logs/run-qwen3-8b-s3407.log; }
+echo "[done] runs finished, RC=${RC}. Full logs: logs/run-*-s3407.log"
 
 # =========================== PRINT RESULTS ==========================
 # Print every result of the two runs: per sampling seed (42/43/44) and the mean over seeds.
