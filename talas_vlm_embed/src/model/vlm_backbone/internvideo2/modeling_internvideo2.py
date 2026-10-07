@@ -3047,7 +3047,7 @@ def retrieve_text(frames,
 
 
 def setup_internvideo2(config):
-    return pass
+    pass
 
 
 class DictToClass:
