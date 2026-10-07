@@ -18,7 +18,9 @@ MCQ_PROMPT = (
     "Please reason step by step, and put the letter of your final answer within \\boxed{{}}.\n\n"
 )
 
-BENCH_DATA_ROOT = os.environ.get("BENCH_DATA_ROOT")
+BENCH_DATA_ROOT = os.environ.get("BENCH_DATA_ROOT") or (
+    "/mnt/local/_data/aiskylimit_new_nothingnew_2" if os.path.isdir("/mnt/local/_data/aiskylimit_new_nothingnew_2") else None
+)
 
 
 def _dataset_path(repo_id: str, local_dir_name: str) -> str:

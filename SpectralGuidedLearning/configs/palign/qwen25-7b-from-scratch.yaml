@@ -20,7 +20,7 @@ stages:
     module: sgl.data.s1k
     creates: ${build_dir}/traces.jsonl
     args:
-      dataset: simplescaling/s1K-1.1
+      dataset: /mnt/local/_data/aiskylimit_new_nothingnew_2/s1K-1.1
       trace-field: deepseek_thinking_trajectory
       segment-mode: none
       output: ${build_dir}/traces.jsonl

@@ -1,6 +1,6 @@
 # simplescaling/s1K-1.1: DeepSeek-R1 thinking trajectory + final attempt, supervised inside the
 # <think> block R1-Distill's template opens (thinking ON).
-dataset: simplescaling/s1K-1.1
+dataset: /mnt/local/_data/aiskylimit_new_nothingnew_2/s1K-1.1
 stages:
   prepare:
     module: sgl.data.prepare
