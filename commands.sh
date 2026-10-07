@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OpenED/collected_logs/
-#setup
+#1 +10
+#pga2
 #v1
 
 
@@ -36,7 +36,6 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 cd ./talas_vlm_embed
-mv models/Qwen/Qwen/Qwen2-VL-7B-Instruct models/Qwen/
 bash ./project_commands.sh
 
 # cd ./OpenED
