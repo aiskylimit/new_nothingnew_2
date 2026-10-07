@@ -1,6 +1,10 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
+#1 +10
 #log
 #v1
+
+
+
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
 
 
 # cd SpectralGuidedLearning && cat results_b200/summary-iwc-gain-nocap.md
@@ -31,9 +35,11 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash ./project_commands.sh
 
-# cd ./talas_vlm_embed
+cd ./talas_vlm_embed
+JSON_FILTER_DESTINATION="${JSON_FILTER_DESTINATION:-./MMEB-evaloutputs-json}"
+python json_filter.py ./MMEB-eval_outputs "${JSON_FILTER_DESTINATION}" --overwrite
 # bash ./project_commands.sh
 
-cd ./OpenED
-bash gather_logs.sh
+# cd ./OpenED
+# bash gather_logs.sh
 # bash ./project_commands_7.sh
