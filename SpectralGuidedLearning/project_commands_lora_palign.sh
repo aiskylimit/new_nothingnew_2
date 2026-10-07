@@ -75,6 +75,8 @@ export IWC_TEMPERATURE="${IWC_TEMPERATURE:-2.0}"
 # Name tag for lambda (0.5 -> l05, 1.0 -> l1) so data/arms of different lambdas never collide.
 LTAG="l$(python3 -c "import sys;v=float(sys.argv[1]);print('%g'%v if v>=1 else ('%g'%v).replace('0.','0'))" "${IWC_INTERPOLATION}")"
 export IWC_CLIP="${IWC_CLIP:-2.0}"
+# tau/clip tag: appended to LTAG only when they differ from the defaults (2, 2), so earlier names are unchanged.
+LTAG="${LTAG}$(python3 -c "import sys;t=float(sys.argv[1]);c=float(sys.argv[2]);print('' if (t==2 and c==2) else '-t%g-c%g'%(t,c))" "${IWC_TEMPERATURE}" "${IWC_CLIP}")"
 
 export PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
 source "${PROJECT_ENV}/bin/activate"

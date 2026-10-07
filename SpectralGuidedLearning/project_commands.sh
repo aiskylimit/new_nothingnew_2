@@ -89,6 +89,10 @@ unset VIRTUAL_ENV
 # Both arms are named ...-l1-lora-s3407-... so they never overwrite the earlier seed-42 / lambda runs.
 export PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
 export SEED=3407 IWC_INTERPOLATION=1.0 ARMS=gain
+# Method-only tuning: sweep tau (smaller = sharper weights) and clip (larger = wider z-score range) as "tau:clip".
+# lr / batch / seed / LoRA recipe stay identical to the NLL baseline. Defaults (2:2) were the earlier runs.
+# Override: CONFIGS="0.5:3 1.0:4" ./project_commands.sh
+export CONFIGS="${CONFIGS:-1.0:3.0 0.5:3.0 0.5:4.0}"
 GPU_7B="${GPU_7B:-4}"
 GPU_8B="${GPU_8B:-5}"
 mkdir -p logs
@@ -119,30 +123,38 @@ show_tail() {   # $1 = label, $2 = log file
   echo "------ end $1 ------" >&2
 }
 
-GPUS="${GPU_7B}" bash project_commands_lora_palign_qwen25-7b.sh > >(tee logs/run-qwen25-7b-s3407.log | sed -u 's/^/[7b] /') 2>&1 &
-PID_7B=$!
-echo "[launch] qwen25-7b pid=${PID_7B} gpu=${GPU_7B} log=logs/run-qwen25-7b-s3407.log"
-# stagger the start so the two 16GB model loads don't hit host RAM at the same moment
-# (also catch an immediate crash, e.g. bad env, instead of silently sleeping)
-for _ in $(seq 1 12); do
-  sleep 10
-  kill -0 "${PID_7B}" 2>/dev/null || break
-done
-GPUS="${GPU_8B}" bash project_commands_lora_palign_qwen3-8b.sh > >(tee logs/run-qwen3-8b-s3407.log | sed -u 's/^/[8b] /') 2>&1 &
-PID_8B=$!
-echo "[launch] qwen3-8b pid=${PID_8B} gpu=${GPU_8B} log=logs/run-qwen3-8b-s3407.log"
 RC=0
-wait "${PID_7B}" || { E=$?; RC=1; echo "qwen25-7b run FAILED (exit ${E})" >&2; show_tail qwen25-7b logs/run-qwen25-7b-s3407.log; }
-wait "${PID_8B}" || { E=$?; RC=1; echo "qwen3-8b run FAILED (exit ${E})" >&2; show_tail qwen3-8b logs/run-qwen3-8b-s3407.log; }
-echo "[done] runs finished, RC=${RC}. Full logs: logs/run-*-s3407.log"
+for CFG in ${CONFIGS}; do
+  export IWC_TEMPERATURE="${CFG%%:*}" IWC_CLIP="${CFG##*:}"
+  CTAG="t${IWC_TEMPERATURE}-c${IWC_CLIP}"
+  echo "[sweep] ===== tau=${IWC_TEMPERATURE} clip=${IWC_CLIP} ====="
+  GPUS="${GPU_7B}" bash project_commands_lora_palign_qwen25-7b.sh > >(tee "logs/run-qwen25-7b-s3407-${CTAG}.log" | sed -u "s/^/[7b ${CTAG}] /") 2>&1 &
+  PID_7B=$!
+  echo "[launch] qwen25-7b pid=${PID_7B} gpu=${GPU_7B} log=logs/run-qwen25-7b-s3407-${CTAG}.log"
+  # stagger the start so the two 16GB model loads don't hit host RAM at the same moment
+  # (also catch an immediate crash, e.g. bad env, instead of silently sleeping)
+  for _ in $(seq 1 12); do
+    sleep 10
+    kill -0 "${PID_7B}" 2>/dev/null || break
+  done
+  GPUS="${GPU_8B}" bash project_commands_lora_palign_qwen3-8b.sh > >(tee "logs/run-qwen3-8b-s3407-${CTAG}.log" | sed -u "s/^/[8b ${CTAG}] /") 2>&1 &
+  PID_8B=$!
+  echo "[launch] qwen3-8b pid=${PID_8B} gpu=${GPU_8B} log=logs/run-qwen3-8b-s3407-${CTAG}.log"
+  wait "${PID_7B}" || { E=$?; RC=1; echo "qwen25-7b ${CTAG} FAILED (exit ${E})" >&2; show_tail qwen25-7b "logs/run-qwen25-7b-s3407-${CTAG}.log"; }
+  wait "${PID_8B}" || { E=$?; RC=1; echo "qwen3-8b ${CTAG} FAILED (exit ${E})" >&2; show_tail qwen3-8b "logs/run-qwen3-8b-s3407-${CTAG}.log"; }
+done
+echo "[done] sweep finished, RC=${RC}. Full logs: logs/run-*-s3407-*.log"
 
 # =========================== PRINT RESULTS ==========================
 # Print every result of the two runs: per sampling seed (42/43/44) and the mean over seeds.
 "${PROJECT_ENV}/bin/python" - <<'PY' || true
 import json, os
 bench = ["aime24", "aime25", "amc12", "math500"]
-for model in ("qwen25-7b", "qwen3-8b"):
-    tag = f"iwc-gain-l1-lora-s3407-{model}-palign"
+for cfg in os.environ["CONFIGS"].split():
+  tau, clip = (float(x) for x in cfg.split(":"))
+  suffix = "" if (tau == 2 and clip == 2) else f"-t{tau:g}-c{clip:g}"
+  for model in ("qwen25-7b", "qwen3-8b"):
+    tag = f"iwc-gain-l1{suffix}-lora-s3407-{model}-palign"
     runs = {42: f"results/{tag}", 43: f"results_evalseed/{tag}-e43", 44: f"results_evalseed/{tag}-e44"}
     for metric in ("pass@1", "pass@3"):
         print(f"\n=== {tag} | {metric} ===")
