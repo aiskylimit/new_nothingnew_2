@@ -35,7 +35,7 @@ source /mnt/local/uvenvs/talas-vlm-embed/bin/activate
 # tar -xzf ./datasets/B3_Qwen2_2B_vqa.tar.gz -C .
 # tar -xzf ./datasets/B3_Qwen2_2B_grounding.tar.gz -C .
 # tar -xzf ./datasets/B3_Qwen2_7B_cls.tar.gz -C .
-
+tar -xzf gmm.tar.gz -C .
 
 
 # CUDA_VISIBLE_DEVICES=4 bash ./baseline_scripts/train_distill_pga_cls.sh &
