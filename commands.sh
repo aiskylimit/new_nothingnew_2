@@ -1,7 +1,4 @@
-#d
-#datasets
---url https://huggingface.co/datasets/VoCuc/vlm-teacher-embedding/resolve/main/gmm.tar.gz /mnt/local/@PROJECT@/talas_vlm_embed
-
+#1 +30
 #talas
 
 
@@ -12,7 +9,7 @@ nvidia-smi
 # cd SpectralGuidedLearning && cat results_b200/summary-iwc-gain-nocap.md
 # cd SpectralGuidedLearning && bash project_commands.sh 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
-nvidia-smi
+
 
 export PATH=/usr/local/cuda/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
