@@ -1,8 +1,7 @@
-#1 +5
+#2 -0-10
 #vlm
 #v1
 
-kill -9 9964
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
 
