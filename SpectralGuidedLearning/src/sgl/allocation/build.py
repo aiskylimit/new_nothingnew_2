@@ -20,6 +20,7 @@ from sgl.allocation.iwc import (
     reverse_iwc_step_weights,
     shuffled_iwc_step_weights,
     stable_iwc_step_weights,
+    stable_iwc_raw_step_weights,
     vanilla_iwc_step_weights,
 )
 from sgl.allocation.region import (
@@ -50,6 +51,8 @@ _STABLE_VARIANTS = {
 # steps dropped from the loss (continuation-only SFT, the b_P -> 0 limit without inflating weights).
 _REGION_VARIANTS = ("region-iwc", "region-gain", "sarw", "region-cont")
 _NO_ANSWER_VARIANT = "iwc-stable-no-answer-upweight"
+_GLOBAL_NORM_VARIANT = "iwc-stable-global"
+_NO_NORM_VARIANT = "iwc-stable-none"
 
 
 def build_example(
@@ -66,6 +69,7 @@ def build_example(
     regions: list[str] | None = None,
     region_ratio: float = 1.0,
     answer_only: list[bool] | None = None,
+    global_scale: float | None = None,
 ) -> tuple[dict, dict]:
     """Build one weighted record and its selection/allocation diagnostics."""
     step_spans = record_step_spans(record)
@@ -102,6 +106,15 @@ def build_example(
             selected_entropies, selected_lengths, temperature, interpolation, clip, epsilon,
             seed + record["id"],
         )
+    elif variant in (_GLOBAL_NORM_VARIANT, _NO_NORM_VARIANT):
+        raw = stable_iwc_raw_step_weights(
+            selected_entropies, selected_lengths, temperature, clip, epsilon,
+        )
+        if variant == _GLOBAL_NORM_VARIANT:
+            if global_scale is None:
+                raise ValueError("iwc-stable-global needs a corpus global_scale")
+            raw = [weight * global_scale for weight in raw]
+        selected_weights = [(1.0 - interpolation) + interpolation * weight for weight in raw]
     elif variant == "region-cont":
         selected_weights = [1.0] * len(selected)
     elif variant in _REGION_VARIANTS:
@@ -180,6 +193,25 @@ def emit_dataset(
     answer_only: dict[int, list[bool]] | None = None,
 ) -> list[dict]:
     """Write one IWC arm and return per-record diagnostics."""
+    global_scale = None
+    if variant == _GLOBAL_NORM_VARIANT:
+        # This pass is intentionally over the complete immutable training set,
+        # never a mini-batch.  The factor applies to r before lambda shrinkage.
+        total_tokens = total_raw_mass = 0.0
+        for record in records:
+            strengths, entropies = signals[record["id"]]
+            spans = record_step_spans(record)
+            selected = select_steps_by_energy(strengths, threshold)
+            lengths = [spans[index][1] - spans[index][0] for index in selected]
+            raw = stable_iwc_raw_step_weights(
+                [entropies[index] for index in selected], lengths,
+                temperature, clip, epsilon,
+            )
+            total_tokens += sum(lengths)
+            total_raw_mass += sum(length * weight for length, weight in zip(lengths, raw))
+        if total_raw_mass <= 0:
+            raise ValueError("iwc-stable-global has non-positive corpus raw token mass")
+        global_scale = total_tokens / total_raw_mass
     all_stats = []
     with output_path.open("w") as handle:
         for record in records:
@@ -189,6 +221,7 @@ def emit_dataset(
                 interpolation, clip, epsilon, seed,
                 regions[record["id"]] if regions is not None else None, region_ratio,
                 answer_only[record["id"]] if answer_only is not None else None,
+                global_scale,
             )
             handle.write(json.dumps(example) + "\n")
             all_stats.append(stats)
@@ -204,6 +237,8 @@ def summarize(stats: list[dict]) -> dict:
     ]
     weights = sorted(weight for weight, _ in weighted_steps)
     total_mass = sum(weight * length for weight, length in weighted_steps)
+    total_tokens = sum(length for _, length in weighted_steps)
+    trace_budgets = [item["weight_mass_ratio"] for item in stats]
     top_count = math.ceil(0.1 * len(weighted_steps))
     top_mass = sum(
         weight * length
@@ -227,6 +262,8 @@ def summarize(stats: list[dict]) -> dict:
         "weight_mass_ratio_mean": statistics.mean(item["weight_mass_ratio"] for item in stats),
         "weight_mass_ratio_min": min(item["weight_mass_ratio"] for item in stats),
         "weight_mass_ratio_max": max(item["weight_mass_ratio"] for item in stats),
+        "dataset_weight_mass_ratio": total_mass / max(total_tokens, 1e-12),
+        "trace_budget_std": statistics.pstdev(trace_budgets),
         "weight_min": min(item["weight_min"] for item in stats),
         "weight_max": max(item["weight_max"] for item in stats),
         "weight_p10": quantile(0.1),
@@ -273,8 +310,9 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--seed", type=int, help="base seed for the shuffled-entropy control")
     parser.add_argument(
         "--variants",
-        help="comma-separated subset of iwc,iwc-stable,iwc-stable-lambda0,iwc-stable-shuffled,"
-        "iwc-stable-reverse,region-iwc,region-gain,sarw (default: iwc,iwc-stable)",
+        help="comma-separated subset of iwc,iwc-stable,iwc-stable-global,iwc-stable-none,"
+        "iwc-stable-lambda0,iwc-stable-shuffled,iwc-stable-reverse,region-iwc,region-gain,sarw "
+        "(default: iwc,iwc-stable)",
     )
     parser.add_argument(
         "--tokenizer",
@@ -416,10 +454,15 @@ def main(argv: list[str] | None = None) -> None:
             f"mean weighted/selected mass={summaries[variant]['weight_mass_ratio_mean']:.6f}"
         )
         mass = f"{summaries[variant]['weight_mass_ratio_mean']:.6f}"
-        mass_preserving = variant.startswith("iwc-stable") or variant in _REGION_VARIANTS
-        if args.check_mass and mass_preserving and summaries[variant]["max_abs_mass_error"] > 1e-5:
-            error = summaries[variant]["max_abs_mass_error"]
-            raise SystemExit(f"{variant}: per-trace token mass not preserved (max abs error={error:.3g})")
+        if args.check_mass and variant in (_GLOBAL_NORM_VARIANT, _NO_NORM_VARIANT):
+            # Global normalization preserves only corpus mass.  No normalization
+            # is intentionally unconstrained, so it is reported but never failed.
+            if variant == _GLOBAL_NORM_VARIANT and abs(summaries[variant]["dataset_weight_mass_ratio"] - 1.0) > 1e-5:
+                raise SystemExit(f"{variant}: corpus token mass not preserved")
+        elif args.check_mass and (variant.startswith("iwc-stable") or variant in _REGION_VARIANTS):
+            if summaries[variant]["max_abs_mass_error"] > 1e-5:
+                error = summaries[variant]["max_abs_mass_error"]
+                raise SystemExit(f"{variant}: per-trace token mass not preserved (max abs error={error:.3g})")
 
     summary_path = data_dir / (
         f"{args.output_name}-selection-stats.json" if args.output_name else "iwc-selection-stats.json"

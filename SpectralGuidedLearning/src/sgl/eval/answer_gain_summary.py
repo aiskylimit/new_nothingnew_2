@@ -1,4 +1,4 @@
-"""Collect the E0-E8 answer-gain ablation into one place.
+"""Collect the E0-E10 answer-gain ablation into one place.
 
     python -m sgl.eval.answer_gain_summary [--results-dir results] [--out-dir experiments/answer_gain/results]
 
@@ -28,6 +28,8 @@ ARMS = {
     "e6-alg-lambda1": "E6 ALG lambda=1",
     "e7-alg-tau1": "E7 ALG tau=1",
     "e8-alg-tau4": "E8 ALG tau=4",
+    "e9-alg-global-norm": "E9 ALG global norm",
+    "e10-alg-no-norm": "E10 ALG no norm",
 }
 MAIN_ARMS = list(ARMS)[:6]
 # (parameter, value, arm); E0 is lambda=0 and E1 is the default of both sweeps.
@@ -111,6 +113,20 @@ def build_report(results_dir: Path, data_dir: Path, track: str, status: list[lis
             f"{pct(stats.get('top_10pct_step_mass_ratio'))} |"
         )
 
+    lines += ["", "## Token-mass normalization (seed 42, tau=1, lambda=0.5)", "",
+              "| Method | Normalization | Avg p@1 | Avg p@3 | Dataset mass | Trace-budget std | w P10 | w median | w P90 |",
+              "|---|---|---:|---:|---:|---:|---:|---:|---:|"]
+    for arm, normalization in [("e7-alg-tau1", "per-trace"),
+                               ("e9-alg-global-norm", "global corpus"),
+                               ("e10-alg-no-norm", "none")]:
+        rows, stats = runs[(arm, 42)], weight_stats(data_dir, arm) or {}
+        lines.append(
+            f"| {ARMS[arm]} | {normalization} | {pct(macro(rows, 'pass@1'))} | "
+            f"{pct(macro(rows, 'pass@3'))} | {number(stats.get('dataset_weight_mass_ratio'))} | "
+            f"{number(stats.get('trace_budget_std'))} | {number(stats.get('weight_p10'))} | "
+            f"{number(stats.get('weight_median'))} | {number(stats.get('weight_p90'))} |"
+        )
+
     seed_rows = []
     lines += ["", "## Training-seed robustness (mean ± std over finished seeds)", "",
               "| Method | Avg p@1 | Avg p@3 | Seeds finished |", "|---|---:|---:|---|"]
@@ -183,8 +199,29 @@ def main(argv: list[str] | None = None) -> None:
     write_csv(out_dir / "seed_summary.csv", seed_rows,
               ["arm", "n_seeds", "seeds", "avg_pass@1_mean", "avg_pass@1_std",
                "avg_pass@3_mean", "avg_pass@3_std"])
+    data_dir = Path(args.data_dir or f"data/{args.track}")
+    diagnostics = []
+    for arm, normalization in [("e7-alg-tau1", "per-trace"),
+                               ("e9-alg-global-norm", "global"),
+                               ("e10-alg-no-norm", "none")]:
+        rows = load_run(Path(args.results_dir), run_tag(arm, args.track, 42))
+        stats = weight_stats(data_dir, arm) or {}
+        diagnostics.append({
+            "arm": arm, "normalization": normalization,
+            "avg_pass@1": macro(rows, "pass@1"), "avg_pass@3": macro(rows, "pass@3"),
+            "dataset_weight_mass_ratio": stats.get("dataset_weight_mass_ratio"),
+            "trace_budget_std": stats.get("trace_budget_std"),
+            "weight_p10": stats.get("weight_p10"), "weight_median": stats.get("weight_median"),
+            "weight_p90": stats.get("weight_p90"),
+            "steps_above_one_ratio": stats.get("steps_above_one_ratio"),
+            "top_10pct_step_mass_ratio": stats.get("top_10pct_step_mass_ratio"),
+        })
+    write_csv(out_dir / "normalization_diagnostics.csv", diagnostics,
+              ["arm", "normalization", "avg_pass@1", "avg_pass@3", "dataset_weight_mass_ratio",
+               "trace_budget_std", "weight_p10", "weight_median", "weight_p90",
+               "steps_above_one_ratio", "top_10pct_step_mass_ratio"])
     print(report)
-    print(f"summary -> {out_dir / 'ablation_summary.md'} (+ per_benchmark.csv, seed_summary.csv)")
+    print(f"summary -> {out_dir / 'ablation_summary.md'} (+ per_benchmark.csv, seed_summary.csv, normalization_diagnostics.csv)")
 
 
 if __name__ == "__main__":

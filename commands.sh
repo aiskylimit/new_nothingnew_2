@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/experiments/answer_gain/results/
+#1 +60
 #iwc
 #v2
 
@@ -7,7 +7,7 @@ nvidia-smi
 
 
 # cd SpectralGuidedLearning && cat results_b200/summary-iwc-gain-nocap.md
-# cd SpectralGuidedLearning && bash project_commands_ablation_answer_gain.sh all
+cd SpectralGuidedLearning && bash project_commands_parallel_e9e10_qwen25_tune.sh
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
 

@@ -56,9 +56,44 @@ def stable_iwc_step_weights(
     epsilon: float = 1e-8,
 ) -> list[float]:
     """Eq. 13-16: clipped standardized entropy, normalized by token mass."""
-    _validate(entropies, lengths, temperature)
     if not 0.0 <= interpolation <= 1.0:
         raise ValueError("interpolation must be in [0, 1]")
+    _validate(entropies, lengths, temperature)
+    if clip < 0:
+        raise ValueError("clip must be non-negative")
+    if epsilon <= 0:
+        raise ValueError("epsilon must be positive")
+    if not entropies:
+        return []
+    mean = sum(entropies) / len(entropies)
+    variance = sum((entropy - mean) ** 2 for entropy in entropies) / len(entropies)
+    std = math.sqrt(variance)
+    z_scores = [0.0 if std < epsilon else (entropy - mean) / (std + epsilon) for entropy in entropies]
+    scaled = [max(-clip, min(clip, z_score)) / temperature for z_score in z_scores]
+    # The common max shift is safe here: this variant immediately normalizes
+    # within the trace, so it leaves every final coefficient unchanged.
+    maximum = max(scaled)
+    raw = [max(math.exp(value - maximum), sys.float_info.min) for value in scaled]
+    token_mass = sum(lengths)
+    weighted_mass = sum(length * weight for length, weight in zip(lengths, raw))
+    normalized = [weight * token_mass / weighted_mass for weight in raw]
+    return [(1.0 - interpolation) + interpolation * weight for weight in normalized]
+
+
+def stable_iwc_raw_step_weights(
+    entropies: list[float],
+    lengths: list[int],
+    temperature: float = 1.0,
+    clip: float = 2.0,
+    epsilon: float = 1e-8,
+) -> list[float]:
+    """Positive, within-trace-standardized ratios before token-mass normalization.
+
+    This is deliberately public for the global- and no-normalization answer-gain
+    ablations.  It shares every score transformation with IWC-Stable; callers
+    decide only how (or whether) the resulting token mass is normalized.
+    """
+    _validate(entropies, lengths, temperature)
     if clip < 0:
         raise ValueError("clip must be non-negative")
     if epsilon <= 0:
@@ -70,17 +105,14 @@ def stable_iwc_step_weights(
     variance = sum((entropy - mean) ** 2 for entropy in entropies) / len(entropies)
     std = math.sqrt(variance)
     z_scores = [0.0 if std < epsilon else (entropy - mean) / (std + epsilon) for entropy in entropies]
-    # The common max shift leaves Eq. 14's normalized ratios unchanged while
-    # remaining finite for a valid but very small positive temperature.
     scaled = [max(-clip, min(clip, z_score)) / temperature for z_score in z_scores]
-    maximum = max(scaled)
-    # Preserve the method's strict positivity even when a legal tiny tau makes
-    # the smallest clipped ratio fall below float64's representable exponent.
-    raw = [max(math.exp(value - maximum), sys.float_info.min) for value in scaled]
-    token_mass = sum(lengths)
-    weighted_mass = sum(length * weight for length, weight in zip(lengths, raw))
-    normalized = [weight * token_mass / weighted_mass for weight in raw]
-    return [(1.0 - interpolation) + interpolation * weight for weight in normalized]
+    # Do *not* apply stable IWC's max shift: that shift is harmless only when
+    # each trace is subsequently normalized.  E9 needs the literal r_ik from
+    # the protocol in order to derive one corpus-level factor, and E10 needs it
+    # without any mass correction at all.
+    if max(scaled) > math.log(sys.float_info.max):
+        raise ValueError("temperature is too small to represent unnormalized IWC ratios")
+    return [math.exp(value) for value in scaled]
 
 
 def no_answer_upweight_step_weights(

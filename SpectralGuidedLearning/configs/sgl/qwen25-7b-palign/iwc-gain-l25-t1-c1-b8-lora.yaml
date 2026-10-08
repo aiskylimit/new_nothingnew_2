@@ -1,0 +1,6 @@
+# Lower clip tests whether limiting extreme answer-gain steps improves 7B stability.
+defaults: [../tracks/qwen25-7b-palign.yaml, ../methods/iwc-gain.yaml]
+name: iwc-gain-l25-t1-c1-b8-lora
+train_variant: ${name}
+iwc: {interpolation: 0.25, temperature: 1.0, clip: 1.0}
+stages: {train: {effective_batch: 8}}

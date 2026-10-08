@@ -1,0 +1,6 @@
+# Core lambda sweep, fixed tau=1, c=2, effective batch 8.
+defaults: [../tracks/qwen25-7b-palign.yaml, ../methods/iwc-gain.yaml]
+name: iwc-gain-l25-t1-c2-b8-lora
+train_variant: ${name}
+iwc: {interpolation: 0.25, temperature: 1.0, clip: 2.0}
+stages: {train: {effective_batch: 8}}

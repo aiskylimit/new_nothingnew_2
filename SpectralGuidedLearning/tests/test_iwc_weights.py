@@ -6,6 +6,7 @@ from sgl.allocation.build import build_example
 from sgl.allocation.iwc import (
     reverse_iwc_step_weights,
     shuffled_iwc_step_weights,
+    stable_iwc_raw_step_weights,
     stable_iwc_step_weights,
     vanilla_iwc_step_weights,
 )
@@ -21,6 +22,13 @@ def test_stable_iwc_preserves_selected_token_mass():
     lengths = [1, 3, 11]
     weights = stable_iwc_step_weights([0.1, 0.7, 2.0], lengths, temperature=0.8, clip=2.0)
     assert sum(length * weight for length, weight in zip(lengths, weights)) == pytest.approx(sum(lengths))
+
+
+def test_raw_iwc_ratios_are_not_token_mass_normalized():
+    lengths = [1, 20]
+    raw = stable_iwc_raw_step_weights([2.0, -2.0], lengths, temperature=1.0, clip=2.0)
+    assert raw[0] > raw[1]
+    assert sum(length * weight for length, weight in zip(lengths, raw)) != pytest.approx(sum(lengths))
 
 
 def test_stable_iwc_lambda_zero_is_exactly_uniform():
