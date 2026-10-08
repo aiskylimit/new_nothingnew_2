@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
-#talas
+#2 -0-10
+#iwc
 #v1
 
 nvidia-smi
