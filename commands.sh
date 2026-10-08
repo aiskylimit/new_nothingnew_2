@@ -1,5 +1,5 @@
-#2 -0-10
-#iwc
+#1 +60
+#talas
 #v1
 
 nvidia-smi
@@ -34,8 +34,8 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash ./project_commands.sh
 
-# cd ./talas_vlm_embed
-# bash ./project_commands.sh
+cd ./talas_vlm_embed
+bash ./project_commands.sh
 
 # cd ./OpenED
 # bash gather_logs.sh all3
