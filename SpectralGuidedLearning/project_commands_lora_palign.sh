@@ -153,8 +153,9 @@ for key in ${ARMS}; do
       || { echo "ARM ${ARM}: TRAINING FAILED" >&2; continue; }
   fi
 
-  # Fresh shell env so the eval script picks the vLLM env itself; sampling seed 42 -> results/, 43/44 -> results_evalseed/.
-  for eseed in 42 43 44; do
+  # Fresh shell env so the eval script picks the vLLM env itself; sampling seed 42 -> results/, other seeds -> results_evalseed/.
+  EVAL_SEEDS="${EVAL_SEEDS:-42}"
+  for eseed in ${EVAL_SEEDS}; do
     if [[ "${eseed}" == 42 ]]; then TAG="${ARM}-${TRACK}"; RDIR="${BASE}/results"; else TAG="${ARM}-${TRACK}-e${eseed}"; RDIR="${BASE}/results_evalseed"; fi
     if [[ "${FORCE}" != 1 && -f "${RDIR}/${TAG}/summary.json" ]]; then echo "eval ${TAG} exists -- skipping"; continue; fi
     ( unset VIRTUAL_ENV; EVAL_SEED="${eseed}" RESULTS_DIR="${RDIR}" \

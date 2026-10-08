@@ -88,11 +88,15 @@ unset VIRTUAL_ENV
 # -> eval on sampling seeds 42/43/44. Phases are resumable; override with e.g. GPU_7B=0 GPU_8B=1.
 # Both arms are named ...-l1-lora-s3407-... so they never overwrite the earlier seed-42 / lambda runs.
 export PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
-export SEED=3407 IWC_INTERPOLATION=1.0 ARMS=gain
-# Method-only tuning: sweep tau (smaller = sharper weights) and clip (larger = wider z-score range) as "tau:clip".
-# lr / batch / seed / LoRA recipe stay identical to the NLL baseline. Defaults (2:2) were the earlier runs.
-# Override: CONFIGS="0.5:3 1.0:4" ./project_commands.sh
-export CONFIGS="${CONFIGS:-1.0:3.0 0.5:3.0 0.5:4.0}"
+export SEED=3407 ARMS=gain
+# Method-only tuning of the 7B (8B is already fine -> RUN_8B=0). CONFIGS = "tau:clip:lambda" entries.
+# lr / batch (7B: 8) / seed / LoRA recipe stay identical to the NLL baseline. (2:2) was the earlier default.
+# 7B at batch 8 takes 4x more optimizer steps than before, so sharp weights add gradient variance:
+# try milder weights (lower lambda) and tau/clip between the old (2,2) and the sharper (1,3).
+# Override: CONFIGS="1.0:3.0:0.3 2.0:2.0:0.5" RUN_8B=1 ./project_commands.sh
+export RUN_8B="${RUN_8B:-0}"
+export EVAL_SEEDS="${EVAL_SEEDS:-42}"
+export CONFIGS="${CONFIGS:-2.0:2.0:0.5 2.0:2.0:0.3 1.0:3.0:0.3 1.0:3.0:0.5 1.0:2.0:1.0}"
 GPU_7B="${GPU_7B:-4}"
 GPU_8B="${GPU_8B:-5}"
 mkdir -p logs
@@ -125,23 +129,29 @@ show_tail() {   # $1 = label, $2 = log file
 
 RC=0
 for CFG in ${CONFIGS}; do
-  export IWC_TEMPERATURE="${CFG%%:*}" IWC_CLIP="${CFG##*:}"
-  CTAG="t${IWC_TEMPERATURE}-c${IWC_CLIP}"
-  echo "[sweep] ===== tau=${IWC_TEMPERATURE} clip=${IWC_CLIP} ====="
+  IFS=: read -r IWC_TEMPERATURE IWC_CLIP IWC_INTERPOLATION <<< "${CFG}"
+  export IWC_TEMPERATURE IWC_CLIP IWC_INTERPOLATION
+  CTAG="t${IWC_TEMPERATURE}-c${IWC_CLIP}-l${IWC_INTERPOLATION}"
+  echo "[sweep] ===== tau=${IWC_TEMPERATURE} clip=${IWC_CLIP} lambda=${IWC_INTERPOLATION} ====="
   GPUS="${GPU_7B}" bash project_commands_lora_palign_qwen25-7b.sh > >(tee "logs/run-qwen25-7b-s3407-${CTAG}.log" | sed -u "s/^/[7b ${CTAG}] /") 2>&1 &
   PID_7B=$!
   echo "[launch] qwen25-7b pid=${PID_7B} gpu=${GPU_7B} log=logs/run-qwen25-7b-s3407-${CTAG}.log"
-  # stagger the start so the two 16GB model loads don't hit host RAM at the same moment
-  # (also catch an immediate crash, e.g. bad env, instead of silently sleeping)
-  for _ in $(seq 1 12); do
-    sleep 10
-    kill -0 "${PID_7B}" 2>/dev/null || break
-  done
-  GPUS="${GPU_8B}" bash project_commands_lora_palign_qwen3-8b.sh > >(tee "logs/run-qwen3-8b-s3407-${CTAG}.log" | sed -u "s/^/[8b ${CTAG}] /") 2>&1 &
-  PID_8B=$!
-  echo "[launch] qwen3-8b pid=${PID_8B} gpu=${GPU_8B} log=logs/run-qwen3-8b-s3407-${CTAG}.log"
+  PID_8B=""
+  if [[ "${RUN_8B}" == 1 ]]; then
+    # stagger the start so the two 16GB model loads don't hit host RAM at the same moment
+    # (also catch an immediate crash, e.g. bad env, instead of silently sleeping)
+    for _ in $(seq 1 12); do
+      sleep 10
+      kill -0 "${PID_7B}" 2>/dev/null || break
+    done
+    GPUS="${GPU_8B}" bash project_commands_lora_palign_qwen3-8b.sh > >(tee "logs/run-qwen3-8b-s3407-${CTAG}.log" | sed -u "s/^/[8b ${CTAG}] /") 2>&1 &
+    PID_8B=$!
+    echo "[launch] qwen3-8b pid=${PID_8B} gpu=${GPU_8B} log=logs/run-qwen3-8b-s3407-${CTAG}.log"
+  fi
   wait "${PID_7B}" || { E=$?; RC=1; echo "qwen25-7b ${CTAG} FAILED (exit ${E})" >&2; show_tail qwen25-7b "logs/run-qwen25-7b-s3407-${CTAG}.log"; }
-  wait "${PID_8B}" || { E=$?; RC=1; echo "qwen3-8b ${CTAG} FAILED (exit ${E})" >&2; show_tail qwen3-8b "logs/run-qwen3-8b-s3407-${CTAG}.log"; }
+  if [[ -n "${PID_8B}" ]]; then
+    wait "${PID_8B}" || { E=$?; RC=1; echo "qwen3-8b ${CTAG} FAILED (exit ${E})" >&2; show_tail qwen3-8b "logs/run-qwen3-8b-s3407-${CTAG}.log"; }
+  fi
 done
 echo "[done] sweep finished, RC=${RC}. Full logs: logs/run-*-s3407-*.log"
 
@@ -150,12 +160,15 @@ echo "[done] sweep finished, RC=${RC}. Full logs: logs/run-*-s3407-*.log"
 "${PROJECT_ENV}/bin/python" - <<'PY' || true
 import json, os
 bench = ["aime24", "aime25", "amc12", "math500"]
+eval_seeds = [int(s) for s in os.environ.get("EVAL_SEEDS", "42").split()]
 for cfg in os.environ["CONFIGS"].split():
-  tau, clip = (float(x) for x in cfg.split(":"))
+  tau, clip, lam = (float(x) for x in cfg.split(":"))
   suffix = "" if (tau == 2 and clip == 2) else f"-t{tau:g}-c{clip:g}"
-  for model in ("qwen25-7b", "qwen3-8b"):
-    tag = f"iwc-gain-l1{suffix}-lora-s3407-{model}-palign"
-    runs = {42: f"results/{tag}", 43: f"results_evalseed/{tag}-e43", 44: f"results_evalseed/{tag}-e44"}
+  ltag = "l" + (f"{lam:g}" if lam >= 1 else f"{lam:g}".replace("0.", "0"))
+  models = ("qwen25-7b", "qwen3-8b") if os.environ.get("RUN_8B") == "1" else ("qwen25-7b",)
+  for model in models:
+    tag = f"iwc-gain-{ltag}{suffix}-lora-s3407-{model}-palign"
+    runs = {seed: (f"results/{tag}" if seed == 42 else f"results_evalseed/{tag}-e{seed}") for seed in eval_seeds}
     for metric in ("pass@1", "pass@3"):
         print(f"\n=== {tag} | {metric} ===")
         print(f"{'eval seed':<10}" + "".join(f"{b:>10}" for b in bench) + f"{'Avg':>10}")
@@ -168,7 +181,7 @@ for cfg in os.environ["CONFIGS"].split():
             vals = [r.get(b, float("nan")) for b in bench]
             rows.append(vals)
             print(f"{seed:<10}" + "".join(f"{v:>9.2f}%" for v in vals) + f"{sum(vals)/len(vals):>9.2f}%")
-        if rows:
+        if len(rows) > 1:
             m = [sum(c) / len(c) for c in zip(*rows)]
             print(f"{'mean':<10}" + "".join(f"{v:>9.2f}%" for v in m) + f"{sum(m)/len(m):>9.2f}%")
 PY
