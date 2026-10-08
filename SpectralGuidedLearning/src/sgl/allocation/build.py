@@ -8,6 +8,7 @@ attributed to allocation rather than a different supervised set.
 
 import argparse
 import json
+import math
 import statistics
 from pathlib import Path
 
@@ -15,6 +16,7 @@ import pandas as pd
 import yaml
 
 from sgl.allocation.iwc import (
+    no_answer_upweight_step_weights,
     reverse_iwc_step_weights,
     shuffled_iwc_step_weights,
     stable_iwc_step_weights,
@@ -47,6 +49,7 @@ _STABLE_VARIANTS = {
 # region-iwc = a_k only, region-gain = b_r only, sarw = a_k * b_r, region-cont = the teacher-prefix
 # steps dropped from the loss (continuation-only SFT, the b_P -> 0 limit without inflating weights).
 _REGION_VARIANTS = ("region-iwc", "region-gain", "sarw", "region-cont")
+_NO_ANSWER_VARIANT = "iwc-stable-no-answer-upweight"
 
 
 def build_example(
@@ -62,6 +65,7 @@ def build_example(
     seed: int = 42,
     regions: list[str] | None = None,
     region_ratio: float = 1.0,
+    answer_only: list[bool] | None = None,
 ) -> tuple[dict, dict]:
     """Build one weighted record and its selection/allocation diagnostics."""
     step_spans = record_step_spans(record)
@@ -79,6 +83,18 @@ def build_example(
     selected_lengths = [step_spans[index][1] - step_spans[index][0] for index in selected]
     if variant == "iwc":
         selected_weights = vanilla_iwc_step_weights(selected_entropies, selected_lengths, temperature)
+    elif variant == _NO_ANSWER_VARIANT:
+        if answer_only is None or len(answer_only) != len(step_spans):
+            raise ValueError(f"record {record['id']}: {variant} needs one answer-only label per step")
+        selected_weights = no_answer_upweight_step_weights(
+            selected_entropies,
+            selected_lengths,
+            [answer_only[index] for index in selected],
+            temperature,
+            interpolation,
+            clip,
+            epsilon,
+        )
     elif variant in _STABLE_VARIANTS:
         # per-record seed offset so "shuffled" draws an independent permutation per sample
         # instead of repeating one fixed pattern relative to step position.
@@ -131,6 +147,13 @@ def build_example(
             "weight_mass_ratio": weighted_token_mass / max(selected_token_mass, 1),
             "weight_min": min(selected_weights, default=1.0),
             "weight_max": max(selected_weights, default=1.0),
+            "selected_weights": selected_weights,
+            "selected_lengths": selected_lengths,
+            "answer_only_steps": sum(answer_only[index] for index in selected)
+            if answer_only is not None else 0,
+            "answer_only_tokens": sum(
+                length for index, length in zip(selected, selected_lengths) if answer_only[index]
+            ) if answer_only is not None else 0,
         }
     )
     return {
@@ -154,6 +177,7 @@ def emit_dataset(
     seed: int = 42,
     regions: dict[int, list[str]] | None = None,
     region_ratio: float = 1.0,
+    answer_only: dict[int, list[bool]] | None = None,
 ) -> list[dict]:
     """Write one IWC arm and return per-record diagnostics."""
     all_stats = []
@@ -164,6 +188,7 @@ def emit_dataset(
                 record, strengths, entropies, threshold, variant, temperature,
                 interpolation, clip, epsilon, seed,
                 regions[record["id"]] if regions is not None else None, region_ratio,
+                answer_only[record["id"]] if answer_only is not None else None,
             )
             handle.write(json.dumps(example) + "\n")
             all_stats.append(stats)
@@ -172,6 +197,29 @@ def emit_dataset(
 
 def summarize(stats: list[dict]) -> dict:
     """Corpus diagnostics needed to check the IWC-Stable invariance claim."""
+    weighted_steps = [
+        (weight, length)
+        for item in stats
+        for weight, length in zip(item["selected_weights"], item["selected_lengths"])
+    ]
+    weights = sorted(weight for weight, _ in weighted_steps)
+    total_mass = sum(weight * length for weight, length in weighted_steps)
+    top_count = math.ceil(0.1 * len(weighted_steps))
+    top_mass = sum(
+        weight * length
+        for weight, length in sorted(weighted_steps, key=lambda pair: pair[0], reverse=True)[:top_count]
+    )
+
+    def quantile(fraction: float) -> float:
+        if not weights:
+            return 1.0
+        position = fraction * (len(weights) - 1)
+        lower = math.floor(position)
+        upper = math.ceil(position)
+        if lower == upper:
+            return weights[lower]
+        return weights[lower] * (upper - position) + weights[upper] * (position - lower)
+
     return {
         "samples": len(stats),
         "step_drop_mean": statistics.mean(item["step_drop"] for item in stats),
@@ -181,6 +229,16 @@ def summarize(stats: list[dict]) -> dict:
         "weight_mass_ratio_max": max(item["weight_mass_ratio"] for item in stats),
         "weight_min": min(item["weight_min"] for item in stats),
         "weight_max": max(item["weight_max"] for item in stats),
+        "weight_p10": quantile(0.1),
+        "weight_median": quantile(0.5),
+        "weight_p90": quantile(0.9),
+        "steps_above_one_ratio": sum(weight > 1.0 for weight in weights) / max(len(weights), 1),
+        "top_10pct_step_mass_ratio": top_mass / max(total_mass, 1e-12),
+        "max_abs_mass_error": max(
+            abs(item["weighted_token_mass"] - item["selected_token_mass"]) for item in stats
+        ),
+        "answer_only_steps": sum(item["answer_only_steps"] for item in stats),
+        "answer_only_tokens": sum(item["answer_only_tokens"] for item in stats),
     }
 
 
@@ -237,6 +295,10 @@ def build_parser() -> argparse.ArgumentParser:
         "G_P / G_C estimate (they stay weighted; default 0.0)",
     )
     parser.add_argument(
+        "--answer-only-labels",
+        help=f"{_NO_ANSWER_VARIANT}: JSON mapping record id to one boolean per step",
+    )
+    parser.add_argument(
         "--check-mass", action="store_true",
         help="fail unless every iwc-stable* variant keeps the selected token mass "
         "(mean weighted/selected mass prints as 1.000000)",
@@ -269,6 +331,7 @@ def main(argv: list[str] | None = None) -> None:
         "region_signal": args.region_signal,
         "region_gamma": args.region_gamma,
         "region_tail_fraction": args.region_tail_fraction,
+        "answer_only_labels": args.answer_only_labels,
     }
     config.update({key: value for key, value in overrides.items() if value is not None})
     config.setdefault("energy_threshold_p", 0.95)
@@ -325,6 +388,18 @@ def main(argv: list[str] | None = None) -> None:
             print(f"answer gain per token: prefix {gain_prefix:.6g}, continuation {gain_cont:.6g} "
                   f"-> b_P/b_C = {region_ratio:.4f} (gamma {config['region_gamma']}, "
                   f"tail fraction {config['region_tail_fraction']})")
+    answer_only = None
+    if _NO_ANSWER_VARIANT in variants:
+        if "answer_only_labels" not in config:
+            parser.error(f"{_NO_ANSWER_VARIANT} needs --answer-only-labels")
+        raw_labels = json.loads(Path(config["answer_only_labels"]).read_text())
+        answer_only = {int(record_id): [bool(value) for value in labels]
+                       for record_id, labels in raw_labels.items()}
+        missing_labels = [record["id"] for record in records if record["id"] not in answer_only]
+        if missing_labels:
+            raise ValueError(
+                f"answer-only labels missing for {len(missing_labels)} records (first: {missing_labels[0]})"
+            )
     data_dir = Path(config["data_path"]).parent
     summaries = {}
     for variant in variants:
@@ -333,6 +408,7 @@ def main(argv: list[str] | None = None) -> None:
             records, signals, output_path, config["energy_threshold_p"], variant,
             config["temperature"], config["interpolation"], config["clip"], config["epsilon"],
             config["seed"], regions, region_ratio,
+            answer_only,
         )
         summaries[variant] = summarize(stats)
         print(
@@ -341,8 +417,9 @@ def main(argv: list[str] | None = None) -> None:
         )
         mass = f"{summaries[variant]['weight_mass_ratio_mean']:.6f}"
         mass_preserving = variant.startswith("iwc-stable") or variant in _REGION_VARIANTS
-        if args.check_mass and mass_preserving and mass != "1.000000":
-            raise SystemExit(f"{variant}: token mass not preserved (mean weighted/selected mass={mass})")
+        if args.check_mass and mass_preserving and summaries[variant]["max_abs_mass_error"] > 1e-5:
+            error = summaries[variant]["max_abs_mass_error"]
+            raise SystemExit(f"{variant}: per-trace token mass not preserved (max abs error={error:.3g})")
 
     summary_path = data_dir / (
         f"{args.output_name}-selection-stats.json" if args.output_name else "iwc-selection-stats.json"

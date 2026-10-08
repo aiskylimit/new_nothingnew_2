@@ -1,5 +1,5 @@
-#i talas-vlm-embed.txt
-#talas
+#i spectral_guided_learning.txt
+#iwc
 #v1
 
 nvidia-smi

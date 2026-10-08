@@ -1,0 +1,21 @@
+# E2: mean frozen-student step log-likelihood d_k through the same allocation formula as ALG.
+defaults: [_iwc.yaml, _answer_gain_ablation_paths.yaml]
+signal_parquet: ${predictability_signal}
+train_variant: ${name}
+pipeline: [prepare, predictability, score_signal, weights, train, eval]
+stages:
+  predictability:
+    module: sgl.signals.predictability
+    creates: ${predictability_scores}
+    args:
+      data-path: ${data_dir}/train-segmented.jsonl
+      model: ${model.name}
+      output: ${predictability_scores}
+      chunk-size: 1024
+  score_signal:
+    module: sgl.signals.gain_parquet
+    creates: ${predictability_signal}
+    args:
+      data-path: ${data_dir}/train-segmented.jsonl
+      gains: ${predictability_scores}
+      output: ${predictability_signal}

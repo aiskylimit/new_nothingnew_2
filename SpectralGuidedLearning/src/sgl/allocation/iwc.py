@@ -83,6 +83,43 @@ def stable_iwc_step_weights(
     return [(1.0 - interpolation) + interpolation * weight for weight in normalized]
 
 
+def no_answer_upweight_step_weights(
+    scores: list[float],
+    lengths: list[int],
+    answer_only: list[bool],
+    temperature: float = 1.0,
+    interpolation: float = 1.0,
+    clip: float = 2.0,
+    epsilon: float = 1e-8,
+) -> list[float]:
+    """Allocate over non-answer-only steps while fixing answer-only steps at weight one.
+
+    The eligible subset is standardized and normalized independently. Its weighted token
+    mass therefore equals its uniform token mass; adding the neutralized steps at weight one
+    preserves the full trace's token mass exactly. If every step is answer-only, the trace is
+    uniform as required by the ablation protocol.
+    """
+    _validate(scores, lengths, temperature)
+    if len(answer_only) != len(scores):
+        raise ValueError("answer_only and scores must have the same number of steps")
+    eligible = [index for index, is_answer_only in enumerate(answer_only) if not is_answer_only]
+    if not eligible:
+        return [1.0] * len(scores)
+
+    eligible_weights = stable_iwc_step_weights(
+        [scores[index] for index in eligible],
+        [lengths[index] for index in eligible],
+        temperature,
+        interpolation,
+        clip,
+        epsilon,
+    )
+    weights = [1.0] * len(scores)
+    for index, weight in zip(eligible, eligible_weights):
+        weights[index] = weight
+    return weights
+
+
 def shuffled_iwc_step_weights(
     entropies: list[float],
     lengths: list[int],

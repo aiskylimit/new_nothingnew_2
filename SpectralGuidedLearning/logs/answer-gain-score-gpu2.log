@@ -1,0 +1,3 @@
+
+=== [e1-alg] stage answer_gain ===
+CUDA_VISIBLE_DEVICES=2 /home/luyenv/miniconda3/bin/python -u -m sgl.signals.answer_gain --data-path data/r1-qwen-1.5b-palign/train-segmented.jsonl --model deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --output experiments/answer_gain/scores/answer_gain.json --gpu-memory-utilization 0.4

@@ -6,6 +6,7 @@ iwc:
   temperature: 2.0
   interpolation: 0.5
   clip: 2.0
+  epsilon: 1.0e-8
   seed: 42
 stages:
   weights:
