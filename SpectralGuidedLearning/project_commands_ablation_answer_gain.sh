@@ -136,6 +136,7 @@ heartbeat() {
   local interval="${HEARTBEAT_SECS:-600}" gpu line
   while sleep "${interval}" >/dev/null 2>&1; do
     for gpu in "${GPU_IDS[@]}"; do
+      [[ -r "${LOG_PREFIX}-gpu${gpu}.log" ]] || continue
       line="$(tr '\r' '\n' < "${LOG_PREFIX}-gpu${gpu}.log" 2>/dev/null | grep -v '^[[:space:]]*$' | tail -n 1 | cut -c1-160 || true)"
       [[ -z "${line}" ]] || log "HEARTBEAT GPU ${gpu}: ${line}"
     done
@@ -146,7 +147,11 @@ verify_setup() {
   [[ "${DRY_RUN:-0}" == 1 ]] && return 0
   log "verifying setup artifacts"
   local arm file missing=0
-  for arm in e0-uniform e1-alg e2-predictability-easy e3-predictability-hard e4-random-assignment \
+  # E0 is plain SFT, whose `vanilla` stage deliberately writes train-vanilla.jsonl.
+  # Every remaining ablation writes an arm-named weighted training file.
+  file="data/${TRACK}/train-vanilla.jsonl"
+  [[ -s "${file}" ]] || { log "MISSING training data: ${file}"; missing=1; }
+  for arm in e1-alg e2-predictability-easy e3-predictability-hard e4-random-assignment \
              e5-alg-no-answer-upweight e6-alg-lambda1 e7-alg-tau1 e8-alg-tau4; do
     file="data/${TRACK}/train-${arm}.jsonl"
     [[ -s "${file}" ]] || { log "MISSING training data: ${file}"; missing=1; }

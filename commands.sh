@@ -1,5 +1,5 @@
 #1 +60
-#vlm2
+#iwc
 #v2
 
 nvidia-smi
@@ -7,7 +7,7 @@ nvidia-smi
 
 
 # cd SpectralGuidedLearning && cat results_b200/summary-iwc-gain-nocap.md
-# cd SpectralGuidedLearning && bash project_commands_ablation_answer_gain.sh
+cd SpectralGuidedLearning && bash project_commands_ablation_answer_gain.sh all
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
 
@@ -34,8 +34,8 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash ./project_commands.sh
 
-cd ./talas_vlm_embed
-bash ./project_commands.sh
+# cd ./talas_vlm_embed
+# bash ./project_commands.sh
 
 # cd ./OpenED
 # bash gather_logs.sh all3
