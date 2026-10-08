@@ -1,4 +1,4 @@
-#1 +10
+#2 -0-10
 #iwc
 #v1
 
@@ -37,8 +37,8 @@ export NCCL_DEBUG=WARN
 # cd ./talas_vlm_embed
 # bash ./project_commands.sh
 
-cd ./OpenED
-bash gather_logs.sh all3
-tar -czf collected_logs.tar.gz collected_logs/all3/
-ls -lh collected_logs.tar.gz
+# cd ./OpenED
+# bash gather_logs.sh all3
+# tar -czf collected_logs.tar.gz collected_logs/all3/
+# ls -lh collected_logs.tar.gz
 # GPUS="0 1" bash ./project_commands_8.sh
