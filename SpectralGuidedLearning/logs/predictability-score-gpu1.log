@@ -1,3 +1,0 @@
-
-=== [e2-predictability-easy] stage predictability ===
-CUDA_VISIBLE_DEVICES=1 /home/luyenv/miniconda3/bin/python -u -m sgl.signals.predictability --data-path data/r1-qwen-1.5b-palign/train-segmented.jsonl --model deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --output experiments/answer_gain/scores/predictability_logp.json --chunk-size 1024

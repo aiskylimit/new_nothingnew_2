@@ -1,14 +1,4 @@
-#d
-#datasets
---hf-dataset simplescaling/s1K-1.1 /mnt/local/_data/@PROJECT@/s1K-1.1
---hf-dataset Maxwell-Jia/AIME_2024 /mnt/local/_data/@PROJECT@/AIME_2024
---hf-dataset yentinglin/aime_2025 /mnt/local/_data/@PROJECT@/aime_2025
---hf-dataset HuggingFaceH4/MATH-500 /mnt/local/_data/@PROJECT@/MATH-500
---hf-dataset AI-MO/aimo-validation-amc /mnt/local/_data/@PROJECT@/aimo-validation-amc
-#models
---hf deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-1.5B
---hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/@PROJECT@/Qwen2.5-7B-Instruct
-
+#1 +60
 #iwc
 #v1
 
@@ -17,7 +7,7 @@ nvidia-smi
 
 
 # cd SpectralGuidedLearning && cat results_b200/summary-iwc-gain-nocap.md
-# cd SpectralGuidedLearning && bash project_commands.sh 
+cd SpectralGuidedLearning && bash project_commands.sh
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
 

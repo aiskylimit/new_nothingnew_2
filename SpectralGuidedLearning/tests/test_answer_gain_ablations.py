@@ -71,3 +71,28 @@ def test_chunked_log_probabilities_match_full_log_softmax():
 def test_step_mean_uses_response_relative_spans():
     logps = torch.tensor([-1.0, -3.0, -2.0, -4.0])
     assert step_mean_log_probabilities(logps, [(10, 12), (12, 14)], 10) == pytest.approx([-2.0, -3.0])
+
+
+def _write_run(results, tag, p1, p3):
+    import json
+    rows = [{"benchmark": name, "pass@1": p1, "pass@3": p3, "model": tag}
+            for name in ("aime24", "aime25", "amc12", "math500")]
+    (results / tag).mkdir(parents=True)
+    (results / tag / "summary.json").write_text(json.dumps(rows))
+
+
+def test_summary_collects_main_table_seeds_and_missing_runs(tmp_path):
+    from sgl.eval.answer_gain_summary import main
+
+    results, out, track = tmp_path / "results", tmp_path / "out", "r1-qwen-1.5b-palign"
+    _write_run(results, f"e0-uniform-{track}", 0.30, 0.40)
+    _write_run(results, f"e1-alg-{track}", 0.35, 0.45)
+    _write_run(results, f"e1-alg-{track}-s123", 0.37, 0.47)
+    main(["--results-dir", str(results), "--out-dir", str(out), "--data-dir", str(tmp_path)])
+
+    report = (out / "ablation_summary.md").read_text()
+    assert "| E1 ALG |" in report and "35.00%" in report
+    assert f"`e2-predictability-easy-{track}`" in report  # not run -> listed as missing
+    assert "36.00% ± " in report                           # E1 seeds 42 and 123
+    assert (out / "per_benchmark.csv").read_text().count("\n") == 4 * 3 + 1
+    assert "e1-alg" in (out / "seed_summary.csv").read_text()
