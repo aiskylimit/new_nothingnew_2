@@ -1,0 +1,14 @@
+GPU 1: e1-alg (train,eval)
+
+=== [e1-alg] stage train ===
+CUDA_VISIBLE_DEVICES=1 DS_SKIP_CUDA_CHECK=1 /home/luyenv/miniconda3/bin/python -m torch.distributed.run --nproc_per_node 1 --nnodes 1 --node_rank 0 --rdzv_backend static --master_addr localhost --master_port <free-port> -m sgl.training.train --model-name deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --data-path data/r1-qwen-1.5b-palign/train-e1-alg.jsonl --output-dir checkpoints/e1-alg-r1-qwen-1.5b-palign --epochs 3 --learning-rate 5e-05 --min-learning-rate 1e-05 --warmup-ratio 0.1 --per-device-batch-size 1 --attn-implementation sdpa --logging-steps 5 --save-strategy epoch --save-total-limit 2 --seed 42 --max-seq-len 32768 --no-use-lora --deepspeed-config configs/deepspeed/ds_config_zero2_offload.json --gradient-accumulation-steps 32
+
+=== [e1-alg] stage eval ===
+CUDA_VISIBLE_DEVICES=1 /home/luyenv/miniconda3/bin/python -u -m sgl.eval.evaluate --model checkpoints/e1-alg-r1-qwen-1.5b-palign --tag e1-alg-r1-qwen-1.5b-palign --benchmarks math500,aime24,aime25,amc12 --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --n-samples 3 --max-tokens 4096 --max-model-len 4096 --batch-size 64 --gpu-memory-utilization 0.8 --enforce-eager --seed 42 --chat-template --no-enable-thinking --palign-prompt --grader math_verify --base-model deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --no-lora-adapter --lora-r 16 --results-dir results
+GPU 1: e5-alg-no-answer-upweight (train,eval)
+
+=== [e5-alg-no-answer-upweight] stage train ===
+CUDA_VISIBLE_DEVICES=1 DS_SKIP_CUDA_CHECK=1 /home/luyenv/miniconda3/bin/python -m torch.distributed.run --nproc_per_node 1 --nnodes 1 --node_rank 0 --rdzv_backend static --master_addr localhost --master_port <free-port> -m sgl.training.train --model-name deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --data-path data/r1-qwen-1.5b-palign/train-e5-alg-no-answer-upweight.jsonl --output-dir checkpoints/e5-alg-no-answer-upweight-r1-qwen-1.5b-palign --epochs 3 --learning-rate 5e-05 --min-learning-rate 1e-05 --warmup-ratio 0.1 --per-device-batch-size 1 --attn-implementation sdpa --logging-steps 5 --save-strategy epoch --save-total-limit 2 --seed 42 --max-seq-len 32768 --no-use-lora --deepspeed-config configs/deepspeed/ds_config_zero2_offload.json --gradient-accumulation-steps 32
+
+=== [e5-alg-no-answer-upweight] stage eval ===
+CUDA_VISIBLE_DEVICES=1 /home/luyenv/miniconda3/bin/python -u -m sgl.eval.evaluate --model checkpoints/e5-alg-no-answer-upweight-r1-qwen-1.5b-palign --tag e5-alg-no-answer-upweight-r1-qwen-1.5b-palign --benchmarks math500,aime24,aime25,amc12 --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --n-samples 3 --max-tokens 4096 --max-model-len 4096 --batch-size 64 --gpu-memory-utilization 0.8 --enforce-eager --seed 42 --chat-template --no-enable-thinking --palign-prompt --grader math_verify --base-model deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B --no-lora-adapter --lora-r 16 --results-dir results

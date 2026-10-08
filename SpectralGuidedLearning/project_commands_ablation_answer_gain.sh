@@ -8,23 +8,26 @@
 #     bash project_commands_ablation_answer_gain.sh robustness # seeds 123 and 456
 #
 # GPU queues (one full-parameter job per GPU):
-#   GPU 2: E0, E4, E8       GPU 3: E1, E5
-#   GPU 4: E2, E6           GPU 5: E3, E7
+#   GPU 0: E0, E4, E8       GPU 1: E1, E5
+#   GPU 2: E2, E6           GPU 3: E3, E7
 set -euo pipefail
 
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 export PYTHONPATH="${BASE}/src${PYTHONPATH:+:${PYTHONPATH}}"
 
-PROJECT_ENV="${PROJECT_ENV:-$(cd "${BASE}/.." && pwd)/iwc}"
+PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
 if [[ -x "${PROJECT_ENV}/bin/python" ]]; then
   PYTHON="${PROJECT_ENV}/bin/python"
+elif [[ -n "${PYTHON:-}" ]]; then
+  :
 else
-  PYTHON="${PYTHON:-python}"
+  echo "Python env not found: ${PROJECT_ENV}/bin/python (set PROJECT_ENV or PYTHON)" >&2
+  exit 1
 fi
 
 MODE="${1:-all}"
-GPU_IDS=(2 3 4 5)
+GPU_IDS=(0 1 2 3)
 TRACK="r1-qwen-1.5b-palign"
 CONFIG_ROOT="${TRACK}"
 mkdir -p logs experiments/answer_gain/{scores,results,figures}
@@ -59,12 +62,12 @@ setup_artifacts() {
   run_config e0-uniform "${GPU_IDS[0]}" prepare,vanilla
 
   echo "Computing frozen-q0 answer gain on GPU ${GPU_IDS[0]} and predictability on GPU ${GPU_IDS[1]}"
-  run_config e1-alg "${GPU_IDS[0]}" answer_gain > logs/answer-gain-score-gpu2.log 2>&1 &
+  run_config e1-alg "${GPU_IDS[0]}" answer_gain > logs/answer-gain-score-gpu0.log 2>&1 &
   local gain_pid=$!
-  run_config e2-predictability-easy "${GPU_IDS[1]}" predictability > logs/predictability-score-gpu3.log 2>&1 &
+  run_config e2-predictability-easy "${GPU_IDS[1]}" predictability > logs/predictability-score-gpu1.log 2>&1 &
   local predictability_pid=$!
-  wait_jobs "${gain_pid}:answer-gain scoring (GPU 2)" \
-            "${predictability_pid}:predictability scoring (GPU 3)"
+  wait_jobs "${gain_pid}:answer-gain scoring (GPU 0)" \
+            "${predictability_pid}:predictability scoring (GPU 1)"
 
   # CPU-only transforms/builds. Each output name is arm-specific, while E1/E5-E8 reuse the
   # exact same immutable answer-gain signal parquet.
@@ -91,16 +94,16 @@ run_queue() {
 
 pilot() {
   local stages="${PILOT_STAGES:-train,eval}"
-  run_queue 2 "${stages}" e0-uniform e4-random-assignment e8-alg-tau4 \
-    > logs/answer-gain-ablation-gpu2.log 2>&1 & local p2=$!
-  run_queue 3 "${stages}" e1-alg e5-alg-no-answer-upweight \
-    > logs/answer-gain-ablation-gpu3.log 2>&1 & local p3=$!
-  run_queue 4 "${stages}" e2-predictability-easy e6-alg-lambda1 \
-    > logs/answer-gain-ablation-gpu4.log 2>&1 & local p4=$!
-  run_queue 5 "${stages}" e3-predictability-hard e7-alg-tau1 \
-    > logs/answer-gain-ablation-gpu5.log 2>&1 & local p5=$!
-  wait_jobs "${p2}:pilot queue GPU 2" "${p3}:pilot queue GPU 3" \
-            "${p4}:pilot queue GPU 4" "${p5}:pilot queue GPU 5"
+  run_queue 0 "${stages}" e0-uniform e4-random-assignment e8-alg-tau4 \
+    > logs/answer-gain-ablation-gpu0.log 2>&1 & local p2=$!
+  run_queue 1 "${stages}" e1-alg e5-alg-no-answer-upweight \
+    > logs/answer-gain-ablation-gpu1.log 2>&1 & local p3=$!
+  run_queue 2 "${stages}" e2-predictability-easy e6-alg-lambda1 \
+    > logs/answer-gain-ablation-gpu2.log 2>&1 & local p4=$!
+  run_queue 3 "${stages}" e3-predictability-hard e7-alg-tau1 \
+    > logs/answer-gain-ablation-gpu3.log 2>&1 & local p5=$!
+  wait_jobs "${p2}:pilot queue GPU 0" "${p3}:pilot queue GPU 1" \
+            "${p4}:pilot queue GPU 2" "${p5}:pilot queue GPU 3"
   [[ "${DRY_RUN:-0}" == 1 ]] || "${PYTHON}" -m sgl.eval.compare --results-dir results
 }
 
@@ -119,12 +122,12 @@ robustness() {
     *) echo "Set PREDICTABILITY_ARM after the seed-42 pilot to e2-predictability-easy or e3-predictability-hard" >&2
        return 2 ;;
   esac
-  robustness_queue 2 e0-uniform > logs/answer-gain-robustness-gpu2.log 2>&1 & local p2=$!
-  robustness_queue 3 e1-alg > logs/answer-gain-robustness-gpu3.log 2>&1 & local p3=$!
-  robustness_queue 4 "${PREDICTABILITY_ARM}" > logs/answer-gain-robustness-gpu4.log 2>&1 & local p4=$!
-  robustness_queue 5 e4-random-assignment > logs/answer-gain-robustness-gpu5.log 2>&1 & local p5=$!
-  wait_jobs "${p2}:robustness E0 GPU 2" "${p3}:robustness E1 GPU 3" \
-            "${p4}:robustness predictability GPU 4" "${p5}:robustness E4 GPU 5"
+  robustness_queue 0 e0-uniform > logs/answer-gain-robustness-gpu0.log 2>&1 & local p2=$!
+  robustness_queue 1 e1-alg > logs/answer-gain-robustness-gpu1.log 2>&1 & local p3=$!
+  robustness_queue 2 "${PREDICTABILITY_ARM}" > logs/answer-gain-robustness-gpu2.log 2>&1 & local p4=$!
+  robustness_queue 3 e4-random-assignment > logs/answer-gain-robustness-gpu3.log 2>&1 & local p5=$!
+  wait_jobs "${p2}:robustness E0 GPU 0" "${p3}:robustness E1 GPU 1" \
+            "${p4}:robustness predictability GPU 2" "${p5}:robustness E4 GPU 3"
   [[ "${DRY_RUN:-0}" == 1 ]] || "${PYTHON}" -m sgl.eval.compare --results-dir results
 }
 
