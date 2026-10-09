@@ -1,6 +1,7 @@
-#2 -0-10
-#v2
+#1 +3
+#iwc
 
+zip -r results.zip results && ls -lh results.zip
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
 
