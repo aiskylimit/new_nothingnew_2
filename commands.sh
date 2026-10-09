@@ -1,4 +1,4 @@
-#1 +10
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
 #v1
 
 # cd SpectralGuidedLearning && python -m zipfile -c results.zip results && ls -lh results.zip
