@@ -1,4 +1,5 @@
-#2 -0-20
+#1 +3
+#iwc
 #v2
 
 # cd SpectralGuidedLearning && python -m zipfile -c results.zip results && ls -lh results.zip
@@ -7,7 +8,7 @@ nvidia-smi
 
 
 # cd SpectralGuidedLearning && cat results_b200/summary-iwc-gain-nocap.md
-# cd SpectralGuidedLearning && bash project_commands_parallel_e9e10_qwen25_tune.sh
+cd SpectralGuidedLearning && bash project_commands_report_e9e10_qwen25_tune.sh
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
 
