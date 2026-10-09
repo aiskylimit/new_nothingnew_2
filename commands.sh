@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/results.zip
+#2 -0-20
 #v2
 
 # cd SpectralGuidedLearning && python -m zipfile -c results.zip results && ls -lh results.zip
