@@ -1,0 +1,7 @@
+# Same arm as iwc-gain-l100-t1-c2-b8-lora, retrained after the switch to a constant lr schedule
+# (sgl.training.train); a separate name so the cosine run's checkpoint and results are not reused.
+defaults: [../tracks/qwen25-7b-palign.yaml, ../methods/iwc-gain.yaml]
+name: iwc-gain-l100-t1-c2-b8-const-lora
+train_variant: ${name}
+iwc: {interpolation: 1.0, temperature: 1.0, clip: 2.0}
+stages: {train: {effective_batch: 8}}
