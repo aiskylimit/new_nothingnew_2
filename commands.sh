@@ -1,8 +1,8 @@
-#1 +60
+#2 -0-20
 #iwc
 #v1
 
-cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
+# cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
 
