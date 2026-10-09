@@ -1,4 +1,4 @@
-#1 +60
+#2
 #vlm
 #v1
 
@@ -35,8 +35,8 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash ./project_commands.sh
 
-cd ./talas_vlm_embed
-bash ./project_commands.sh
+# cd ./talas_vlm_embed
+# bash ./project_commands.sh
 
 # cd ./OpenED
 # bash gather_logs.sh all3
