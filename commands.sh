@@ -1,5 +1,5 @@
-#1 +120
-#iwc_report
+#i opsd.txt
+#opsd
 #v2
 
 # cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
@@ -35,8 +35,8 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash ./project_commands.sh
 
-cd ./talas_vlm_embed
-bash ./project_commands.sh
+# cd ./talas_vlm_embed
+# bash ./project_commands.sh
 
 # cd ./OpenED
 # bash gather_logs.sh all3

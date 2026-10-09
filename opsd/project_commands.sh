@@ -15,28 +15,18 @@ export RESULTS_ROOT="${BASE_DIR}/results/seed42"
 export HF_HOME="${BASE_DIR}/.cache/huggingface"
 
 # Two-GPU training and evaluation allocation.
-export CUDA_VISIBLE_DEVICES="2,3"
+export CUDA_VISIBLE_DEVICES="0,1"
 export NUM_PROCESSES=2
 export EVAL_TENSOR_PARALLEL_SIZE=2
 export VLLM_GPU_MEMORY_UTILIZATION=0.6
 export GPU_MEMORY_UTILIZATION=0.9
 export MAIN_PROCESS_PORT=auto
 
-# Download HuggingFaceH4/aime_2024 to RAW_DATA_ROOT/eval/aime24 first (see download.txt).
-if [[ ! -d "${PREPARED_DATA_ROOT}/eval/aime24" ]]; then
-    python "${PROJECT_ROOT}/data/prepare_data.py" \
-        --raw_root "${RAW_DATA_ROOT}" \
-        --output_root "${PREPARED_DATA_ROOT}" \
-        --only_eval aime24
-fi
-
-# Preserve completed evaluations from older runs without an explicit seed.
+# Evaluate only AIME26 at seed 42 without replacing existing results.
 export EVAL_SEED=42
 export OVERWRITE_EVAL=0
 
-# Qwen3-4B training is complete. Skip existing seed-42 results (including
-# checkpoint-25 AIME24/AIME25) and evaluate the remaining datasets.
-bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b opsd
-
-# Olmo-3-7B-Think was already trained: evaluate OPSD on AIME24 only.
-EVAL_DATASETS="aime24" bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" olmo7b opsd
+for method in sft grpo; do
+    bash "${PROJECT_ROOT}/scripts/run_training.sh" "${method}" 4b
+    EVAL_DATASETS="aime26" bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b "${method}"
+done
