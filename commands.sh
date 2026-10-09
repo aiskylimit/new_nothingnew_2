@@ -1,5 +1,5 @@
 #2 -0-20
-#v2
+#v1
 
 # cd SpectralGuidedLearning && python -m zipfile -c results.zip results && ls -lh results.zip
 nvidia-smi
