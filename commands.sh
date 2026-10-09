@@ -1,7 +1,9 @@
-#2 -0-20
+#1 +10
 #opsd-8b
 #v1
 
+
+kill -9 108808 108817 108820
 # cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
