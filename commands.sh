@@ -1,5 +1,4 @@
-#2 -0-10
-#iwc
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/results/qwen25-tuning-tau1-b8/summary.md
 #v2
 
 nvidia-smi
