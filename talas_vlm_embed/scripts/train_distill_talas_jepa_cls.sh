@@ -18,7 +18,7 @@ KD_WEIGHT=${3:-10}
 
 SIGREG_WEIGHT=${4:-0.1}
 
-NUM_T=${5:-17}
+NUM_T=${5:-29}
 
 T_MAX=${6:-5}
 
