@@ -114,14 +114,20 @@ def build_report(results_dir: Path, data_dir: Path, track: str, status: list[lis
         )
 
     lines += ["", "## Token-mass normalization (seed 42, tau=1, lambda=0.5)", "",
-              "| Method | Normalization | Avg p@1 | Avg p@3 | Dataset mass | Trace-budget std | w P10 | w median | w P90 |",
-              "|---|---|---:|---:|---:|---:|---:|---:|---:|"]
+              "Each benchmark cell is `pass@1 / pass@3`.", "",
+              "| Method | Normalization | AIME24 | AIME25 | AMC12 | MATH500 | Avg p@1 | Avg p@3 | Dataset mass | Trace-budget std | w P10 | w median | w P90 |",
+              "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|"]
     for arm, normalization in [("e7-alg-tau1", "per-trace"),
                                ("e9-alg-global-norm", "global corpus"),
                                ("e10-alg-no-norm", "none")]:
         rows, stats = runs[(arm, 42)], weight_stats(data_dir, arm) or {}
+        benchmark_scores = [
+            f"{rows[name]['pass@1']:.2%} / {rows[name]['pass@3']:.2%}" if rows and name in rows else "-"
+            for name in BENCHMARKS
+        ]
         lines.append(
-            f"| {ARMS[arm]} | {normalization} | {pct(macro(rows, 'pass@1'))} | "
+            f"| {ARMS[arm]} | {normalization} | " + " | ".join(benchmark_scores)
+            + f" | {pct(macro(rows, 'pass@1'))} | "
             f"{pct(macro(rows, 'pass@3'))} | {number(stats.get('dataset_weight_mass_ratio'))} | "
             f"{number(stats.get('trace_budget_std'))} | {number(stats.get('weight_p10'))} | "
             f"{number(stats.get('weight_median'))} | {number(stats.get('weight_p90'))} |"

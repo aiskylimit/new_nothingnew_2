@@ -27,7 +27,8 @@ def main(argv: list[str] | None = None) -> None:
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     rows, markdown = [], ["# Qwen2.5-7B ALG tuning — tau=1, batch=8", "",
-                          "| Arm | lambda | clip | AIME24 p@1 | AIME25 p@1 | AMC12 p@1 | MATH500 p@1 | Avg p@1 | Avg p@3 | Status |",
+                          "Each benchmark cell is `pass@1 / pass@3`.", "",
+                          "| Arm | lambda | clip | AIME24 | AIME25 | AMC12 | MATH500 | Avg p@1 | Avg p@3 | Status |",
                           "|---|---:|---:|---:|---:|---:|---:|---:|---:|---|"]
     for arm in args.arms:
         match = ARM_RE.fullmatch(arm)
@@ -47,9 +48,12 @@ def main(argv: list[str] | None = None) -> None:
                     row[f"{name}_pass@1"] = scores[name]["pass@1"]
                     row[f"{name}_pass@3"] = scores[name]["pass@3"]
         rows.append(row)
-        p1 = [f"{row.get(f'{name}_pass@1', 0):.2%}" if name in scores else "-" for name in BENCHMARKS]
+        benchmark_scores = [
+            f"{row[f'{name}_pass@1']:.2%} / {row[f'{name}_pass@3']:.2%}" if name in scores else "-"
+            for name in BENCHMARKS
+        ]
         markdown.append(
-            f"| {arm} | {row['lambda']:.2f} | {row['clip']} | " + " | ".join(p1)
+            f"| {arm} | {row['lambda']:.2f} | {row['clip']} | " + " | ".join(benchmark_scores)
             + f" | {pct(row, 'avg_pass@1')} | {pct(row, 'avg_pass@3')} | {row['status']} |"
         )
     fields = ["arm", "lambda", "tau", "clip", "aime24_pass@1", "aime25_pass@1", "amc12_pass@1", "math500_pass@1",
