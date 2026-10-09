@@ -1,9 +1,7 @@
-#1 +3
-#iwc
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/results.zip
 #v2
 
-python -m zipfile -c results.zip results && ls -lh results.zip
+# python -m zipfile -c results.zip results && ls -lh results.zip
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json/ +a
 
