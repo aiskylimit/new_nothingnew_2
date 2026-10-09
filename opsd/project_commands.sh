@@ -22,6 +22,20 @@ export VLLM_GPU_MEMORY_UTILIZATION=0.6
 export GPU_MEMORY_UTILIZATION=0.9
 export MAIN_PROCESS_PORT=auto
 
+# Prepare only the datasets this run needs; keep already prepared data intact.
+if [[ ! -d "${PREPARED_DATA_ROOT}/train" ]]; then
+    python "${PROJECT_ROOT}/data/prepare_data.py" \
+        --raw_root "${RAW_DATA_ROOT}" \
+        --output_root "${PREPARED_DATA_ROOT}" \
+        --only_train
+fi
+if [[ ! -d "${PREPARED_DATA_ROOT}/eval/aime26" ]]; then
+    python "${PROJECT_ROOT}/data/prepare_data.py" \
+        --raw_root "${RAW_DATA_ROOT}" \
+        --output_root "${PREPARED_DATA_ROOT}" \
+        --only_eval aime26
+fi
+
 # Evaluate only AIME26 at seed 42 without replacing existing results.
 export EVAL_SEED=42
 export OVERWRITE_EVAL=0
