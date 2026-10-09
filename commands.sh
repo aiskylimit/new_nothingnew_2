@@ -1,4 +1,4 @@
-#2 -0-20
+#1 +10
 #v1
 
 # cd SpectralGuidedLearning && python -m zipfile -c results.zip results && ls -lh results.zip
@@ -34,7 +34,9 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash ./project_commands.sh
 
-# cd ./talas_vlm_embed
+cd ./talas_vlm_embed
+JSON_FILTER_DESTINATION="${JSON_FILTER_DESTINATION:-./MMEB-evaloutputs-json}"
+python json_filter.py ./MMEB-eval_outputs "${JSON_FILTER_DESTINATION}" --overwrite
 # bash ./project_commands.sh
 
 # cd ./OpenED
