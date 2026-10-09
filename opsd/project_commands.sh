@@ -15,7 +15,7 @@ export RESULTS_ROOT="${BASE_DIR}/results/seed42"
 export HF_HOME="${BASE_DIR}/.cache/huggingface"
 
 # Two-GPU training and evaluation allocation.
-export CUDA_VISIBLE_DEVICES="0,1"
+export CUDA_VISIBLE_DEVICES="2,3"
 export NUM_PROCESSES=2
 export EVAL_TENSOR_PARALLEL_SIZE=2
 export VLLM_GPU_MEMORY_UTILIZATION=0.6
@@ -41,6 +41,6 @@ export EVAL_SEED=42
 export OVERWRITE_EVAL=0
 
 for method in sft grpo; do
-    bash "${PROJECT_ROOT}/scripts/run_training.sh" "${method}" 4b
-    EVAL_DATASETS="aime26" bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 4b "${method}"
+    bash "${PROJECT_ROOT}/scripts/run_training.sh" "${method}" 8b
+    EVAL_DATASETS="aime26" bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b "${method}"
 done
