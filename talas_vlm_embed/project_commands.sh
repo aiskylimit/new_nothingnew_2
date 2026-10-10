@@ -54,12 +54,12 @@ source /mnt/local/uvenvs/talas-vlm-embed/bin/activate
 # CUDA_VISIBLE_DEVICES=7 bash ./scripts/train_distill_talas_jepa_cls.sh 1 1 10.0 0.4 &
 # CUDA_VISIBLE_DEVICES=7 bash ./scripts/train_distill_talas_jepa_cls.sh 1 1 10.0 0.6 &
 
-CUDA_VISIBLE_DEVICES=4 bash ./scripts/train_distill_talas_jepa_llava-ov_cls.sh 1 1 3.0 0.1 &
-CUDA_VISIBLE_DEVICES=5 bash ./scripts/train_distill_talas_jepa_llava-ov_cls.sh 1 1 1.0 0.1 &
-CUDA_VISIBLE_DEVICES=6 bash ./scripts/train_distill_talas_jepa_llava-ov_cls.sh 1 1 5.0 0.2 29 &
-CUDA_VISIBLE_DEVICES=7 bash ./scripts/train_distill_talas_jepa_cls.sh 1 1 10.0 0.3 &
-CUDA_VISIBLE_DEVICES=7 bash ./scripts/train_distill_talas_jepa_cls.sh 1 1 10.0 0.4 &
-CUDA_VISIBLE_DEVICES=7 bash ./scripts/train_distill_talas_jepa_cls.sh 1 1 10.0 0.1 &
+CUDA_VISIBLE_DEVICES=4 bash ./scripts/train_distill_talas_jepa_llava-ov_cls.sh 1 1 5.0 0.1 &
+CUDA_VISIBLE_DEVICES=5 bash ./scripts/train_distill_talas_jepa_llava-ov_cls.sh 1 1 10.0 0.1 &
+CUDA_VISIBLE_DEVICES=6 bash ./scripts/train_distill_talas_jepa_llava-ov_cls.sh 1 1 10.0 0.2 &
+CUDA_VISIBLE_DEVICES=7 bash ./scripts/train_distill_talas_jepa_cls.sh 1 1 5.0 0.3 &
+CUDA_VISIBLE_DEVICES=7 bash ./scripts/train_distill_talas_jepa_cls.sh 1 1 10.0 0.2 &
+CUDA_VISIBLE_DEVICES=7 bash ./scripts/train_distill_talas_jepa_cls.sh 1 1 5.0 0.1 &
 
 wait
 
@@ -67,6 +67,6 @@ wait
 # 9. Copy JSON eval outputs
 # =========================
 
-JSON_FILTER_DESTINATION="${JSON_FILTER_DESTINATION:-./MMEB-evaloutputs-json}"
+JSON_FILTER_DESTINATION="${JSON_FILTER_DESTINATION:-./MMEB-evaloutputs-json-v2}"
 
-python json_filter.py ./MMEB-eval_outputs "${JSON_FILTER_DESTINATION}" --overwrite
+python json_filter.py ./MMEB-eval_outputs-v2 "${JSON_FILTER_DESTINATION}" --overwrite
