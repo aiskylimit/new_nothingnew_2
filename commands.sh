@@ -1,6 +1,6 @@
-#2
+#2 -0-10
 #opsd
-#v1 
+#v2
 
 
 # cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
