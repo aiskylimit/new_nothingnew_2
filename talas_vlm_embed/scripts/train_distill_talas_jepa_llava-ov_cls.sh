@@ -175,7 +175,43 @@ EVAL_OUTPUT="./MMEB-eval_outputs-v2/llava_ov-0.5B_cls_${EXP_NAME}/"
 
 python eval_mmeb.py \
     --model_name "$MODEL" \
-    --encode_output_path "${EVAL_OUTPUT}/b8/" \
+    --encode_output_path "${EVAL_OUTPUT}/tiny_b4/" \
+    --lora True --lora_r 64 --lora_alpha 64 \
+    --pooling eos \
+    --model_backbone llava_onevision \
+    --normalize True \
+    --bf16 \
+    --dataset_name vlm2vec_eval/MMEB-eval \
+    --subset_name "${SUBSETS[@]}" \
+    --dataset_split test \
+    --per_device_eval_batch_size 4 \
+    --image_dir eval_images/ \
+    --tgt_prefix_mod \
+    --image_resolution "tiny" \
+    --load_pretrained_lora True \
+    --report_to none
+
+python eval_mmeb.py \
+    --model_name "$MODEL" \
+    --encode_output_path "${EVAL_OUTPUT}/tiny_b6/" \
+    --lora True --lora_r 64 --lora_alpha 64 \
+    --pooling eos \
+    --model_backbone llava_onevision \
+    --normalize True \
+    --bf16 \
+    --dataset_name vlm2vec_eval/MMEB-eval \
+    --subset_name "${SUBSETS[@]}" \
+    --dataset_split test \
+    --per_device_eval_batch_size 6 \
+    --image_dir eval_images/ \
+    --tgt_prefix_mod \
+    --image_resolution "tiny" \
+    --load_pretrained_lora True \
+    --report_to none
+
+python eval_mmeb.py \
+    --model_name "$MODEL" \
+    --encode_output_path "${EVAL_OUTPUT}/tiny_b8/" \
     --lora True --lora_r 64 --lora_alpha 64 \
     --pooling eos \
     --model_backbone llava_onevision \
@@ -187,7 +223,7 @@ python eval_mmeb.py \
     --per_device_eval_batch_size 8 \
     --image_dir eval_images/ \
     --tgt_prefix_mod \
-    --image_resolution "low" \
+    --image_resolution "tiny" \
     --load_pretrained_lora True \
     --report_to none
 
