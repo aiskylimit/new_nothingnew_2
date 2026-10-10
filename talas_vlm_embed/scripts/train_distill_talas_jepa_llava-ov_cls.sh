@@ -94,48 +94,48 @@ echo "OUTPUT_DIR:"
 echo "  $OUTPUT_DIR"
 echo "============================================================"
 
-# torchrun --standalone \
-#     --nproc_per_node=$NUM_GPUS_PER_NODE $TRAIN_SCRIPT \
-#     --model_name models/llava-onevision-qwen2-0.5b-ov-hf \
-#     --lora True \
-#     --teacher_lora True \
-#     --lora_r 64 \
-#     --lora_alpha 64 \
-#     --model_backbone "llava_onevision" \
-#     --pooling "eos" \
-#     --dataset_name "vlm2vec_train/MMEB-train" \
-#     --subset_name "ImageNet_1K" "N24News" "HatefulMemes" "VOC2007" "SUN397" \
-#     --dataset_split "original" \
-#     --image_dir "vlm2vec_train/MMEB-train" \
-#     --percent_data 1.0 \
-#     --output_dir "$OUTPUT_DIR" \
-#     --per_device_train_batch_size 16 \
-#     --gradient_accumulation_steps 1 \
-#     --learning_rate 1e-4 \
-#     --num_train_epochs 1 \
-#     --bf16 \
-#     --save_total_limit 5 \
-#     --logging_steps 1 \
-#     --save_strategy "epoch" \
-#     --seed 42 \
-#     --weight_decay 0.01 \
-#     --normalize True \
-#     --lr_scheduler_type "constant" \
-#     --warmup_ratio 0.03 \
-#     --caching_dir "$CACHE_DIR" \
-#     --kd_loss_type "talas_jepa" \
-#     --image_resolution "tiny" \
-#     --projector_config_path "./config/projector_config_emo.json" \
-#     --projector_lr 5e-5 \
-#     --report_to None \
-#     --gmm_ckpt "gmm_training/B3_Qwen2_2B_cls/gmm.joblib" \
-#     --use_distill_loss "$DISTILL_LOSS_BOOL" \
-#     --use_sigreg_loss "$SIGREG_BOOL" \
-#     --kd_weight "$KD_WEIGHT" \
-#     --sigreg_weight "$SIGREG_WEIGHT" \
-#     --num_t "$NUM_T" \
-#     --t_max "$T_MAX" \
-#     --num_layers "$NUM_LAYER" 
+torchrun --standalone \
+    --nproc_per_node=$NUM_GPUS_PER_NODE $TRAIN_SCRIPT \
+    --model_name models/llava-onevision-qwen2-0.5b-ov-hf \
+    --lora True \
+    --teacher_lora True \
+    --lora_r 64 \
+    --lora_alpha 64 \
+    --model_backbone "llava_onevision" \
+    --pooling "eos" \
+    --dataset_name "vlm2vec_train/MMEB-train" \
+    --subset_name "ImageNet_1K" "N24News" "HatefulMemes" "VOC2007" "SUN397" \
+    --dataset_split "original" \
+    --image_dir "vlm2vec_train/MMEB-train" \
+    --percent_data 1.0 \
+    --output_dir "$OUTPUT_DIR" \
+    --per_device_train_batch_size 16 \
+    --gradient_accumulation_steps 1 \
+    --learning_rate 1e-4 \
+    --num_train_epochs 1 \
+    --bf16 \
+    --save_total_limit 5 \
+    --logging_steps 1 \
+    --save_strategy "epoch" \
+    --seed 42 \
+    --weight_decay 0.01 \
+    --normalize True \
+    --lr_scheduler_type "constant" \
+    --warmup_ratio 0.03 \
+    --caching_dir "$CACHE_DIR" \
+    --kd_loss_type "talas_jepa" \
+    --image_resolution "tiny" \
+    --projector_config_path "./config/projector_config_emo.json" \
+    --projector_lr 5e-5 \
+    --report_to None \
+    --gmm_ckpt "gmm_training/B3_Qwen2_2B_cls/gmm.joblib" \
+    --use_distill_loss "$DISTILL_LOSS_BOOL" \
+    --use_sigreg_loss "$SIGREG_BOOL" \
+    --kd_weight "$KD_WEIGHT" \
+    --sigreg_weight "$SIGREG_WEIGHT" \
+    --num_t "$NUM_T" \
+    --t_max "$T_MAX" \
+    --num_layers "$NUM_LAYER" 
 
 
 # ============================================================
@@ -184,7 +184,7 @@ python eval_mmeb.py \
     --dataset_name vlm2vec_eval/MMEB-eval \
     --subset_name "${SUBSETS[@]}" \
     --dataset_split test \
-    --per_device_eval_batch_size 4 \
+    --per_device_eval_batch_size 8 \
     --image_dir eval_images/ \
     --tgt_prefix_mod \
     --image_resolution "tiny" \
@@ -202,7 +202,7 @@ python eval_mmeb.py \
     --dataset_name vlm2vec_eval/MMEB-eval \
     --subset_name "${SUBSETS[@]}" \
     --dataset_split test \
-    --per_device_eval_batch_size 6 \
+    --per_device_eval_batch_size 14 \
     --image_dir eval_images/ \
     --tgt_prefix_mod \
     --image_resolution "tiny" \
@@ -220,7 +220,7 @@ python eval_mmeb.py \
     --dataset_name vlm2vec_eval/MMEB-eval \
     --subset_name "${SUBSETS[@]}" \
     --dataset_split test \
-    --per_device_eval_batch_size 8 \
+    --per_device_eval_batch_size 16 \
     --image_dir eval_images/ \
     --tgt_prefix_mod \
     --image_resolution "tiny" \
