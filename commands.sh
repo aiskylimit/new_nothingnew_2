@@ -1,11 +1,10 @@
-#1 +10
+#2 -0-3 +a
 #log
 #v2
 
 
 # cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
 nvidia-smi
-kill -9 187465
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
 
 
