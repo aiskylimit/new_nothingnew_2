@@ -14,8 +14,8 @@ Olmo3Attention/Olmo3MLP use q_proj/k_proj/v_proj/o_proj/gate_proj/up_proj/
 down_proj, byte-identical names to Qwen3, not assumed), lr=5e-6/
 max_grad_norm=0.1/gradient_checkpointing, checkpoint cadence
 20/25/40/50/60/75/80/100, eval protocol (30 problems x k=12 x
-{aime25,aime26,hmmt25} by default), unrestricted train+eval sampling recipe
-(temperature=1.0/top_p=1.0/top_k=-1), --skip-train/--skip-eval/--model-path/
+{aime25,aime26,hmmt25} by default), train sampling recipe (temperature=1.0/
+top_p=1.0/top_k=-1) and OLMo-3's own EVAL sampling (temperature=0.6/top_p=0.95), --skip-train/--skip-eval/--model-path/
 --vllm-gpu-memory-utilization/--training-steps offline mechanisms,
 TROPIC_TRAIN_DATA_PATH/TROPIC_EVAL_DATA_DIR env-var overrides, alpha=0.25/
 beta=0.1/epsilon=0.1 (fixed, not adaptive), top_k=64 (the ONLINE cluster's
@@ -195,8 +195,13 @@ CONFIG = dict(
     # online cluster's own tropic_g default (sparsified top-K, NOT the
     # full vocabulary).
     tropic_g=dict(epsilon=0.1, beta=0.1, top_k=64, default_mass=1e-5, alpha=args.alpha),
+    # EVAL sampling follows OLMo-3's own recommended/evaluated setting
+    # (temperature=0.6, top_p=0.95; Olmo 3 tech report App. A.8.1 and the
+    # Olmo-3-7B-Think model card). TRAIN rollouts above stay at temperature=1.0/
+    # top_p=1.0, which is how OlmoRL itself samples (Table 49 / Sec. 5).
+    # max_new_tokens=38912 is deliberately unchanged (OLMo's own cap is 32768).
     eval=dict(benchmarks=args.eval_benchmarks, num_problems=30, k=12,
-              max_new_tokens=38912, temperature=1.0, top_p=1.0, top_k=-1,
+              max_new_tokens=38912, temperature=0.6, top_p=0.95, top_k=-1,
               min_p=0.0, enable_thinking=True, gen_batch_size=4),
 )
 print(json.dumps(CONFIG, indent=2), flush=True)

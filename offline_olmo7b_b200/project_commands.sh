@@ -1,8 +1,9 @@
 #!/bin/bash
-# RLSD and SDPO on OLMo-3-7B-Think: trained from scratch on this B200 server, then evaluated.
-# Order: dry run -> train RLSD -> eval RLSD -> train SDPO -> eval SDPO -> aggregate.
+# TROPIC-G (top-64) on OLMo-3-7B-Think: trained from scratch on this B200 server, then evaluated.
+# Order: dry run -> train TROPIC -> eval each checkpoint -> aggregate.
 # Training: GPU 0 (main) + GPU 1 (vLLM rollout replica). Eval: GPUs 0,1 (vLLM replicas).
-# Outputs go to *_retrain directories so earlier results are kept.
+# Sampling: train rollouts temperature=1.0/top_p=1.0 (as OlmoRL), eval temperature=0.6/top_p=0.95 (OLMo-3's own eval setting).
+# Output goes to results_tropic_g_olmo7b so earlier results are kept.
 set -euo pipefail
 cd "$(dirname "$0")"
 ROOT="$(pwd)"
@@ -21,9 +22,14 @@ VLLM_GPU_IDS="1"
 EVAL_VLLM_GPU_IDS="0,1"
 VLLM_BASE_PORT=8100
 VLLM_EXECUTABLE="vllm"
-GPU_MEM_UTIL=0.9
+GPU_MEM_UTIL=0.95
 VLLM_MAX_MODEL_LEN=41000
-CHECKPOINTS="25 50 75 100"
+# TROPIC saves 10/15/20/25/40/50/60/75/80/100; each eval takes hours, so only these are evaluated.
+# Add steps here (e.g. "10 15") to evaluate more; finished evals are skipped on re-run.
+CHECKPOINTS="20 25 40 50 75 100"
+SCRIPT="run_tropic_g_topk64_olmo7b.py"
+TAG="tropic_g_topk64_olmo"
+OUT_DIR="results_tropic_g_olmo7b"
 BENCHMARKS="aime25 aime26 hmmt25"
 
 train() {
@@ -66,23 +72,20 @@ eval_checkpoint() {
       2>&1 | tee "$log"
 }
 
-train_dry_run run_rlsd_experiment_olmo7b.py results_rlsd_olmo7b_retrain
+train_dry_run "$SCRIPT" "$OUT_DIR"
 
-train run_rlsd_experiment_olmo7b.py results_rlsd_olmo7b_retrain
-for step in $CHECKPOINTS; do eval_checkpoint run_rlsd_experiment_olmo7b.py rlsd results_rlsd_olmo7b_retrain "$step"; done
-
-train run_sdpo_experiment_olmo7b.py results_sdpo_olmo7b_retrain
-for step in $CHECKPOINTS; do eval_checkpoint run_sdpo_experiment_olmo7b.py sdpo results_sdpo_olmo7b_retrain "$step"; done
+train "$SCRIPT" "$OUT_DIR"
+for step in $CHECKPOINTS; do eval_checkpoint "$SCRIPT" "$TAG" "$OUT_DIR" "$step"; done
 
 python - <<'PYEOF'
 import glob, json, re
 
 pattern = re.compile(
-    r"\[(?P<tag>[A-Za-z]+)_step(?P<step>\d+)[^\]]*\]\s+(?P<bench>aime25|aime26|hmmt25)\s+"
+    r"\[(?P<tag>[A-Za-z0-9_]+?)_step(?P<step>\d+)[^\]]*\]\s+(?P<bench>aime25|aime26|hmmt25)\s+"
     r"avg@12=(?P<avg>[\d.]+)\s+pass@12=(?P<pass_>[\d.]+)"
 )
 rows = []
-for path in sorted(glob.glob("results_*_retrain_eval_step*.log")):
+for path in sorted(glob.glob("results_tropic_*_eval_step*.log")):
     text = open(path, encoding="utf-8", errors="replace").read()
     for m in pattern.finditer(text):
         rows.append({
@@ -93,9 +96,9 @@ for path in sorted(glob.glob("results_*_retrain_eval_step*.log")):
 with open("final_results.json", "w") as f:
     json.dump(rows, f, indent=2)
 
-print(f"{'tag':<8} {'step':>4}  {'benchmark':<8} {'avg@12':>7} {'pass@12':>8}")
+print(f"{'tag':<24} {'step':>4}  {'benchmark':<8} {'avg@12':>7} {'pass@12':>8}")
 for r in rows:
-    print(f"{r['tag']:<8} {r['step']:>4}  {r['benchmark']:<8} {r['avg@12']:>7.3f} {r['pass@12']:>8.3f}")
+    print(f"{r['tag']:<24} {r['step']:>4}  {r['benchmark']:<8} {r['avg@12']:>7.3f} {r['pass@12']:>8.3f}")
 print(f"\n{len(rows)} rows written to final_results.json")
 PYEOF
 
