@@ -1,4 +1,4 @@
-#1 +50
+#2 -0-10
 #ltf
 #v1
 
@@ -25,8 +25,8 @@ export NCCL_DEBUG=WARN
 # cd OPSD
 # tar -czf - ./results/raw/ | split -b 24M - ./res_tar/opsd_2.tar.gz.part-
 
-cd ./learn2follow
-bash ./project_commands.sh
+# cd ./learn2follow
+# bash ./project_commands.sh
 
 # cd ./VLM_Distillation-main
 # bash project_commands_collect_eval_summary.sh
