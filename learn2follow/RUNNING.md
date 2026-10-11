@@ -17,7 +17,8 @@ bash project_commands.sh
 ```
 
 Defaults: GPUs `2,3`, Qwen3-8B, hard teacher selection with final-answer
-masking, 5 FULL warmup steps, 100 updates, checkpoint evaluation at 25/50/75/100,
+masking, 0 FULL warmup steps, 16 duel controls from a pool of 128,
+100 updates, checkpoint evaluation at 25/50/75/100,
 AIME25, AIME26 and HMMT25, training/evaluation seed 42, 12 samples per evaluation problem.
 Training uses two workers with microbatch 1 and accumulation 16 (effective batch 32).
 Evaluation uses tensor parallel size 2.

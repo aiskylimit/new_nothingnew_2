@@ -19,8 +19,12 @@ export RUN_ROOT="${RUN_ROOT:-${BASE_DIR}/outputs}"
 export CONFIG="${CONFIG:-adaptive_graph_ftrl_redesign/configs/hard_experiment.yaml}"
 export MAX_STEPS="${MAX_STEPS:-100}"
 export SAVE_EVERY="${SAVE_EVERY:-25}"
+# Match graph_hard_ftl_every_step_50's warmup and duel-scoring recipe.
+export WARMUP_STEPS="${WARMUP_STEPS:-0}"
+export DUEL_PROBLEMS="${DUEL_PROBLEMS:-16}"
 export TRAIN_SEED="${TRAIN_SEED:-42}"
 export EVAL_SEED="${EVAL_SEED:-42}"
+export EVAL_STEPS="${EVAL_STEPS:-25,50,75,100}"
 export EVAL_DATASETS="${EVAL_DATASETS:-aime25,aime26,hmmt25}"
 export EVAL_GPU_MEMORY_UTILIZATION="${EVAL_GPU_MEMORY_UTILIZATION:-0.9}"
 
@@ -34,6 +38,9 @@ if [[ ! -d "${MODEL_PATH}" ]]; then
 fi
 
 uv sync --frozen --extra cuda --group dev
+# This launcher trains first, then evaluates every EVAL_STEPS checkpoint on
+# every EVAL_DATASETS benchmark (comma-separated lists), using the saved model
+# path in the run manifest, seed 42, 12 samples/problem and tensor parallel 2.
 bash adaptive_graph_ftrl_redesign/scripts/train_adaptive_graph_ftrl.sh \
     --model="${MODEL_PATH}" --gradient-accumulation-steps=16 "$@"
 
