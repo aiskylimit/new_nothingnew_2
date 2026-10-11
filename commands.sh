@@ -1,5 +1,5 @@
-#2 -10 +a
-#opsd
+#1 +75
+#opsd-8b
 #v1
 
 
@@ -33,8 +33,8 @@ export NCCL_DEBUG=WARN
 # cd ./offline_olmo7b_b200
 # bash ./project_commands.sh
 
-# cd ./opsd
-# bash ./project_commands.sh
+cd ./opsd
+bash ./project_commands.sh
 
 # cd ./talas_vlm_embed
 # bash ./project_commands.sh

@@ -10,14 +10,17 @@ BASE_DIR="/mnt/local/${PROJECT_NAME}/OPSD"
 export MODEL_ROOT="${BASE_DIR}/models"
 export RAW_DATA_ROOT="${BASE_DIR}/data/raw"
 export PREPARED_DATA_ROOT="${BASE_DIR}/data/processed"
-export OUTPUT_ROOT="${BASE_DIR}/outputs"
-export RESULTS_ROOT="${BASE_DIR}/results/seed42"
+RUN_TAG="sft_qwen3_8b_4gpu_$(date +%Y%m%d_%H%M%S)_$$"
+export OUTPUT_ROOT="${BASE_DIR}/outputs/${RUN_TAG}"
+export RESULTS_ROOT="${BASE_DIR}/results/seed42/${RUN_TAG}"
 export HF_HOME="${BASE_DIR}/.cache/huggingface"
 
-# Two-GPU training and evaluation allocation.
-export CUDA_VISIBLE_DEVICES="2,3"
-export NUM_PROCESSES=2
-export EVAL_TENSOR_PARALLEL_SIZE=2
+# Four-GPU SFT training: 4 examples x 4 GPUs x 2 accumulation = batch 32.
+export CUDA_VISIBLE_DEVICES="0,1,2,3"
+export NUM_PROCESSES=4
+export PER_DEVICE_BATCH_8B=4
+export GRADIENT_ACCUMULATION_8B=2
+export EVAL_TENSOR_PARALLEL_SIZE=4
 export VLLM_GPU_MEMORY_UTILIZATION=0.6
 export GPU_MEMORY_UTILIZATION=0.9
 export MAIN_PROCESS_PORT=auto
@@ -36,11 +39,13 @@ if [[ ! -d "${PREPARED_DATA_ROOT}/eval/aime26" ]]; then
         --only_eval aime26
 fi
 
-# Evaluate only AIME26 at seed 42 without replacing existing results.
+# Fresh SFT training followed by AIME26 evaluation at seed 42.
+export SEED=42
 export EVAL_SEED=42
+export EVAL_VAL_N=12
 export OVERWRITE_EVAL=0
 
-for method in sft grpo; do
-    bash "${PROJECT_ROOT}/scripts/run_training.sh" "${method}" 8b
-    EVAL_DATASETS="aime26" bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b "${method}"
-done
+echo "Training output: ${OUTPUT_ROOT}"
+echo "Evaluation results: ${RESULTS_ROOT}"
+bash "${PROJECT_ROOT}/scripts/run_training.sh" sft 8b
+EVAL_DATASETS="aime26" bash "${PROJECT_ROOT}/eval/run_eval_matrix.sh" 8b sft
