@@ -1,5 +1,5 @@
-#1 +90
-#tropic
+#i learn2follow.txt
+#ltf
 #v1
 
 # cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
