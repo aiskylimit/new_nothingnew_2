@@ -3,15 +3,15 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${PROJECT_ROOT}"
+source /mnt/local/uvenvs/learn2follow/bin/activate
 
 PROJECT_NAME="${PROJECT_NAME:-aiskylimit_new_nothingnew_2}"
 BASE_DIR="${BASE_DIR:-/mnt/local/${PROJECT_NAME}/learn2follow}"
 export HF_HOME="${HF_HOME:-${BASE_DIR}/.cache/huggingface}"
-export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-/mnt/local/uvenvs/learn2follow}"
-export UV_CACHE_DIR="${UV_CACHE_DIR:-${BASE_DIR}/.cache/uv}"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-2,3}"
 export NUM_PROCESSES=2
-export PYTHON_BIN="${UV_PROJECT_ENVIRONMENT}/bin/python"
+export PYTHON_BIN="$(command -v python)"
+export EVAL_LAUNCHER=python
 
 export MODEL_PATH="${MODEL_PATH:-${BASE_DIR}/models/Qwen3-8B}"
 export DATASET_JSONL="${DATASET_JSONL:-${BASE_DIR}/data/hypergraph_openthoughts30k_operations_v3.jsonl}"
@@ -37,7 +37,6 @@ if [[ ! -d "${MODEL_PATH}" ]]; then
     exit 1
 fi
 
-uv sync --frozen --extra cuda --group dev
 # This launcher trains first, then evaluates every EVAL_STEPS checkpoint on
 # every EVAL_DATASETS benchmark (comma-separated lists), using the saved model
 # path in the run manifest, seed 42, 12 samples/problem and tensor parallel 2.

@@ -30,8 +30,10 @@ Example overrides:
 MAX_STEPS=100 EVAL_DATASETS=aime25,aime26 bash project_commands.sh
 ```
 
-`project_commands.sh` installs the locked Python 3.13 CUDA environment under
-`/mnt/local/uvenvs/learn2follow`. Model/data/cache/output storage defaults to
+Install the locked Python 3.13 CUDA environment separately under
+`/mnt/local/uvenvs/learn2follow`. `project_commands.sh` activates that existing
+environment and uses Python directly for training and evaluation.
+Model/data/cache/output storage defaults to
 `/mnt/local/aiskylimit_new_nothingnew_2/learn2follow`.
 Each training launch creates a unique run directory under `outputs/`; the
 original launcher logs its resolved path and writes `config.yaml` and
@@ -45,11 +47,11 @@ The retained automatic evaluator writes results relative to this source folder:
 From this folder after environment installation:
 
 ```bash
-export UV_PROJECT_ENVIRONMENT=/mnt/local/uvenvs/learn2follow
-CUDA_VISIBLE_DEVICES=2,3 uv run --frozen python \
+source /mnt/local/uvenvs/learn2follow/bin/activate
+CUDA_VISIBLE_DEVICES=2,3 python \
   -m adaptive_graph_ftrl_redesign.evaluate \
   --run-dir /path/to/saved/run --steps 25,50,75,100 \
-  --datasets aime25,aime26,hmmt25 --seed 42
+  --datasets aime25,aime26,hmmt25 --seed 42 --launcher python
 ```
 
 The annotated training input, model weights, and datasets are external assets.

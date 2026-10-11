@@ -29,6 +29,7 @@ if (( TRAIN_STATUS != 0 )); then
   echo "WARNING: training launcher exited ${TRAIN_STATUS} after verified completion. Evaluating saved checkpoints; the final exit code will retain the training failure." >&2
 fi
 "$PYTHON_BIN" -m adaptive_graph_ftrl_redesign.evaluate --run-dir "$RUN_DIR" \
+  --launcher "${EVAL_LAUNCHER:-se-opsd}" \
   --steps "${EVAL_STEPS:-25,50,75,100}" --datasets "${EVAL_DATASETS:-aime25}" \
   --gpus "$CUDA_VISIBLE_DEVICES" --seed "${EVAL_SEED:-42}" \
   --gpu-memory-utilization "${EVAL_GPU_MEMORY_UTILIZATION:-0.9}"
