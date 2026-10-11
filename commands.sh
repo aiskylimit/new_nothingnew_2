@@ -1,6 +1,6 @@
-#2 -0-10
-#opsd-8b
-#v2
+#1 +75
+#tropic
+#v1
 
 # cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
 nvidia-smi
@@ -29,8 +29,8 @@ export NCCL_DEBUG=WARN
 # bash project_commands_collect_eval_summary.sh
 # bash project_commands.sh
 
-# cd ./offline_olmo7b_b200
-# bash ./project_commands.sh
+cd ./offline_olmo7b_b200
+bash ./project_commands.sh
 
 # cd ./opsd
 # bash ./project_commands.sh
