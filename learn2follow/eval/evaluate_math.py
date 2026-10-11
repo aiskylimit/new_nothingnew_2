@@ -1,9 +1,10 @@
 import argparse
 import json
+import os
 from pathlib import Path
 import time
 
-from datasets import load_dataset
+from datasets import DatasetDict, load_from_disk
 from transformers import AutoTokenizer
 from vllm import LLM, SamplingParams
 
@@ -202,6 +203,7 @@ def evaluate_math500(
     checkpoint_dir: str | None = None,
     tensor_parallel_size: int = 1,
     max_model_len: int | None = None,
+    dataset_dir: str | None = None,
 ):
     """
     Evaluate model on MATH500 or other datasets using Qwen3 thinking mode with best practices.
@@ -236,36 +238,16 @@ def evaluate_math500(
     print(f"Val-N (solutions per problem): {val_n}")
     print(f"{'='*70}\n")
 
-    print(f"Loading {dataset_name.upper()} dataset...")
-    # Load dataset based on dataset_name
-    if dataset_name.lower() == "math500":
-        dataset = load_dataset("HuggingFaceH4/MATH-500", split="test")
-        print(f"Loaded HuggingFaceH4/MATH-500 dataset with {len(dataset)} problems")
-    elif dataset_name.lower() == "amo-bench":
-        dataset = load_dataset("meituan-longcat/AMO-Bench", split="test")
-        print(f"Loaded meituan-longcat/AMO-Bench dataset with {len(dataset)} problems")
-    elif dataset_name.lower() == "minerva":
-        dataset = load_dataset("math-ai/minervamath", split="test")
-        print(f"Loaded minerva dataset with {len(dataset)} problems")
-    elif dataset_name.lower() == "amc23":
-        dataset = load_dataset("math-ai/amc23", split="test")
-        print(f"Loaded amc 23 dataset with {len(dataset)} problems")
-    elif dataset_name.lower() == "aime24":
-        dataset = load_dataset("HuggingFaceH4/aime_2024", split="train")
-        print(f"Loaded HuggingFaceH4/aime_2024 dataset with {len(dataset)} problems")
-    elif dataset_name.lower() == "aime25":
-        dataset = load_dataset("yentinglin/aime_2025", split="train", trust_remote_code=True)
-        print(f"Loaded yentinglin/aime_2025 dataset with {len(dataset)} problems")
-    elif dataset_name.lower() == "aime26":
-        dataset = load_dataset("MathArena/aime_2026", split="train")
-        print(f"Loaded MathArena/aime_2026 dataset with {len(dataset)} problems")
-    elif dataset_name.lower() == "hmmt25":
-        dataset = load_dataset("MathArena/hmmt_feb_2025", split="train", trust_remote_code=True)
-        print(f"Loaded MathArena/hmmt_feb_2025 dataset with {len(dataset)} problems")
-    else:
-        raise ValueError(
-            f"Unknown dataset: {dataset_name}. Choose 'math500', 'amo-bench', 'aime24', 'aime25', 'aime26', 'hmmt25', 'minerva', or 'amc23'"
-        )
+    dataset_dir = dataset_dir or os.environ.get("EVAL_DATASET_DIR")
+    if not dataset_dir:
+        raise ValueError("dataset_dir or EVAL_DATASET_DIR is required for offline evaluation")
+    dataset_path = Path(dataset_dir).expanduser().resolve() / dataset_name.lower()
+    if not dataset_path.is_dir():
+        raise FileNotFoundError(f"Prepared evaluation dataset does not exist: {dataset_path}")
+    dataset = load_from_disk(str(dataset_path))
+    if isinstance(dataset, DatasetDict):
+        dataset = dataset["train"]
+    print(f"Loaded {len(dataset)} problems from {dataset_path}")
 
     # Limit to num_samples if specified
     if num_samples:
@@ -328,7 +310,11 @@ def evaluate_math500(
 
     for example in dataset:
         # Handle different dataset formats
-        if dataset_name.lower() == "amo-bench":
+        if "problem_id" in example:
+            problem = example["problem"]
+            gt_answer = str(example["answer"])
+            question_id = example["problem_id"]
+        elif dataset_name.lower() == "amo-bench":
             problem = example["prompt"]
             gt_answer = example["answer"]
             question_id = example.get("question_id", None)
@@ -691,6 +677,8 @@ def main():
         "--val_n", type=int, default=6, help="Number of solutions to sample per problem (default: 6)"
     )
     parser.add_argument("--seed", type=int, default=42, help="vLLM sampling seed")
+    parser.add_argument("--dataset_dir", default=os.environ.get("EVAL_DATASET_DIR"),
+                        help="Root containing prepared local benchmark directories")
 
     args = parser.parse_args()
 
@@ -802,6 +790,7 @@ def main():
         checkpoint_dir=args.checkpoint_dir,
         tensor_parallel_size=args.tensor_parallel_size,
         max_model_len=llm.llm_engine.model_config.max_model_len,
+        dataset_dir=args.dataset_dir,
     )
 
     print("\n" + "=" * 70)

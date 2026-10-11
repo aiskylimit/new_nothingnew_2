@@ -18,6 +18,7 @@ def main(default_launcher="python"):
     parser.add_argument("--gpus", default=os.environ.get("CUDA_VISIBLE_DEVICES", "0,1,2,3"))
     parser.add_argument("--seed", type=int)
     parser.add_argument("--model")
+    parser.add_argument("--dataset-dir", default=os.environ.get("EVAL_DATASET_DIR"))
     parser.add_argument("--max-new-tokens", type=int)
     parser.add_argument("--gpu-memory-utilization", type=float)
     parser.add_argument("--launcher", choices=["python", "se-opsd"], default=default_launcher)
@@ -30,6 +31,7 @@ def main(default_launcher="python"):
     settings = {
         "gpus": args.gpus,
         "launcher": args.launcher,
+        "dataset_dir": args.dataset_dir,
         "seed": args.seed if args.seed is not None else config.get("eval_seed", 42),
         "model": args.model or config.get("model", "Qwen/Qwen3-4B"),
         "max_new_tokens": args.max_new_tokens or config.get("eval_max_new_tokens", 38912),

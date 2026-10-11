@@ -3,6 +3,7 @@ teacher_selection: hard
 mask_teacher_include_final_answer: true
 seed: 42
 eval_seed: 42
+benchmark_tasks: [aime25, aime26, hmmt25]
 total_updates: 75
 save_every: 25
 full_opsd_warmup_steps: 5

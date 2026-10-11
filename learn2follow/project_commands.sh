@@ -15,6 +15,9 @@ export EVAL_LAUNCHER=python
 
 export MODEL_PATH="${MODEL_PATH:-${BASE_DIR}/models/Qwen3-8B}"
 export DATASET_JSONL="${DATASET_JSONL:-${BASE_DIR}/data/hypergraph_openthoughts30k_operations_v3.jsonl}"
+export RAW_DATA_ROOT="${RAW_DATA_ROOT:-${BASE_DIR}/data/raw}"
+export PREPARED_DATA_ROOT="${PREPARED_DATA_ROOT:-${BASE_DIR}/data/processed}"
+export EVAL_DATASET_DIR="${PREPARED_DATA_ROOT}/eval"
 export RUN_ROOT="${RUN_ROOT:-${BASE_DIR}/outputs}"
 export CONFIG="${CONFIG:-adaptive_graph_ftrl_redesign/configs/hard_experiment.yaml}"
 export MAX_STEPS="${MAX_STEPS:-100}"
@@ -36,6 +39,15 @@ if [[ ! -d "${MODEL_PATH}" ]]; then
     echo "Missing local model: ${MODEL_PATH}. See download.txt or set MODEL_PATH." >&2
     exit 1
 fi
+
+# Prepare benchmark data entirely from local snapshots, as in OPSD.
+for dataset in aime25 aime26 hmmt25; do
+    if [[ ! -d "${EVAL_DATASET_DIR}/${dataset}" ]]; then
+        "${PYTHON_BIN}" data/prepare_data.py \
+            --raw_root "${RAW_DATA_ROOT}" --output_root "${PREPARED_DATA_ROOT}" \
+            --only_eval "${dataset}"
+    fi
+done
 
 # This launcher trains first, then evaluates every EVAL_STEPS checkpoint on
 # every EVAL_DATASETS benchmark (comma-separated lists), using the saved model

@@ -80,7 +80,7 @@ class Config:
     eval_samples: int = 12
     eval_max_new_tokens: int = 38912
     eval_seed: int = 42
-    benchmark_tasks: tuple = ("aime24", "aime25")
+    benchmark_tasks: tuple = ("aime25", "aime26", "hmmt25")
 
     @property
     def probe_batch_size(self):

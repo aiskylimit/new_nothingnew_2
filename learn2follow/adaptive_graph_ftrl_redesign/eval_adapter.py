@@ -22,9 +22,11 @@ def eval_command(
     samples: int = 12,
     gpu_memory_utilization: float = 0.9,
     launcher: str = "python",
+    dataset_dir: str | None = None,
 ) -> tuple[list[str], dict[str, str]]:
     if not 0 < gpu_memory_utilization <= 1:
         raise ValueError("gpu_memory_utilization must be in (0, 1]")
+    dataset_args = ["--dataset_dir", dataset_dir] if dataset_dir else []
     if output_file is None:
         output_file = str(
             Path("full_masked_graph_opsd/outputs/evaluation")
@@ -40,7 +42,7 @@ def eval_command(
             "--enable_thinking",
             "--output_file",
             output_file,
-        ], {
+        ] + dataset_args, {
             "CUDA_VISIBLE_DEVICES": gpus,
             "MODEL_PATH": model,
             "CHECKPOINT_DIR": checkpoint_dir,
@@ -89,7 +91,7 @@ def eval_command(
         "--enable_thinking",
         "--output_file",
         output_file,
-    ], {"CUDA_VISIBLE_DEVICES": gpus}
+    ] + dataset_args, {"CUDA_VISIBLE_DEVICES": gpus}
 
 
 def run_eval(checkpoint_dir: str, dataset: str, output_log: str | None = None, **kwargs) -> int:

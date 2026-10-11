@@ -10,6 +10,7 @@ tests, evaluation launchers, documentation, and the dependency lockfile.
 2. Download `dvtiendat/hypergraph_operations_openthoughts_30k` using `download.txt`.
    This supplies the required operation-annotated JSONL at the launcher's default
    path. Alternatively, set `DATASET_JSONL` to an existing server copy.
+   Also download the three raw evaluation snapshots listed in `download.txt`.
 3. From this folder, run:
 
 ```bash
@@ -23,6 +24,13 @@ AIME25, AIME26 and HMMT25, training/evaluation seed 42, 12 samples per evaluatio
 Training uses two workers with microbatch 1 and accumulation 16 (effective batch 32).
 Evaluation uses tensor parallel size 2.
 The original evaluator records Avg@12, Pass@12 and detailed results.
+
+Before training, the launcher prepares local evaluation parquet files under
+`data/raw/eval/{aime25,aime26,hmmt25}` into `data/processed/eval/` using OPSD's
+`save_to_disk` layout. Training benchmark exclusion and evaluation read these
+directories with `load_from_disk`; no benchmark is loaded from the Hub.
+Override `RAW_DATA_ROOT` and `PREPARED_DATA_ROOT` to reuse existing local OPSD
+data. Existing prepared datasets are preserved.
 
 Example overrides:
 
@@ -48,6 +56,7 @@ From this folder after environment installation:
 
 ```bash
 source /mnt/local/uvenvs/learn2follow/bin/activate
+export EVAL_DATASET_DIR=/mnt/local/aiskylimit_new_nothingnew_2/learn2follow/data/processed/eval
 CUDA_VISIBLE_DEVICES=2,3 python \
   -m adaptive_graph_ftrl_redesign.evaluate \
   --run-dir /path/to/saved/run --steps 25,50,75,100 \
