@@ -1,4 +1,13 @@
-#i learn2follow.txt
+#d
+#datasets
+--hf-dataset dvtiendat/hypergraph_operations_openthoughts_30k /mnt/local/@PROJECT@/learn2follow/data
+--hf-dataset HuggingFaceH4/aime_2024 /mnt/local/@PROJECT@/learn2follow/data/raw/eval/aime24
+--hf-dataset yentinglin/aime_2025 /mnt/local/@PROJECT@/learn2follow/data/raw/eval/aime25
+--hf-dataset MathArena/aime_2026 /mnt/local/@PROJECT@/learn2follow/data/raw/eval/aime26
+--hf-dataset MathArena/hmmt_feb_2025 /mnt/local/@PROJECT@/learn2follow/data/raw/eval/hmmt25
+#models
+--hf Qwen/Qwen3-8B /mnt/local/@PROJECT@/learn2follow/models/Qwen3-8B
+
 #ltf
 #v1
 
@@ -29,8 +38,8 @@ export NCCL_DEBUG=WARN
 # bash project_commands_collect_eval_summary.sh
 # bash project_commands.sh
 
-cd ./offline_olmo7b_b200
-bash ./project_commands.sh
+# cd ./offline_olmo7b_b200
+# bash ./project_commands.sh
 
 # cd ./opsd
 # bash ./project_commands.sh
