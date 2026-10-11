@@ -1,4 +1,4 @@
-#1 +90
+#i tropic.txt
 #tropic
 #v1
 
