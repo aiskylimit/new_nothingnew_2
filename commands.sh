@@ -1,6 +1,6 @@
-#2 -0-10
-#ltf
-#v2
+#1 +50
+#gpu-check
+#v1
 
 # cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
 nvidia-smi
