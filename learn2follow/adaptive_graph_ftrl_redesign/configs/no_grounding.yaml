@@ -1,0 +1,3 @@
+variant: graph
+lambda_gt: 0.0
+output_dir: adaptive_graph_ftrl_redesign/outputs/no_grounding

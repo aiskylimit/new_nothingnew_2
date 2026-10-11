@@ -1,0 +1,3 @@
+variant: graph
+mask_teacher_include_final_answer: false
+output_dir: adaptive_graph_ftrl_redesign/outputs/graph_no_answer

@@ -1,0 +1,27 @@
+variant: graph
+teacher_selection: hard
+mask_teacher_include_final_answer: true
+seed: 42
+eval_seed: 42
+total_updates: 75
+save_every: 25
+full_opsd_warmup_steps: 5
+control_batch_size: 8
+control_pool_size: 128
+min_valid_controls: 8
+ftrl_rho: 0.9
+delta_rms_decay: 0.9
+delta_rms_floor: 1.0e-4
+delta_scaled_clip: 1.0
+window_steps: 5
+warmup_windows: 3
+controller_lr: 0.01
+exposure_temperature: 0.05
+lambda_gt: 0.01
+gamma_discount: 0.95
+effective_batch_size: 32
+gradient_accumulation_steps: 8
+learning_rate: 5.0e-6
+# Soft mode only; ignored by hard teacher selection.
+ftrl_eta: 3.0
+ftrl_min_weight: 0.02
