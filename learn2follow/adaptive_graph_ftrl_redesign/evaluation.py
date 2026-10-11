@@ -6,8 +6,22 @@ import argparse
 import json
 import os
 from pathlib import Path
+import tempfile
 
 from .eval_adapter import run_eval, shell_eval_line
+
+
+def prepare_eval_tempdir():
+    """Keep vLLM's UUID socket names within the Unix IPC path limit."""
+    current = os.environ.get("TMPDIR")
+    # Leave room for '/' plus a UUID and additional vLLM socket suffixes.
+    if current and Path(current).is_dir() and len(os.fsencode(str(Path(current).resolve()))) <= 60:
+        path = current
+    else:
+        path = tempfile.mkdtemp(prefix="l2f-eval-", dir="/tmp")
+    for name in ("TMPDIR", "TMP", "TEMP"):
+        os.environ[name] = path
+    return path
 
 
 def main(default_launcher="python"):
@@ -69,6 +83,9 @@ def main(default_launcher="python"):
         ),
         flush=True,
     )
+
+    if not args.dry_run:
+        print(f"Evaluation temporary directory: {prepare_eval_tempdir()}", flush=True)
 
     for step in [s.strip() for s in args.steps.split(",") if s.strip()]:
         ckpt = str(Path(args.run_dir) / f"checkpoint-{step}")

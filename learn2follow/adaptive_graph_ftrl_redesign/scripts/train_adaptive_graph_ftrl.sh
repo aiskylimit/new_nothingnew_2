@@ -10,7 +10,7 @@ if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
     '  CUDA_VISIBLE_DEVICES=0,1,2,3 TRAIN_SEED=42 EVAL_SEED=42' \
     '  EVAL_GPU_MEMORY_UTILIZATION=0.9' \
     '  RUN_ROOT=$HOME/dsd/outputs RUN_DIR=<new unique directory under RUN_ROOT>' \
-    '  EVAL_WORK_DIR=<short unique sibling .runtime directory> PYTHON_BIN=python' \
+    '  EVAL_WORK_DIR=<short unique /tmp/l2f-* directory> PYTHON_BIN=python' \
     '  CONFIG=adaptive_graph_ftrl_redesign/configs/hard_experiment.yaml' \
     'Optional overrides (unset = use YAML/default config):' \
     '  FTRL_RHO FTRL_ETA FTRL_MIN_WEIGHT DELTA_RMS_DECAY DELTA_RMS_FLOOR DELTA_SCALED_CLIP' \
@@ -105,7 +105,7 @@ export RUN_DIR="$resolved_run_dir"
 export CONFIG="$RUN_DIR/config.yaml"
 
 # Keep socket/temp paths short even when the descriptive output name is long.
-export EVAL_WORK_DIR="${EVAL_WORK_DIR:-$(dirname "$RUN_DIR")/.runtime/run-$$-$RANDOM}"
+export EVAL_WORK_DIR="${EVAL_WORK_DIR:-/tmp/l2f-${UID}-$$-$RANDOM}"
 mkdir -p "$RUN_DIR" "$EVAL_WORK_DIR"
 EVAL_WORK_DIR="$(cd "$EVAL_WORK_DIR" && pwd)"
 export TMPDIR="$EVAL_WORK_DIR/tmp"

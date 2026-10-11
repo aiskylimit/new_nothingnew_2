@@ -56,7 +56,7 @@ case "${ENABLE_THINKING:-1}" in
 esac
 
 # GCC and Python must receive TMPDIR before uv/vLLM start, not after imports.
-EVAL_WORK_DIR="${EVAL_WORK_DIR:-$RUN_DIR/eval_runtime}"
+EVAL_WORK_DIR="${EVAL_WORK_DIR:-/tmp/l2f-${UID}-$$-$RANDOM}"
 mkdir -p "$EVAL_WORK_DIR"
 EVAL_WORK_DIR="$(cd "$EVAL_WORK_DIR" && pwd)"
 export TMPDIR="$EVAL_WORK_DIR/tmp"

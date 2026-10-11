@@ -1,5 +1,5 @@
 #1 +50
-#gpu-check
+#ltf
 #v1
 
 # cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
@@ -25,8 +25,8 @@ export NCCL_DEBUG=WARN
 # cd OPSD
 # tar -czf - ./results/raw/ | split -b 24M - ./res_tar/opsd_2.tar.gz.part-
 
-# cd ./learn2follow
-# bash ./project_commands.sh
+cd ./learn2follow
+bash ./project_commands.sh
 
 # cd ./VLM_Distillation-main
 # bash project_commands_collect_eval_summary.sh
