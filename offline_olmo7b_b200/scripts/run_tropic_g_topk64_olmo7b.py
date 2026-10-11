@@ -398,6 +398,8 @@ def train_run_tropic_g(model, examples, cfg, tag, use_vllm_rollout=False, vllm_g
                 ckpt_dir = RESULTS_DIR / f"{tag}_checkpoint_step{step + 1}"
                 model.save_pretrained(str(ckpt_dir))
                 tick(f"[{tag}] checkpoint saved: {ckpt_dir}")
+                # Also persist the per-step logs at every checkpoint, so a crash mid-run keeps them.
+                (RESULTS_DIR / f"{tag}_train_logs.json").write_text(json.dumps(logs, indent=2))
 
             del last_generated_ids, last_log_old
             if step % 10 == 0:

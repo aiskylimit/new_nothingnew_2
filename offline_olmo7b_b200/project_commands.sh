@@ -24,9 +24,10 @@ VLLM_BASE_PORT=8100
 VLLM_EXECUTABLE="vllm"
 GPU_MEM_UTIL=0.95
 VLLM_MAX_MODEL_LEN=41000
-# TROPIC saves 10/15/20/25/40/50/60/75/80/100; each eval takes hours, so only these are evaluated.
-# Add steps here (e.g. "10 15") to evaluate more; finished evals are skipped on re-run.
-CHECKPOINTS="20 25 40 50 75 100"
+# Training saves checkpoints at steps 10/15/20/25/40/50/60/75/80/100 (CHECKPOINT_STEPS in the script).
+# Each eval takes hours, so only these steps are evaluated; edit the list to add/remove steps.
+# Finished evals are skipped on re-run.
+CHECKPOINTS="10 15 20 25 40 50 75 100"
 SCRIPT="run_tropic_g_topk64_olmo7b.py"
 TAG="tropic_g_topk64_olmo"
 OUT_DIR="results_tropic_g_olmo7b"
