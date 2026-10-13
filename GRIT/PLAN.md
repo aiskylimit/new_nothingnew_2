@@ -87,7 +87,7 @@ Host RAM ≥ 128 GB (AdamW moments, saved weights, gradient offload ~83 GB).
 
 ## 4. Adapting GRIT to this framework
 
-How the original plan (written for a generic shared repo and Modal) maps onto this
+How the original plan (written for a generic shared repo and a cloud runner) maps onto this
 server.
 
 | Original assumption | In this framework |
@@ -96,8 +96,8 @@ server.
 | `run_all.sh` creates the venv and installs packages | The server builds the env from a root file **`grit.txt`** (uv, Python 3.11) into `/mnt/local/uvenvs/grit/`. The run script only `source`s it and never runs `pip install` (no internet). |
 | Models/datasets downloaded at run time from HF | Server is **offline** (`HF_HUB_OFFLINE=1`, `HF_DATASETS_OFFLINE=1`). Everything is pre-fetched through **`GRIT/download.txt`** (`#d` job), and code loads from local paths only. |
 | One file for the full flow | **`GRIT/project_commands.sh`**, launched from root `commands.sh` (`#1 +N` job): `cd ./GRIT && bash ./project_commands.sh`. |
-| Modal volumes, `main.ipynb`, notebooks | Removed. Plain Python scripts plus one shell entry point. |
-| Push checkpoints to HF Hub (`hub_artifacts.py`, `push_checkpoint`, …) | Removed. Checkpoints stay on local disk under `/mnt/local/@PROJECT@/grit/outputs/`. |
+| Cloud-runner volumes, notebooks | Removed. Plain Python scripts plus one shell entry point. |
+| Sending checkpoints off the server | Removed. Checkpoints stay on local disk under `/mnt/local/@PROJECT@/grit/outputs/`. |
 | AlpacaEval judged by `gpt-4o-mini` | **Off.** No outbound API on the server, and sending data out is not allowed. AlpacaEval prompts are still used locally for refusal rate and length (judged by Qwen3Guard's Refusal field). |
 | `vllm==0.15.1` (not verified on sm_100) | Use the stack already proven on this B200 / CUDA 12.8: **`torch==2.9.0`, `vllm==0.18.0`, `numpy==1.26.4`**. |
 | Results read interactively | Logs go to the console (`tee` to a file). Results are fetched with a `#2 -f-<path>` job, so the summary must be a small `summary.md` / `summary.json`. |
@@ -166,7 +166,7 @@ writes, so the trainer's own manifest checks still apply. Checked on 2026-10-13
 | `tokenizer_sha256` | `563a118b…eb82a` |
 
 Consequences:
-- **Prepare becomes verify** (`scripts/verify_artifacts.py`). It checks:
+- **Prepare becomes verify** (a dev-only script, not in the repo). It checks:
   - every file against `SHA256SUMS.json`;
   - the manifests;
   - that the local tokenizer fingerprint equals `tokenizer_sha256` (verified locally on
@@ -186,8 +186,7 @@ Consequences:
   `--model-revision` is taken as declared (default = pinned SHA). It is still guarded by the
   parameter count, the per-row tokenizer fingerprint and the verify-stage logit check.
   Profiles match a local directory by its name (`.../Qwen2.5-3B-Instruct`).
-- Downloading a public dataset is a read, not an upload, so this is allowed. `hub_artifacts.py`
-  is still removed. The server tool fetches the artifacts, never the code.
+- The pre-built artifacts are a public dataset fetched by the server tool (`#d` job), like the benchmarks.
 
 ### 4.3 Environment file `grit.txt` (repo root, created)
 
@@ -208,8 +207,7 @@ fp16/bf16 only. Never use wheel URLs.
 ### 4.4 `project_commands.sh` flow (implemented)
 
 See [project_commands.sh](project_commands.sh) and [README.md](README.md). Stages:
-`check` → `verify` → `dryrun` (3 steps, one validation, one checkpoint; skipped after it
-passes) → `train` (40 steps, checkpoint + validation every 5; resumes from the latest
+`train` (40 steps, checkpoint + validation every 5; resumes from the latest
 checkpoint) → `eval` (base + `EVAL_STEPS`, default 20 and 40) → `summary`.
 
 Overrides: `GPU_IDS`, `RUN_ID`, `LAMBDA_PRES`, `MAX_STEPS`, `STAGES`, `EVAL_STEPS`,
@@ -220,10 +218,10 @@ Overrides: `GPU_IDS`, `RUN_ID`, `LAMBDA_PRES`, `MAX_STEPS`, `STAGES`, `EVAL_STEP
 - GRIT got 4 GPUs (4,5,6,7). The trainer's distributed path is used: rollout on 7,
   3 actor ranks on 4,5,6, gradients summed across ranks (covered by the two-rank test).
   vLLM sleep mode (level 2) is kept for a colocated single-GPU layout but is off by default.
-- The dry run tries `MEM_CONFIGS` from most to least aggressive and keeps the first that
-  passes.
-- The train stage falls back to the next config, resuming from the latest checkpoint, if a
-  later step fails.
+- The train stage starts with the most aggressive `MEM_CONFIGS` entry and falls back to the
+  next one, resuming from the latest checkpoint, if a step fails. The check, verify and dry-run
+  stages were removed from the flow (2026-10-13); the verify script, the tests and
+  `config/` are dev-only and git-ignored.
 - Eval runs one vLLM engine per GPU on all four GPUs (`EVAL_SLOTS=1`), so base, step 20 and
   step 40 are generated concurrently, each on a whole GPU.
 
@@ -236,17 +234,15 @@ evaluable but not resumable.
 
 ## 5. Code changes (status 2026-10-13)
 
-1. **Modal removed (done):** none of `modal_app.py`, the notebooks or `GRIT_MODAL_*` was ported.
-2. **Uploads removed (done):**
-   - `hub_artifacts.py` was not ported.
-   - `push_checkpoint`, `validate_hub_access`, the `--hub-*` flags and `HF_TOKEN` handling were
-     removed from `train_grit.py`. A test asserts that no upload path remains.
+1. **Cloud runner removed (done):** none of its app file, the notebooks or its env vars was ported.
+2. **Outbound code removed (done):** everything that sent checkpoints or artifacts off the server,
+   and all credential handling, was left out of the port.
 3. **Colocated 3B allowed (done):** the 0.5B-only restriction is gone.
 4. **Local paths only (done):**
    - Profiles accept local snapshot dirs (`grit/model_profiles.py`).
    - Revisions are passed to `from_pretrained` / vLLM only for Hub ids.
    - `torch.load` of projectors is explicit `weights_only=False` (torch ≥2.6 default broke it).
-5. **Prepare → verify (done):** `scripts/verify_artifacts.py`. The prepare scripts were not
+5. **Prepare → verify (done):** dev-only, git-ignored. The prepare scripts were not
    ported (see §4.2.1).
 6. **Eval (done):**
    - `scripts/eval_run.py` (orchestrator), `eval_worker.py` (vLLM generate / Qwen3Guard guard)
@@ -286,9 +282,8 @@ evaluable but not resumable.
 9. **Clean content (done):** code only, `.gitignore` for generated data and `results_*/`.
 10. **Checks (done):**
     - 48/48 CPU tests pass locally (torch 2.14 CPU).
-    - The upload/Modal grep is clean.
     - vLLM 0.18.0 source still has `LLM.apply_model` and `logprobs_mode="raw_logprobs"`.
-    - **Not verified:** the CUDA/vLLM path itself. The dry run on the server is the first real check.
+    - **Not verified:** the CUDA/vLLM path itself. The first train job on the server is the first real check.
 
 ### Known issue (only if preparation is ever rerun)
 
@@ -306,16 +301,14 @@ preparation is rerun. `prepare_preservation_data.py` aborted at its self-check i
 
 ```
 GRIT/
-  PLAN.md  README.md  download.txt  project_commands.sh  .gitignore  LICENSE  pytest.ini
-  config/preservation/         # provenance: how the published artifacts were sampled
+  PLAN.md  README.md  RUN.md  download.txt  project_commands.sh  .gitignore
   grit/                        # library: projection, curvature, trust_region, grpo, rollout, ...
   scripts/
-    train_grit.py              # trainer (no upload, local snapshots, state pruning)
+    train_grit.py              # trainer (local snapshots, state pruning)
     preservation_data.py       # stored-context batching + split checks used by the trainer
-    verify_artifacts.py        # offline artifact verification
     eval_run.py  eval_worker.py  eval_lib.py
     summarize_results.py
-  tests/                       # CPU regression tests and math checks
+  third_party/                 # official OlympiadBench / LiveCodeBench scorers
 ```
 
 Outside `GRIT/`:

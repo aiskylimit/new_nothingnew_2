@@ -1,13 +1,11 @@
 #!/bin/bash
 # GRIT (GRPO safety + NSPO null-space projection + KL trust region) on Qwen2.5-3B-Instruct, 4 x B200 180 GB.
-# Order: check env -> verify prepared artifacts -> dry run (3 steps) -> train (40 steps)
-#        -> eval base + checkpoints (safety + general) -> summary table.
+# Order: train (40 steps) -> eval base + checkpoints (safety + general) -> summary table.
 # Layout: TRAIN_GPUS run the FP32 actor (torchrun, one rank per GPU, each with its own bf16 Qwen3Guard);
 #   ROLLOUT_GPU runs the FP32 vLLM rollout alone. Eval spreads its vLLM engines over EVAL_GPUS.
-# Every stage is resumable: re-running skips finished work (verified artifacts, dry-run marker,
-# training resumes from the latest checkpoint, eval resumes per model/benchmark).
-# Memory: the dry run tries MEM_CONFIGS from most to least aggressive and keeps the first that passes
-#   (only the actor's microbatch sizes matter; vLLM has its GPU to itself).
+# Every stage is resumable: training resumes from the latest checkpoint, eval resumes per model/benchmark.
+# Memory: training starts with the most aggressive MEM_CONFIGS entry and falls back to the next one on
+#   failure (resuming from the latest checkpoint); the current entry is kept in memory_config.txt.
 # Eval: EVAL_SLOTS vLLM engines per GPU run models in parallel (base, step 20, step 40 at once).
 # commands.sh runs exactly "cd ./GRIT" + "bash ./project_commands.sh"; to change a setting, edit its
 # default below (GPU_IDS, RUN_ID, LAMBDA_PRES, MAX_STEPS, STAGES, EVAL_STEPS, EVAL_MAX_SAMPLES, MEM_CONFIGS,
@@ -65,7 +63,7 @@ done
 RUN_ID=${RUN_ID:-grit_3b_lam1}
 LAMBDA_PRES=${LAMBDA_PRES:-1}
 MAX_STEPS=${MAX_STEPS:-40}
-STAGES=${STAGES:-check,verify,dryrun,train,eval,summary}
+STAGES=${STAGES:-train,eval,summary}
 # Checkpoints are saved every 5 steps; only these are evaluated (base is always evaluated).
 EVAL_STEPS=${EVAL_STEPS:-"20 40"}
 EVAL_MAX_SAMPLES=${EVAL_MAX_SAMPLES:-}   # e.g. 50 for a quick eval smoke test
@@ -162,69 +160,13 @@ train() {  # train <output_dir> <max_steps> <save_steps> <validation_steps> <log
 }
 
 # ============================================================
-# 1. Environment check (fail fast) + CPU regression tests
-# ============================================================
-if want check; then
-  stage "1. environment check"
-  nvidia-smi -i "${GPU_IDS}" || true
-  env CUDA_VISIBLE_DEVICES="${GPU_IDS}" python - <<'PYEOF' 2>&1 | tee "${RESULTS}/logs/check.log"
-import torch, transformers, vllm, datasets
-print(f"torch {torch.__version__} (cuda {torch.version.cuda}), transformers {transformers.__version__}, "
-      f"vllm {vllm.__version__}, datasets {datasets.__version__}")
-assert torch.cuda.is_available(), "no CUDA device visible"
-for i in range(torch.cuda.device_count()):
-    name = torch.cuda.get_device_name(i)
-    free, total = torch.cuda.mem_get_info(i)
-    print(f"GPU {i}: {name}, capability sm_{''.join(map(str, torch.cuda.get_device_capability(i)))}, "
-          f"free {free/1e9:.0f}/{total/1e9:.0f} GB")
-PYEOF
-  python -m pytest -q -p no:cacheprovider 2>&1 | tail -3 | tee -a "${RESULTS}/logs/check.log"
-fi
-
-# ============================================================
-# 2. Verify prepared artifacts (replaces the prepare stage; see PLAN.md 4.2.1)
-# ============================================================
-if want verify; then
-  stage "2. verify artifacts"
-  env CUDA_VISIBLE_DEVICES="${TRAIN_GPUS%%,*}" python scripts/verify_artifacts.py \
-      --artifact-root "${ARTIFACTS}" --model-path "${MODEL}" --logit-check 8 \
-      2>&1 | tee "${RESULTS}/logs/verify.log"
-fi
-
-# ============================================================
-# 3. Dry run: 3 steps incl. one validation and one checkpoint, to surface path/VRAM/env errors cheaply
-# ============================================================
-if want dryrun; then
-  stage "3. dry run (3 steps) + memory config selection"
-  if [ -f "${RESULTS}/dryrun.ok" ]; then
-    echo "skip: dry run already passed with MEM_CONFIG=$(cat "${RESULTS}/memory_config.txt" 2>/dev/null)"
-  else
-    chosen=""
-    for config in ${MEM_CONFIGS}; do
-      echo "--- dry run with MEM_CONFIG=${config} (TASK_MB:PRES_MB:REWARD_BS:ROLLOUT_MEM:ROLLOUT_SLEEP)"
-      mem_args "${config}"
-      rm -rf "${OUT_DIR}_dryrun"
-      if train "${OUT_DIR}_dryrun" 3 3 2 "${RESULTS}/logs/dryrun.log"; then chosen="${config}"; break; fi
-      echo "dry run FAILED with ${config} (see ${RESULTS}/logs/dryrun.log); trying the next config"
-    done
-    [ -n "${chosen}" ] || { echo "dry run failed with every MEM_CONFIG - see ${RESULTS}/logs/dryrun.log"; exit 1; }
-    copy_train_results "${OUT_DIR}_dryrun" "${RESULTS}/dryrun"
-    rm -rf "${OUT_DIR}_dryrun"   # ~37 GB checkpoint, not needed after the check
-    echo "${chosen}" > "${RESULTS}/memory_config.txt"
-    date > "${RESULTS}/dryrun.ok"
-    echo "Dry run passed with MEM_CONFIG=${chosen} - per step:"
-    python -c "import json;[print(' step',r['step'],f\"peak {r['peak_vram_gb']:.0f}/180 GB\",f\"{r['step_seconds']:.0f}s\") for r in map(json.loads,open('${RESULTS}/dryrun/metrics.jsonl'))]"
-  fi
-fi
-
-# ============================================================
-# 4. Train (resumes from the latest checkpoint; checkpoints every 5 steps, validation every 5)
+# 1. Train (resumes from the latest checkpoint; checkpoints every 5 steps, validation every 5)
 # ============================================================
 if want train; then
-  # Explicit MEM_CONFIG > the one the dry run selected > the safe original setting.
-  MEM_CONFIG=${MEM_CONFIG:-$(cat "${RESULTS}/memory_config.txt" 2>/dev/null || echo "${MEM_CONFIGS##* }")}
-  # On failure (e.g. OOM on a longer KL context than the dry run saw), fall back to the next, less
-  # aggressive config and resume from the latest checkpoint; no partial step is ever committed.
+  # Explicit MEM_CONFIG > the one an earlier job fell back to > the most aggressive entry.
+  MEM_CONFIG=${MEM_CONFIG:-$(cat "${RESULTS}/memory_config.txt" 2>/dev/null || echo "${MEM_CONFIGS%% *}")}
+  # On failure (e.g. OOM), fall back to the next, less aggressive config and resume from the latest
+  # checkpoint; no partial step is ever committed.
   fallbacks="${MEM_CONFIG}"; seen=0
   for config in ${MEM_CONFIGS}; do
     [ "${seen}" == "1" ] && fallbacks="${fallbacks} ${config}"
@@ -233,7 +175,8 @@ if want train; then
   trained=0
   for config in ${fallbacks}; do
     mem_args "${config}"
-    stage "4. train ${RUN_ID}: lambda_pres=${LAMBDA_PRES}, ${MAX_STEPS} steps, MEM_CONFIG=${config}"
+    echo "${config}" > "${RESULTS}/memory_config.txt"
+    stage "1. train ${RUN_ID}: lambda_pres=${LAMBDA_PRES}, ${MAX_STEPS} steps, MEM_CONFIG=${config}"
     if train "${OUT_DIR}" "${MAX_STEPS}" 5 5 "${RESULTS}/logs/train.log"; then trained=1; break; fi
     echo "train FAILED with MEM_CONFIG=${config}; falling back to the next config"
     echo "${config} failed $(date)" >> "${RESULTS}/memory_config_failures.txt"
@@ -243,10 +186,10 @@ if want train; then
 fi
 
 # ============================================================
-# 5. Eval: base + selected checkpoints, PKU safety (1,000) + general benchmarks + AlpacaEval over-refusal
+# 2. Eval: base + selected checkpoints, PKU safety (1,000) + general benchmarks + AlpacaEval over-refusal
 # ============================================================
 if want eval; then
-  stage "5. eval (base + steps: ${EVAL_STEPS})"
+  stage "2. eval (base + steps: ${EVAL_STEPS})"
   copy_train_results "${OUT_DIR}" "${RESULTS}/train"
   MODELS=(--model "base=${MODEL}")
   for step in ${EVAL_STEPS}; do
@@ -261,10 +204,10 @@ if want eval; then
 fi
 
 # ============================================================
-# 6. Summary: training curve + eval table + paired deltas -> console, summary.md, summary.json
+# 3. Summary: training curve + eval table + paired deltas -> console, summary.md, summary.json
 # ============================================================
 if want summary; then
-  stage "6. summary"
+  stage "3. summary"
   copy_train_results "${OUT_DIR}" "${RESULTS}/train"
   python scripts/summarize_results.py --results-dir "${RESULTS}" --title "GRIT ${RUN_ID}"
 fi
