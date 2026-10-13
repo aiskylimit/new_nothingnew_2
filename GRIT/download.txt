@@ -14,3 +14,4 @@
 --hf-dataset Paul/XSTest /mnt/local/@PROJECT@/grit/data/raw/XSTest
 --url https://huggingface.co/datasets/bench-llm/or-bench/resolve/main/or-bench-hard-1k.csv /mnt/local/@PROJECT@/grit/data/raw/or-bench
 --url https://huggingface.co/datasets/bench-llm/or-bench/resolve/main/or-bench-toxic.csv /mnt/local/@PROJECT@/grit/data/raw/or-bench
+
