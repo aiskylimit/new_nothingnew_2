@@ -48,4 +48,4 @@ export NCCL_DEBUG=WARN
 
 
 cd ./grit
-# bash ./project_commands.sh
+bash ./project_commands.sh
