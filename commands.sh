@@ -46,7 +46,6 @@ export NCCL_DEBUG=WARN
 # cd SpectralGuidedLearning 
 # bash project_commands_qwen25_7b_l100_t1_c2_const.sh
 
-ls
+
 cd ./grit
-ls
 bash ./project_commands.sh
