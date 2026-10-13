@@ -44,10 +44,13 @@ export TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1 OMP_NUM_THREADS=${OMP_NUM
 # as is.
 # GPU_IDS: the B200s assigned to GRIT on the shared server. The last one is the vLLM rollout GPU, the
 # others train (one torchrun rank each; 321 prompts and 48 KL contexts are split across them).
+# A single GPU (e.g. GPU_IDS="4") switches to the colocated layout: actor + vLLM (sleep mode) on it.
 # Eval uses all of them. Change it here if needed.
 GPU_IDS="4,5,6,7"
 ROLLOUT_GPU=${GPU_IDS##*,}
 TRAIN_GPUS=${GPU_IDS%,*}
+COLOCATED=()
+if [[ "${GPU_IDS}" != *,* ]]; then COLOCATED=(--allow-colocated-rollout); fi
 NUM_TRAIN_GPUS=$(( $(tr -cd , <<< "${TRAIN_GPUS}" | wc -c) + 1 ))
 echo "GPU_IDS=${GPU_IDS}: train on ${TRAIN_GPUS} (${NUM_TRAIN_GPUS} ranks), rollout on ${ROLLOUT_GPU}"
 for gpu in ${GPU_IDS//,/ }; do
@@ -67,10 +70,16 @@ STAGES=${STAGES:-check,verify,dryrun,train,eval,summary}
 EVAL_STEPS=${EVAL_STEPS:-"20 40"}
 EVAL_MAX_SAMPLES=${EVAL_MAX_SAMPLES:-}   # e.g. 50 for a quick eval smoke test
 EVAL_GPUS=${EVAL_GPUS:-${GPU_IDS}}
-EVAL_SLOTS=${EVAL_SLOTS:-1}              # vLLM engines per eval GPU (3 models <= 4 GPUs: one whole GPU each)
+# vLLM engines per eval GPU: enough to run base, step 20 and step 40 at once.
+EVAL_SLOTS=${EVAL_SLOTS:-$(( (2 + $(tr -cd , <<< "${EVAL_GPUS}" | wc -c)) > 3 ? 1 : 3 ))}
 # Memory configs, TASK_MB:PRES_MB:REWARD_BS:ROLLOUT_MEM:ROLLOUT_SLEEP, most aggressive first.
 # ROLLOUT_MEM is vLLM's share of the dedicated rollout GPU; sleep mode is only useful when colocated.
-MEM_CONFIGS=${MEM_CONFIGS:-"16:4:64:0.85:0 8:2:32:0.85:0 4:1:16:0.85:0"}
+# Colocated: vLLM gets a smaller share and sleeps between rollouts; the last entry is the original setting.
+if [ ${#COLOCATED[@]} -gt 0 ]; then
+  MEM_CONFIGS=${MEM_CONFIGS:-"16:4:64:0.40:1 8:2:32:0.40:1 8:2:32:0.30:0"}
+else
+  MEM_CONFIGS=${MEM_CONFIGS:-"16:4:64:0.85:0 8:2:32:0.85:0 4:1:16:0.85:0"}
+fi
 OUT_DIR="${BASE_DIR}/outputs/${RUN_ID}"  # checkpoints (~12 GB each) stay on /mnt/local
 EVAL_WORK="${BASE_DIR}/eval/${RUN_ID}"   # generations, guard labels
 RESULTS="${ROOT}/results_${RUN_ID}"      # small files only: logs, metrics, eval results, summary
@@ -100,7 +109,7 @@ TRAIN_ARGS=(
   --model-path "${MODEL}" --safety-model-path "${GUARD}"
   --task-file "${TASK_FILE}" --preserve-file "${PRESERVE_FILE}" --evaluation-file "${EVAL_FILE}"
   --projectors-path "${PROJECTORS}" --projector-relaxation 0.05
-  --rollout-gpu "${ROLLOUT_GPU}"
+  --rollout-gpu "${ROLLOUT_GPU}" ${COLOCATED[@]+"${COLOCATED[@]}"}
   --rollout-dtype float32
   --task-batch-size 321 --preserve-batch-size 48
   --generations 5 --max-prompt-length 512 --max-response-length 256 --max-preserve-length 2304
