@@ -166,7 +166,7 @@ writes, so the trainer's own manifest checks still apply. Checked on 2026-10-13
 | `tokenizer_sha256` | `563a118b…eb82a` |
 
 Consequences:
-- **Prepare becomes verify** (`scripts/verify_artifacts.py`). It checks:
+- **Prepare becomes verify** (a dev-only script, not in the repo). It checks:
   - every file against `SHA256SUMS.json`;
   - the manifests;
   - that the local tokenizer fingerprint equals `tokenizer_sha256` (verified locally on
@@ -220,8 +220,8 @@ Overrides: `GPU_IDS`, `RUN_ID`, `LAMBDA_PRES`, `MAX_STEPS`, `STAGES`, `EVAL_STEP
   vLLM sleep mode (level 2) is kept for a colocated single-GPU layout but is off by default.
 - The train stage starts with the most aggressive `MEM_CONFIGS` entry and falls back to the
   next one, resuming from the latest checkpoint, if a step fails. The check, verify and dry-run
-  stages were removed from the flow (2026-10-13); `verify_artifacts.py` and the tests stay as
-  manual tools.
+  stages were removed from the flow (2026-10-13); the verify script, the tests and
+  `config/` are dev-only and git-ignored.
 - Eval runs one vLLM engine per GPU on all four GPUs (`EVAL_SLOTS=1`), so base, step 20 and
   step 40 are generated concurrently, each on a whole GPU.
 
@@ -242,7 +242,7 @@ evaluable but not resumable.
    - Profiles accept local snapshot dirs (`grit/model_profiles.py`).
    - Revisions are passed to `from_pretrained` / vLLM only for Hub ids.
    - `torch.load` of projectors is explicit `weights_only=False` (torch ≥2.6 default broke it).
-5. **Prepare → verify (done):** `scripts/verify_artifacts.py`. The prepare scripts were not
+5. **Prepare → verify (done):** dev-only, git-ignored. The prepare scripts were not
    ported (see §4.2.1).
 6. **Eval (done):**
    - `scripts/eval_run.py` (orchestrator), `eval_worker.py` (vLLM generate / Qwen3Guard guard)
@@ -301,16 +301,14 @@ preparation is rerun. `prepare_preservation_data.py` aborted at its self-check i
 
 ```
 GRIT/
-  PLAN.md  README.md  download.txt  project_commands.sh  .gitignore  LICENSE  pytest.ini
-  config/preservation/         # provenance: how the published artifacts were sampled
+  PLAN.md  README.md  RUN.md  download.txt  project_commands.sh  .gitignore
   grit/                        # library: projection, curvature, trust_region, grpo, rollout, ...
   scripts/
     train_grit.py              # trainer (local snapshots, state pruning)
     preservation_data.py       # stored-context batching + split checks used by the trainer
-    verify_artifacts.py        # offline artifact verification
     eval_run.py  eval_worker.py  eval_lib.py
     summarize_results.py
-  tests/                       # CPU regression tests and math checks
+  third_party/                 # official OlympiadBench / LiveCodeBench scorers
 ```
 
 Outside `GRIT/`:

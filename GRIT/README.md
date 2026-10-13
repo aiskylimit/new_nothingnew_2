@@ -56,10 +56,8 @@ env vars.
 |---|---|
 | `grit/` | GRIT math: GRPO objective, AdamW predictor, projection, trust region, curvature (HVP), persistent vLLM rollout |
 | `scripts/train_grit.py` | trainer (FP32 actor on torchrun ranks, vLLM on its own GPU, local checkpoints only) |
-| `scripts/verify_artifacts.py` | optional, run by hand: sha256, manifests, tokenizer fingerprint and base-logit check of the pre-built artifacts |
 | `scripts/eval_run.py`, `eval_worker.py`, `eval_lib.py` | evaluation (vLLM generation, Qwen3Guard judging, scoring, paired bootstrap) |
 | `scripts/summarize_results.py` | console + markdown summary |
 | `third_party/` | official scorers of OlympiadBench and LiveCodeBench, vendored unchanged (MIT), see `third_party/README.md` |
-| `tests/` | CPU regression tests and math checks, run by hand (`python -m pytest -q`) |
 
 The code only reads local files and writes local outputs on the server.

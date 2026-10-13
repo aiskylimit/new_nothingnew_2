@@ -435,7 +435,7 @@ def train(args):
     # Offline server: models are plain local snapshots without Hub metadata, so the
     # pinned --model-revision is taken as declared. It is still guarded by the
     # parameter count below and by the tokenizer fingerprint stored in every
-    # preservation row (scripts/verify_artifacts.py also checks base logits).
+    # preservation row.
     local_policy = is_local_snapshot(args.model_path)
     base_kwargs = dict(revision=None if local_policy else args.model_revision,
                        trust_remote_code=args.trust_remote_code)
