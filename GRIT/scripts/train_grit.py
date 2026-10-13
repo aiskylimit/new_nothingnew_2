@@ -2,6 +2,7 @@
 """Standalone GRPO + GRIT training with persistent vLLM rollouts."""
 
 import argparse
+from datetime import timedelta
 import json
 import os
 from pathlib import Path
@@ -421,7 +422,9 @@ def train(args):
     torch.cuda.set_device(local_rank)
     device = torch.device("cuda", local_rank)
     if world > 1:
-        dist.init_process_group("nccl")
+        # Ranks 1+ wait in collectives while rank 0 alone starts vLLM, generates and writes checkpoints;
+        # NCCL's default 10-minute timeout would abort them.
+        dist.init_process_group("nccl", timeout=timedelta(seconds=max(args.rollout_timeout, 7200)))
     torch.manual_seed(args.seed)
     torch.backends.cuda.matmul.allow_tf32 = False
     torch.backends.cudnn.allow_tf32 = False
