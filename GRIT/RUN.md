@@ -42,11 +42,10 @@ bash ./project_commands.sh
 
 Exactly these two lines and nothing else: no variables, no arguments.
 
-What it does: check → verify artifacts → dry run (3 steps) → train (40 steps) → eval →
-summary. It uses GPUs 4,5,6,7. Estimated total ~4-6.5 h (check + verify ~10 min, dry run
-~25-40 min, train ~2.5-4.5 h at ~3.5-6.5 min/step, eval ~1-1.5 h), scaled from the 0.5B run
-(A100, ~4.6 min/step); so a 120-minute job will not finish in one go. The dry run prints the
-real seconds per step.
+What it does: train (40 steps) → eval → summary. It uses GPUs 4,5,6,7. Estimated total
+~3.5-6 h (train ~2.5-4.5 h at ~3.5-6.5 min/step, eval ~1-1.5 h), scaled from the 0.5B run
+(A100, ~4.6 min/step); so a 120-minute job will not finish in one go. `train/metrics.jsonl`
+shows the real seconds per step (`step_seconds`).
 
 **When a job stops (timeout or error), submit the same job again with `#v1` flipped to
 `#v2` (or back).** Every stage resumes:
@@ -72,9 +71,8 @@ All small outputs are in `GRIT/results_grit_3b_lam1/`:
 |---|---|
 | `summary.md` | **final tables**: training curve, eval per benchmark, "Safety vs over-refusal", deltas vs base with 95% CI |
 | `logs/full_run_*.log` | complete console output of each job |
-| `logs/{check,verify,dryrun,train,eval}.log` | per-stage logs |
-| `memory_config.txt` | memory setting the dry run selected |
-| `dryrun/metrics.jsonl` | peak VRAM and seconds per step of the dry run (estimates total time) |
+| `logs/{train,eval}.log` | per-stage logs |
+| `memory_config.txt` | memory setting in use (changes only after a fallback) |
 | `train/metrics.jsonl` | one line per training step (reward, unsafe rate, KL, response length, alerts, VRAM, time) |
 | `eval/eval_results.json` | all eval numbers |
 
@@ -106,10 +104,8 @@ To change a setting, edit its default near the top of `GRIT/project_commands.sh`
 |---|---|
 | `ERROR: /mnt/local/uvenvs/grit does not exist` | Job 1 has not run (or failed). |
 | `ERROR: missing .../config.json` or `SHA256SUMS.json` | Job 2 has not run (or is incomplete). |
-| `sha256 mismatch` / `tokenizer ... != artifact tokenizer` (verify) | Download is corrupt or the model snapshot changed. Re-run Job 2. |
 | `ERROR: GPU <id> has only ... MiB free` | Someone else is using that GPU (`nvidia-smi` is printed). Retry later or change `GPU_IDS`. |
-| `dry run FAILED with <config>; trying the next config` | Normal: the next, less aggressive memory setting is tried automatically. |
-| `dry run failed with every MEM_CONFIG` | Real error: see `logs/dryrun.log` (the first traceback). |
+| `training failed with every MEM_CONFIG` | Real error: see `logs/train.log` (the first traceback). |
 | `train FAILED with MEM_CONFIG=...; falling back` | Training resumes with a safer memory setting. Nothing to do. |
 | Job stopped with `FAILED/STOPPED (exit 143)` | Timeout. Resubmit Job 3 (flip `#v1`/`#v2`). |
 

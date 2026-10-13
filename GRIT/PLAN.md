@@ -208,8 +208,7 @@ fp16/bf16 only. Never use wheel URLs.
 ### 4.4 `project_commands.sh` flow (implemented)
 
 See [project_commands.sh](project_commands.sh) and [README.md](README.md). Stages:
-`check` → `verify` → `dryrun` (3 steps, one validation, one checkpoint; skipped after it
-passes) → `train` (40 steps, checkpoint + validation every 5; resumes from the latest
+`train` (40 steps, checkpoint + validation every 5; resumes from the latest
 checkpoint) → `eval` (base + `EVAL_STEPS`, default 20 and 40) → `summary`.
 
 Overrides: `GPU_IDS`, `RUN_ID`, `LAMBDA_PRES`, `MAX_STEPS`, `STAGES`, `EVAL_STEPS`,
@@ -220,10 +219,10 @@ Overrides: `GPU_IDS`, `RUN_ID`, `LAMBDA_PRES`, `MAX_STEPS`, `STAGES`, `EVAL_STEP
 - GRIT got 4 GPUs (4,5,6,7). The trainer's distributed path is used: rollout on 7,
   3 actor ranks on 4,5,6, gradients summed across ranks (covered by the two-rank test).
   vLLM sleep mode (level 2) is kept for a colocated single-GPU layout but is off by default.
-- The dry run tries `MEM_CONFIGS` from most to least aggressive and keeps the first that
-  passes.
-- The train stage falls back to the next config, resuming from the latest checkpoint, if a
-  later step fails.
+- The train stage starts with the most aggressive `MEM_CONFIGS` entry and falls back to the
+  next one, resuming from the latest checkpoint, if a step fails. The check, verify and dry-run
+  stages were removed from the flow (2026-10-13); `verify_artifacts.py` and the tests stay as
+  manual tools.
 - Eval runs one vLLM engine per GPU on all four GPUs (`EVAL_SLOTS=1`), so base, step 20 and
   step 40 are generated concurrently, each on a whole GPU.
 
@@ -288,7 +287,7 @@ evaluable but not resumable.
     - 48/48 CPU tests pass locally (torch 2.14 CPU).
     - The upload/Modal grep is clean.
     - vLLM 0.18.0 source still has `LLM.apply_model` and `logprobs_mode="raw_logprobs"`.
-    - **Not verified:** the CUDA/vLLM path itself. The dry run on the server is the first real check.
+    - **Not verified:** the CUDA/vLLM path itself. The first train job on the server is the first real check.
 
 ### Known issue (only if preparation is ever rerun)
 
