@@ -4,7 +4,7 @@ GRPO safety training that keeps the base model's general capability with two
 protections: a null-space projection of the update (NSPO-style, per MLP layer)
 and a KL trust region anchored to the frozen base model. This folder runs it
 on **Qwen2.5-3B-Instruct** with **Qwen3Guard-Gen-4B** as the reward model on
-**one B200 (180 GB)**, on the offline server. **To run it, follow [RUN.md](RUN.md).** See [PLAN.md](PLAN.md) for the
+**four B200s (180 GB, GPUs 4,5,6,7)**, on the offline server. **To run it, follow [RUN.md](RUN.md).** See [PLAN.md](PLAN.md) for the
 method, the fixed configuration and the design decisions.
 
 ## Run
@@ -25,23 +25,23 @@ method, the fixed configuration and the design decisions.
 | `summary` | training curve + eval table + paired deltas vs base, printed and saved |
 
 `commands.sh` runs only `cd ./GRIT` + `bash ./project_commands.sh`. Settings are the
-defaults at the top of `project_commands.sh`: `GPU_ID` (the B200 assigned to GRIT, default 0),
-`RUN_ID`, `LAMBDA_PRES` (default 1; 0 is the baseline), `MAX_STEPS`, `STAGES`
+defaults at the top of `project_commands.sh`: `GPU_IDS` (the B200s assigned to GRIT, default
+`4,5,6,7`), `RUN_ID`, `LAMBDA_PRES` (default 1; 0 is the baseline), `MAX_STEPS`, `STAGES`
 (comma list of the stages above), `EVAL_STEPS`, `EVAL_MAX_SAMPLES`, `MEM_CONFIGS` /
 `MEM_CONFIG`, `EVAL_GPUS`, `EVAL_SLOTS`. When running by hand, the same names work as
 env vars.
 
 ## GPU memory
 
-- **Train:** colocated actor + vLLM + Qwen3Guard on one GPU. With vLLM sleep mode
-  (`--rollout-sleep`), vLLM releases all its GPU memory (level 2) after each rollout,
-  so the actor's backward and curvature phases get that memory back. The next sync
-  reloads the new weights anyway. A memory config is
-  `TASK_MB:PRES_MB:REWARD_BS:ROLLOUT_MEM:ROLLOUT_SLEEP`. The default list is
-  `16:4:64:0.40:1 8:2:32:0.40:1 8:2:32:0.30:0`, and the last entry is the original setting.
-- **Eval:** several vLLM engines share each GPU (memory split evenly), with startups
-  serialized per GPU so memory profiling never overlaps. Each engine runs up to 512
-  concurrent sequences.
+- **Train:** the last GPU in `GPU_IDS` (7) runs the FP32 vLLM rollout alone; the others
+  (4,5,6) run the FP32 actor with `torchrun`, one rank per GPU, each with its own
+  Qwen3Guard. The 321 prompts and 48 KL contexts are split across the ranks (107 + 16 each)
+  and gradients are summed, so the update is the same as on one GPU. A memory config is
+  `TASK_MB:PRES_MB:REWARD_BS:ROLLOUT_MEM:ROLLOUT_SLEEP`; the default list is
+  `16:4:64:0.85:0 8:2:32:0.85:0 4:1:16:0.85:0`. Sleep mode (`--rollout-sleep`) is still
+  available for a colocated single-GPU layout.
+- **Eval:** one vLLM engine per GPU (`EVAL_SLOTS=1`) on all four GPUs, so base, step 20
+  and step 40 each get a whole GPU. Each engine runs up to 512 concurrent sequences.
 
 
 ## Outputs
@@ -58,7 +58,7 @@ env vars.
 | Path | Content |
 |---|---|
 | `grit/` | GRIT math: GRPO objective, AdamW predictor, projection, trust region, curvature (HVP), persistent vLLM rollout |
-| `scripts/train_grit.py` | trainer (FP32 actor, colocated vLLM, local checkpoints only) |
+| `scripts/train_grit.py` | trainer (FP32 actor on torchrun ranks, vLLM on its own GPU, local checkpoints only) |
 | `scripts/verify_artifacts.py` | offline verification of the pre-built artifacts |
 | `scripts/eval_run.py`, `eval_worker.py`, `eval_lib.py` | evaluation (vLLM generation, Qwen3Guard judging, scoring, paired bootstrap) |
 | `scripts/summarize_results.py` | console + markdown summary |

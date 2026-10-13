@@ -57,7 +57,7 @@ trust region anchored to the base model.
 |---|---|
 | Policy | `Qwen/Qwen2.5-3B-Instruct` @ `aa8e72537993ba99e69dfaafa59ed015b17504d1` |
 | Reward / judge | `Qwen/Qwen3Guard-Gen-4B` @ `6ec42827da0c1ff11e7a49dc269d2e810d27e108`, bf16 |
-| Layout | Colocated, world size 1: actor FP32 + vLLM FP32 + Qwen3Guard on the same GPU |
+| Layout | GPUs 4,5,6,7: actor FP32 on 4,5,6 (torchrun, world size 3, Qwen3Guard per rank), vLLM FP32 rollout alone on 7 |
 | Actor | FP32, TF32 off, attention `sdpa`, gradient checkpointing |
 | `rollout_dtype` | `float32` |
 | prep dtype / `base_statistics_dtype` | `float32` / `float32` (must match; the trainer checks) |
@@ -212,19 +212,20 @@ See [project_commands.sh](project_commands.sh) and [README.md](README.md). Stage
 passes) → `train` (40 steps, checkpoint + validation every 5; resumes from the latest
 checkpoint) → `eval` (base + `EVAL_STEPS`, default 20 and 40) → `summary`.
 
-Overrides: `GPU_ID`, `RUN_ID`, `LAMBDA_PRES`, `MAX_STEPS`, `STAGES`, `EVAL_STEPS`,
+Overrides: `GPU_IDS`, `RUN_ID`, `LAMBDA_PRES`, `MAX_STEPS`, `STAGES`, `EVAL_STEPS`,
 `EVAL_MAX_SAMPLES`. Every stage is resumable, so a long run can be split across several
 `#1 +N` jobs.
 
 **GPU memory (added 2026-10-13):**
-- vLLM sleep mode (level 2) after each rollout frees vLLM's GPU memory for the actor's
-  backward and curvature phases. The API was checked in the vLLM 0.18.0 source.
+- GRIT got 4 GPUs (4,5,6,7). The trainer's distributed path is used: rollout on 7,
+  3 actor ranks on 4,5,6, gradients summed across ranks (covered by the two-rank test).
+  vLLM sleep mode (level 2) is kept for a colocated single-GPU layout but is off by default.
 - The dry run tries `MEM_CONFIGS` from most to least aggressive and keeps the first that
   passes.
 - The train stage falls back to the next config, resuming from the latest checkpoint, if a
   later step fails.
-- Eval runs `EVAL_SLOTS` (default 3) vLLM engines per GPU in parallel, so base, step 20 and
-  step 40 are generated concurrently.
+- Eval runs one vLLM engine per GPU on all four GPUs (`EVAL_SLOTS=1`), so base, step 20 and
+  step 40 are generated concurrently, each on a whole GPU.
 
 **Disk:** a 3B FP32 checkpoint is ~12 GB of weights plus ~25 GB of AdamW state
 (`training.pt`). `--prune-old-training-state` keeps `training.pt` only in the latest
@@ -309,7 +310,7 @@ GRIT/
   config/preservation/         # provenance: how the published artifacts were sampled
   grit/                        # library: projection, curvature, trust_region, grpo, rollout, ...
   scripts/
-    train_grit.py              # trainer (no upload, colocated 3B, local snapshots, state pruning)
+    train_grit.py              # trainer (no upload, local snapshots, state pruning)
     preservation_data.py       # stored-context batching + split checks used by the trainer
     verify_artifacts.py        # offline artifact verification
     eval_run.py  eval_worker.py  eval_lib.py
@@ -325,7 +326,7 @@ Outside `GRIT/`:
 
 ## 7. Open questions
 
-1. GPU index on the server (GRIT needs one B200 180 GB). Default `GPU=0`, overridable; confirm the index.
+1. ~~GPU index~~ Decided: GPUs 4,5,6,7 (`GPU_IDS` in project_commands.sh).
 2. Time budget per `#1 +N` job. All stages are resumable, so splitting across jobs works either way.
 3. ~~Reward fix in the first run?~~ Decided: no. The first run uses the original reward; the fix comes in the second run (§5.7).
 4. Should the λ=0 baseline be part of the default flow?

@@ -43,8 +43,8 @@ bash ./project_commands.sh
 Exactly these two lines and nothing else: no variables, no arguments.
 
 What it does: check → verify artifacts → dry run (3 steps) → train (40 steps) → eval →
-summary. Expected total time is ~9-14 h on one B200, so a 120-minute job will not finish
-in one go.
+summary. It uses GPUs 4,5,6,7. A 120-minute job will probably not finish everything in one
+go; the dry run prints seconds per step, which gives the training time.
 
 **When a job stops (timeout or error), submit the same job again with `#v1` flipped to
 `#v2` (or back).** Every stage resumes:
@@ -83,7 +83,7 @@ summary when a job fails or is stopped.
 
 `commands.sh` only ever contains the two lines above, so `project_commands.sh` runs with
 its built-in defaults:
-- `GPU_ID=0` (the B200 assigned to GRIT; it needs ≥150 GB free);
+- `GPU_IDS="4,5,6,7"`: train on 4,5,6, vLLM rollout on 7, eval on all four (each needs ≥150 GB free);
 - run id `grit_3b_lam1`, λ_pres = 1, 40 steps;
 - eval of base and steps 20 and 40.
 
@@ -91,10 +91,10 @@ To change a setting, edit its default near the top of `GRIT/project_commands.sh`
 
 | Variable | Effect |
 |---|---|
-| `GPU_ID` | the B200 assigned to GRIT (default `0`) |
+| `GPU_IDS` | the B200s assigned to GRIT (default `4,5,6,7`; the last one is the rollout GPU) |
 | `STAGES` | e.g. `eval,summary` to skip training |
 | `EVAL_STEPS` | e.g. `"40"` to evaluate only the last checkpoint |
-| `EVAL_GPUS` | e.g. `"0,1"` to spread eval engines over more free GPUs |
+| `EVAL_GPUS` | GPUs for eval engines (default: `GPU_IDS`) |
 | `LAMBDA_PRES`, `RUN_ID` | e.g. `0` and `grit_3b_lam0` for the λ=0 baseline |
 | `MEM_CONFIG` | force one memory setting, e.g. `8:2:32:0.30:0` (the original, most conservative one) |
 
@@ -105,7 +105,7 @@ To change a setting, edit its default near the top of `GRIT/project_commands.sh`
 | `ERROR: /mnt/local/uvenvs/grit does not exist` | Job 1 has not run (or failed). |
 | `ERROR: missing .../config.json` or `SHA256SUMS.json` | Job 2 has not run (or is incomplete). |
 | `sha256 mismatch` / `tokenizer ... != artifact tokenizer` (verify) | Download is corrupt or the model snapshot changed. Re-run Job 2. |
-| `ERROR: GPU <id> has only ... MiB free` | Someone else is using that GPU (`nvidia-smi` is printed). Retry later or change `GPU_ID`. |
+| `ERROR: GPU <id> has only ... MiB free` | Someone else is using that GPU (`nvidia-smi` is printed). Retry later or change `GPU_IDS`. |
 | `dry run FAILED with <config>; trying the next config` | Normal: the next, less aggressive memory setting is tried automatically. |
 | `dry run failed with every MEM_CONFIG` | Real error: see `logs/dryrun.log` (the first traceback). |
 | `train FAILED with MEM_CONFIG=...; falling back` | Training resumes with a safer memory setting. Nothing to do. |

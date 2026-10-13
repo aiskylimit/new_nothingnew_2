@@ -1,15 +1,16 @@
 #!/bin/bash
-# GRIT (GRPO safety + NSPO null-space projection + KL trust region) on Qwen2.5-3B-Instruct, 1 x B200 180 GB.
+# GRIT (GRPO safety + NSPO null-space projection + KL trust region) on Qwen2.5-3B-Instruct, 4 x B200 180 GB.
 # Order: check env -> verify prepared artifacts -> dry run (3 steps) -> train (40 steps)
 #        -> eval base + checkpoints (safety + general) -> summary table.
-# Layout: colocated, world size 1 - FP32 actor + FP32 vLLM rollout + bf16 Qwen3Guard on the same GPU.
+# Layout: TRAIN_GPUS run the FP32 actor (torchrun, one rank per GPU, each with its own bf16 Qwen3Guard);
+#   ROLLOUT_GPU runs the FP32 vLLM rollout alone. Eval spreads its vLLM engines over EVAL_GPUS.
 # Every stage is resumable: re-running skips finished work (verified artifacts, dry-run marker,
 # training resumes from the latest checkpoint, eval resumes per model/benchmark).
 # Memory: the dry run tries MEM_CONFIGS from most to least aggressive and keeps the first that passes
-#   (vLLM sleep mode frees its GPU memory for the actor's backward/curvature phases).
+#   (only the actor's microbatch sizes matter; vLLM has its GPU to itself).
 # Eval: EVAL_SLOTS vLLM engines per GPU run models in parallel (base, step 20, step 40 at once).
 # commands.sh runs exactly "cd ./GRIT" + "bash ./project_commands.sh"; to change a setting, edit its
-# default below (GPU_ID, RUN_ID, LAMBDA_PRES, MAX_STEPS, STAGES, EVAL_STEPS, EVAL_MAX_SAMPLES, MEM_CONFIGS,
+# default below (GPU_IDS, RUN_ID, LAMBDA_PRES, MAX_STEPS, STAGES, EVAL_STEPS, EVAL_MAX_SAMPLES, MEM_CONFIGS,
 # MEM_CONFIG, EVAL_GPUS, EVAL_SLOTS). The same names also work as env vars when running by hand.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -41,15 +42,23 @@ export TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1 OMP_NUM_THREADS=${OMP_NUM
 
 # commands.sh only runs "cd ./GRIT && bash ./project_commands.sh", so every default below must be right
 # as is.
-# GPU_ID: the one B200 assigned to GRIT on the shared server (train + eval). Change it here if needed.
-GPU_ID=0
-FREE_MB=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits -i "${GPU_ID}" | tr -d ' ')
-echo "GPU_ID=${GPU_ID} (${FREE_MB} MiB free)"
-if [ "${FREE_MB}" -lt 150000 ]; then
-  echo "ERROR: GPU ${GPU_ID} has only ${FREE_MB} MiB free; GRIT needs one whole B200 (>= 150 GB)" >&2
-  nvidia-smi
-  exit 1
-fi
+# GPU_IDS: the B200s assigned to GRIT on the shared server. The last one is the vLLM rollout GPU, the
+# others train (one torchrun rank each; 321 prompts and 48 KL contexts are split across them).
+# Eval uses all of them. Change it here if needed.
+GPU_IDS="4,5,6,7"
+ROLLOUT_GPU=${GPU_IDS##*,}
+TRAIN_GPUS=${GPU_IDS%,*}
+NUM_TRAIN_GPUS=$(( $(tr -cd , <<< "${TRAIN_GPUS}" | wc -c) + 1 ))
+echo "GPU_IDS=${GPU_IDS}: train on ${TRAIN_GPUS} (${NUM_TRAIN_GPUS} ranks), rollout on ${ROLLOUT_GPU}"
+for gpu in ${GPU_IDS//,/ }; do
+  FREE_MB=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits -i "${gpu}" | tr -d ' ')
+  echo "  GPU ${gpu}: ${FREE_MB} MiB free"
+  if [ "${FREE_MB}" -lt 150000 ]; then
+    echo "ERROR: GPU ${gpu} has only ${FREE_MB} MiB free; GRIT needs whole B200s (>= 150 GB each)" >&2
+    nvidia-smi
+    exit 1
+  fi
+done
 RUN_ID=${RUN_ID:-grit_3b_lam1}
 LAMBDA_PRES=${LAMBDA_PRES:-1}
 MAX_STEPS=${MAX_STEPS:-40}
@@ -57,11 +66,11 @@ STAGES=${STAGES:-check,verify,dryrun,train,eval,summary}
 # Checkpoints are saved every 5 steps; only these are evaluated (base is always evaluated).
 EVAL_STEPS=${EVAL_STEPS:-"20 40"}
 EVAL_MAX_SAMPLES=${EVAL_MAX_SAMPLES:-}   # e.g. 50 for a quick eval smoke test
-EVAL_GPUS=${EVAL_GPUS:-${GPU_ID}}        # e.g. "0,1" if more GPUs are free for eval
-EVAL_SLOTS=${EVAL_SLOTS:-3}              # concurrent vLLM engines per eval GPU
+EVAL_GPUS=${EVAL_GPUS:-${GPU_IDS}}
+EVAL_SLOTS=${EVAL_SLOTS:-1}              # vLLM engines per eval GPU (3 models <= 4 GPUs: one whole GPU each)
 # Memory configs, TASK_MB:PRES_MB:REWARD_BS:ROLLOUT_MEM:ROLLOUT_SLEEP, most aggressive first.
-# The last one is the original PLAN.md section 3 setting (no sleep mode) as a safe fallback.
-MEM_CONFIGS=${MEM_CONFIGS:-"16:4:64:0.40:1 8:2:32:0.40:1 8:2:32:0.30:0"}
+# ROLLOUT_MEM is vLLM's share of the dedicated rollout GPU; sleep mode is only useful when colocated.
+MEM_CONFIGS=${MEM_CONFIGS:-"16:4:64:0.85:0 8:2:32:0.85:0 4:1:16:0.85:0"}
 OUT_DIR="${BASE_DIR}/outputs/${RUN_ID}"  # checkpoints (~12 GB each) stay on /mnt/local
 EVAL_WORK="${BASE_DIR}/eval/${RUN_ID}"   # generations, guard labels
 RESULTS="${ROOT}/results_${RUN_ID}"      # small files only: logs, metrics, eval results, summary
@@ -91,7 +100,7 @@ TRAIN_ARGS=(
   --model-path "${MODEL}" --safety-model-path "${GUARD}"
   --task-file "${TASK_FILE}" --preserve-file "${PRESERVE_FILE}" --evaluation-file "${EVAL_FILE}"
   --projectors-path "${PROJECTORS}" --projector-relaxation 0.05
-  --rollout-gpu "${GPU_ID}" --allow-colocated-rollout
+  --rollout-gpu "${ROLLOUT_GPU}"
   --rollout-dtype float32
   --task-batch-size 321 --preserve-batch-size 48
   --generations 5 --max-prompt-length 512 --max-response-length 256 --max-preserve-length 2304
@@ -138,7 +147,7 @@ train() {  # train <output_dir> <max_steps> <save_steps> <validation_steps> <log
     # Crashed before the first checkpoint: keep it for inspection, start clean.
     mv "${out}" "${out}.failed.$(date +%Y%m%d_%H%M%S)"
   fi
-  env CUDA_VISIBLE_DEVICES="${GPU_ID}" python scripts/train_grit.py "${TRAIN_ARGS[@]}" "${MEM_ARGS[@]}" \
+  env CUDA_VISIBLE_DEVICES="${TRAIN_GPUS}" torchrun --standalone --nproc_per_node "${NUM_TRAIN_GPUS}" scripts/train_grit.py "${TRAIN_ARGS[@]}" "${MEM_ARGS[@]}" \
       --output-dir "${out}" --max-steps "${steps}" --save-steps "${save}" --validation-steps "${validation}" \
       --prune-old-training-state ${resume[@]+"${resume[@]}"} 2>&1 | tee -a "${log}"
 }
@@ -148,18 +157,17 @@ train() {  # train <output_dir> <max_steps> <save_steps> <validation_steps> <log
 # ============================================================
 if want check; then
   stage "1. environment check"
-  nvidia-smi -i "${GPU_ID}" || true
-  env CUDA_VISIBLE_DEVICES="${GPU_ID}" python - <<'PYEOF' 2>&1 | tee "${RESULTS}/logs/check.log"
+  nvidia-smi -i "${GPU_IDS}" || true
+  env CUDA_VISIBLE_DEVICES="${GPU_IDS}" python - <<'PYEOF' 2>&1 | tee "${RESULTS}/logs/check.log"
 import torch, transformers, vllm, datasets
 print(f"torch {torch.__version__} (cuda {torch.version.cuda}), transformers {transformers.__version__}, "
       f"vllm {vllm.__version__}, datasets {datasets.__version__}")
 assert torch.cuda.is_available(), "no CUDA device visible"
-name = torch.cuda.get_device_name(0)
-free, total = torch.cuda.mem_get_info()
-print(f"GPU: {name}, capability sm_{''.join(map(str, torch.cuda.get_device_capability(0)))}, "
-      f"free {free/1e9:.0f}/{total/1e9:.0f} GB")
-if free < 150e9:
-    print("WARNING: less than 150 GB free on this GPU; the colocated 3B layout needs ~145-165 GB")
+for i in range(torch.cuda.device_count()):
+    name = torch.cuda.get_device_name(i)
+    free, total = torch.cuda.mem_get_info(i)
+    print(f"GPU {i}: {name}, capability sm_{''.join(map(str, torch.cuda.get_device_capability(i)))}, "
+          f"free {free/1e9:.0f}/{total/1e9:.0f} GB")
 PYEOF
   python -m pytest -q -p no:cacheprovider 2>&1 | tail -3 | tee -a "${RESULTS}/logs/check.log"
 fi
@@ -169,7 +177,7 @@ fi
 # ============================================================
 if want verify; then
   stage "2. verify artifacts"
-  env CUDA_VISIBLE_DEVICES="${GPU_ID}" python scripts/verify_artifacts.py \
+  env CUDA_VISIBLE_DEVICES="${TRAIN_GPUS%%,*}" python scripts/verify_artifacts.py \
       --artifact-root "${ARTIFACTS}" --model-path "${MODEL}" --logit-check 8 \
       2>&1 | tee "${RESULTS}/logs/verify.log"
 fi
@@ -205,7 +213,7 @@ fi
 # ============================================================
 if want train; then
   # Explicit MEM_CONFIG > the one the dry run selected > the safe original setting.
-  MEM_CONFIG=${MEM_CONFIG:-$(cat "${RESULTS}/memory_config.txt" 2>/dev/null || echo "8:2:32:0.30:0")}
+  MEM_CONFIG=${MEM_CONFIG:-$(cat "${RESULTS}/memory_config.txt" 2>/dev/null || echo "${MEM_CONFIGS##* }")}
   # On failure (e.g. OOM on a longer KL context than the dry run saw), fall back to the next, less
   # aggressive config and resume from the latest checkpoint; no partial step is ever committed.
   fallbacks="${MEM_CONFIG}"; seen=0
