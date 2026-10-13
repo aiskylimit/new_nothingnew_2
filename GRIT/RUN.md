@@ -43,8 +43,10 @@ bash ./project_commands.sh
 Exactly these two lines and nothing else: no variables, no arguments.
 
 What it does: check → verify artifacts → dry run (3 steps) → train (40 steps) → eval →
-summary. It uses GPUs 4,5,6,7. A 120-minute job will probably not finish everything in one
-go; the dry run prints seconds per step, which gives the training time.
+summary. It uses GPUs 4,5,6,7. Estimated total ~4-6.5 h (check + verify ~10 min, dry run
+~25-40 min, train ~2.5-4.5 h at ~3.5-6.5 min/step, eval ~1-1.5 h), scaled from the 0.5B run
+(A100, ~4.6 min/step); so a 120-minute job will not finish in one go. The dry run prints the
+real seconds per step.
 
 **When a job stops (timeout or error), submit the same job again with `#v1` flipped to
 `#v2` (or back).** Every stage resumes:
