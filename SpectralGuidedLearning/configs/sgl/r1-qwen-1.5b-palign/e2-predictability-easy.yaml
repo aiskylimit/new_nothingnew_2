@@ -1,2 +1,0 @@
-defaults: [../tracks/r1-qwen-1.5b-palign.yaml, ../methods/ablation-predictability.yaml]
-name: e2-predictability-easy

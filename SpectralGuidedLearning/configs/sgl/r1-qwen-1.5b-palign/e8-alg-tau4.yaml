@@ -1,4 +1,0 @@
-defaults: [../tracks/r1-qwen-1.5b-palign.yaml, ../methods/ablation-alg.yaml]
-name: e8-alg-tau4
-iwc:
-  temperature: 4.0

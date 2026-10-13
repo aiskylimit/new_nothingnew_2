@@ -1,4 +1,0 @@
-defaults: [../tracks/r1-qwen-1.5b-palign.yaml, ../methods/ablation-alg.yaml]
-name: e7-alg-tau1
-iwc:
-  temperature: 1.0
