@@ -109,4 +109,4 @@ To change a setting, edit its default near the top of `GRIT/project_commands.sh`
 | `train FAILED with MEM_CONFIG=...; falling back` | Training resumes with a safer memory setting. Nothing to do. |
 | Job stopped with `FAILED/STOPPED (exit 143)` | Timeout. Resubmit Job 3 (flip `#v1`/`#v2`). |
 
-The code never uploads anything (no Hub push, no external API, no wandb).
+The code only reads local files and writes local outputs on the server.

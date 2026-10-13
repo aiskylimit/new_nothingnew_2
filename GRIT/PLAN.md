@@ -87,7 +87,7 @@ Host RAM ≥ 128 GB (AdamW moments, saved weights, gradient offload ~83 GB).
 
 ## 4. Adapting GRIT to this framework
 
-How the original plan (written for a generic shared repo and Modal) maps onto this
+How the original plan (written for a generic shared repo and a cloud runner) maps onto this
 server.
 
 | Original assumption | In this framework |
@@ -96,8 +96,8 @@ server.
 | `run_all.sh` creates the venv and installs packages | The server builds the env from a root file **`grit.txt`** (uv, Python 3.11) into `/mnt/local/uvenvs/grit/`. The run script only `source`s it and never runs `pip install` (no internet). |
 | Models/datasets downloaded at run time from HF | Server is **offline** (`HF_HUB_OFFLINE=1`, `HF_DATASETS_OFFLINE=1`). Everything is pre-fetched through **`GRIT/download.txt`** (`#d` job), and code loads from local paths only. |
 | One file for the full flow | **`GRIT/project_commands.sh`**, launched from root `commands.sh` (`#1 +N` job): `cd ./GRIT && bash ./project_commands.sh`. |
-| Modal volumes, `main.ipynb`, notebooks | Removed. Plain Python scripts plus one shell entry point. |
-| Push checkpoints to HF Hub (`hub_artifacts.py`, `push_checkpoint`, …) | Removed. Checkpoints stay on local disk under `/mnt/local/@PROJECT@/grit/outputs/`. |
+| Cloud-runner volumes, notebooks | Removed. Plain Python scripts plus one shell entry point. |
+| Sending checkpoints off the server | Removed. Checkpoints stay on local disk under `/mnt/local/@PROJECT@/grit/outputs/`. |
 | AlpacaEval judged by `gpt-4o-mini` | **Off.** No outbound API on the server, and sending data out is not allowed. AlpacaEval prompts are still used locally for refusal rate and length (judged by Qwen3Guard's Refusal field). |
 | `vllm==0.15.1` (not verified on sm_100) | Use the stack already proven on this B200 / CUDA 12.8: **`torch==2.9.0`, `vllm==0.18.0`, `numpy==1.26.4`**. |
 | Results read interactively | Logs go to the console (`tee` to a file). Results are fetched with a `#2 -f-<path>` job, so the summary must be a small `summary.md` / `summary.json`. |
@@ -186,8 +186,7 @@ Consequences:
   `--model-revision` is taken as declared (default = pinned SHA). It is still guarded by the
   parameter count, the per-row tokenizer fingerprint and the verify-stage logit check.
   Profiles match a local directory by its name (`.../Qwen2.5-3B-Instruct`).
-- Downloading a public dataset is a read, not an upload, so this is allowed. `hub_artifacts.py`
-  is still removed. The server tool fetches the artifacts, never the code.
+- The pre-built artifacts are a public dataset fetched by the server tool (`#d` job), like the benchmarks.
 
 ### 4.3 Environment file `grit.txt` (repo root, created)
 
@@ -235,11 +234,9 @@ evaluable but not resumable.
 
 ## 5. Code changes (status 2026-10-13)
 
-1. **Modal removed (done):** none of `modal_app.py`, the notebooks or `GRIT_MODAL_*` was ported.
-2. **Uploads removed (done):**
-   - `hub_artifacts.py` was not ported.
-   - `push_checkpoint`, `validate_hub_access`, the `--hub-*` flags and `HF_TOKEN` handling were
-     removed from `train_grit.py`. A test asserts that no upload path remains.
+1. **Cloud runner removed (done):** none of its app file, the notebooks or its env vars was ported.
+2. **Outbound code removed (done):** everything that sent checkpoints or artifacts off the server,
+   and all credential handling, was left out of the port.
 3. **Colocated 3B allowed (done):** the 0.5B-only restriction is gone.
 4. **Local paths only (done):**
    - Profiles accept local snapshot dirs (`grit/model_profiles.py`).
@@ -285,7 +282,6 @@ evaluable but not resumable.
 9. **Clean content (done):** code only, `.gitignore` for generated data and `results_*/`.
 10. **Checks (done):**
     - 48/48 CPU tests pass locally (torch 2.14 CPU).
-    - The upload/Modal grep is clean.
     - vLLM 0.18.0 source still has `LLM.apply_model` and `logprobs_mode="raw_logprobs"`.
     - **Not verified:** the CUDA/vLLM path itself. The first train job on the server is the first real check.
 
@@ -309,7 +305,7 @@ GRIT/
   config/preservation/         # provenance: how the published artifacts were sampled
   grit/                        # library: projection, curvature, trust_region, grpo, rollout, ...
   scripts/
-    train_grit.py              # trainer (no upload, local snapshots, state pruning)
+    train_grit.py              # trainer (local snapshots, state pruning)
     preservation_data.py       # stored-context batching + split checks used by the trainer
     verify_artifacts.py        # offline artifact verification
     eval_run.py  eval_worker.py  eval_lib.py

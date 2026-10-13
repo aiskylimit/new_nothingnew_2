@@ -62,5 +62,4 @@ env vars.
 | `third_party/` | official scorers of OlympiadBench and LiveCodeBench, vendored unchanged (MIT), see `third_party/README.md` |
 | `tests/` | CPU regression tests and math checks, run by hand (`python -m pytest -q`) |
 
-The code never uploads anything: there is no Hub push, no external judge API
-and no credential handling.
+The code only reads local files and writes local outputs on the server.

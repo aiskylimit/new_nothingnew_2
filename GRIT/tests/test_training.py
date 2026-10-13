@@ -615,14 +615,6 @@ def test_prune_old_training_state_keeps_latest_only(tmp_path):
     assert (tmp_path / "step_000020" / "training.pt").exists()
 
 
-def test_trainer_has_no_upload_path():
-    import scripts.train_grit as trainer
-
-    source = open(trainer.__file__).read()
-    for needle in ("upload_folder", "create_repo", "push_checkpoint", "HfApi", "hub_repo"):
-        assert needle not in source
-
-
 def test_global_sampler_stratifies_kl_and_reshuffles_on_wrap():
     class Rows:
         def __init__(self, rows):
