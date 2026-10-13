@@ -25,8 +25,8 @@ method, the fixed configuration and the design decisions.
 | `summary` | training curve + eval table + paired deltas vs base, printed and saved |
 
 `commands.sh` runs only `cd ./GRIT` + `bash ./project_commands.sh`. Settings are the
-defaults at the top of `project_commands.sh`: `GPU` (`auto` = the GPU with the most free
-memory), `RUN_ID`, `LAMBDA_PRES` (default 1; 0 is the baseline), `MAX_STEPS`, `STAGES`
+defaults at the top of `project_commands.sh`: `GPU_ID` (the B200 assigned to GRIT, default 0),
+`RUN_ID`, `LAMBDA_PRES` (default 1; 0 is the baseline), `MAX_STEPS`, `STAGES`
 (comma list of the stages above), `EVAL_STEPS`, `EVAL_MAX_SAMPLES`, `MEM_CONFIGS` /
 `MEM_CONFIG`, `EVAL_GPUS`, `EVAL_SLOTS`. When running by hand, the same names work as
 env vars.

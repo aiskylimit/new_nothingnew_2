@@ -212,7 +212,7 @@ See [project_commands.sh](project_commands.sh) and [README.md](README.md). Stage
 passes) → `train` (40 steps, checkpoint + validation every 5; resumes from the latest
 checkpoint) → `eval` (base + `EVAL_STEPS`, default 20 and 40) → `summary`.
 
-Overrides: `GPU`, `RUN_ID`, `LAMBDA_PRES`, `MAX_STEPS`, `STAGES`, `EVAL_STEPS`,
+Overrides: `GPU_ID`, `RUN_ID`, `LAMBDA_PRES`, `MAX_STEPS`, `STAGES`, `EVAL_STEPS`,
 `EVAL_MAX_SAMPLES`. Every stage is resumable, so a long run can be split across several
 `#1 +N` jobs.
 

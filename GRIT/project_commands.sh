@@ -9,7 +9,7 @@
 #   (vLLM sleep mode frees its GPU memory for the actor's backward/curvature phases).
 # Eval: EVAL_SLOTS vLLM engines per GPU run models in parallel (base, step 20, step 40 at once).
 # commands.sh runs exactly "cd ./GRIT" + "bash ./project_commands.sh"; to change a setting, edit its
-# default below (GPU, RUN_ID, LAMBDA_PRES, MAX_STEPS, STAGES, EVAL_STEPS, EVAL_MAX_SAMPLES, MEM_CONFIGS,
+# default below (GPU_ID, RUN_ID, LAMBDA_PRES, MAX_STEPS, STAGES, EVAL_STEPS, EVAL_MAX_SAMPLES, MEM_CONFIGS,
 # MEM_CONFIG, EVAL_GPUS, EVAL_SLOTS). The same names also work as env vars when running by hand.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -40,17 +40,15 @@ export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1 OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}
 
 # commands.sh only runs "cd ./GRIT && bash ./project_commands.sh", so every default below must be right
-# as is. GPU: the free-est GPU is picked automatically (the server is shared); set a number to pin it.
-GPU=${GPU:-auto}
-if [ "${GPU}" == "auto" ]; then
-  GPU=$(nvidia-smi --query-gpu=index,memory.free --format=csv,noheader,nounits | sort -t, -k2 -nr | head -1 | cut -d, -f1 | tr -d ' ')
-  FREE_MB=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits -i "${GPU}" | tr -d ' ')
-  echo "auto-selected GPU ${GPU} (${FREE_MB} MiB free)"
-  if [ "${FREE_MB}" -lt 150000 ]; then
-    echo "ERROR: no GPU has >= 150 GB free (best: GPU ${GPU}, ${FREE_MB} MiB); GRIT needs one whole B200" >&2
-    nvidia-smi
-    exit 1
-  fi
+# as is.
+# GPU_ID: the one B200 assigned to GRIT on the shared server (train + eval). Change it here if needed.
+GPU_ID=0
+FREE_MB=$(nvidia-smi --query-gpu=memory.free --format=csv,noheader,nounits -i "${GPU_ID}" | tr -d ' ')
+echo "GPU_ID=${GPU_ID} (${FREE_MB} MiB free)"
+if [ "${FREE_MB}" -lt 150000 ]; then
+  echo "ERROR: GPU ${GPU_ID} has only ${FREE_MB} MiB free; GRIT needs one whole B200 (>= 150 GB)" >&2
+  nvidia-smi
+  exit 1
 fi
 RUN_ID=${RUN_ID:-grit_3b_lam1}
 LAMBDA_PRES=${LAMBDA_PRES:-1}
@@ -59,7 +57,7 @@ STAGES=${STAGES:-check,verify,dryrun,train,eval,summary}
 # Checkpoints are saved every 5 steps; only these are evaluated (base is always evaluated).
 EVAL_STEPS=${EVAL_STEPS:-"20 40"}
 EVAL_MAX_SAMPLES=${EVAL_MAX_SAMPLES:-}   # e.g. 50 for a quick eval smoke test
-EVAL_GPUS=${EVAL_GPUS:-${GPU}}           # e.g. "0,1" if more GPUs are free for eval
+EVAL_GPUS=${EVAL_GPUS:-${GPU_ID}}        # e.g. "0,1" if more GPUs are free for eval
 EVAL_SLOTS=${EVAL_SLOTS:-3}              # concurrent vLLM engines per eval GPU
 # Memory configs, TASK_MB:PRES_MB:REWARD_BS:ROLLOUT_MEM:ROLLOUT_SLEEP, most aggressive first.
 # The last one is the original PLAN.md section 3 setting (no sleep mode) as a safe fallback.
@@ -93,7 +91,7 @@ TRAIN_ARGS=(
   --model-path "${MODEL}" --safety-model-path "${GUARD}"
   --task-file "${TASK_FILE}" --preserve-file "${PRESERVE_FILE}" --evaluation-file "${EVAL_FILE}"
   --projectors-path "${PROJECTORS}" --projector-relaxation 0.05
-  --rollout-gpu "${GPU}" --allow-colocated-rollout
+  --rollout-gpu "${GPU_ID}" --allow-colocated-rollout
   --rollout-dtype float32
   --task-batch-size 321 --preserve-batch-size 48
   --generations 5 --max-prompt-length 512 --max-response-length 256 --max-preserve-length 2304
@@ -140,7 +138,7 @@ train() {  # train <output_dir> <max_steps> <save_steps> <validation_steps> <log
     # Crashed before the first checkpoint: keep it for inspection, start clean.
     mv "${out}" "${out}.failed.$(date +%Y%m%d_%H%M%S)"
   fi
-  env CUDA_VISIBLE_DEVICES="${GPU}" python scripts/train_grit.py "${TRAIN_ARGS[@]}" "${MEM_ARGS[@]}" \
+  env CUDA_VISIBLE_DEVICES="${GPU_ID}" python scripts/train_grit.py "${TRAIN_ARGS[@]}" "${MEM_ARGS[@]}" \
       --output-dir "${out}" --max-steps "${steps}" --save-steps "${save}" --validation-steps "${validation}" \
       --prune-old-training-state ${resume[@]+"${resume[@]}"} 2>&1 | tee -a "${log}"
 }
@@ -150,8 +148,8 @@ train() {  # train <output_dir> <max_steps> <save_steps> <validation_steps> <log
 # ============================================================
 if want check; then
   stage "1. environment check"
-  nvidia-smi -i "${GPU}" || true
-  env CUDA_VISIBLE_DEVICES="${GPU}" python - <<'PYEOF' 2>&1 | tee "${RESULTS}/logs/check.log"
+  nvidia-smi -i "${GPU_ID}" || true
+  env CUDA_VISIBLE_DEVICES="${GPU_ID}" python - <<'PYEOF' 2>&1 | tee "${RESULTS}/logs/check.log"
 import torch, transformers, vllm, datasets
 print(f"torch {torch.__version__} (cuda {torch.version.cuda}), transformers {transformers.__version__}, "
       f"vllm {vllm.__version__}, datasets {datasets.__version__}")
@@ -171,7 +169,7 @@ fi
 # ============================================================
 if want verify; then
   stage "2. verify artifacts"
-  env CUDA_VISIBLE_DEVICES="${GPU}" python scripts/verify_artifacts.py \
+  env CUDA_VISIBLE_DEVICES="${GPU_ID}" python scripts/verify_artifacts.py \
       --artifact-root "${ARTIFACTS}" --model-path "${MODEL}" --logit-check 8 \
       2>&1 | tee "${RESULTS}/logs/verify.log"
 fi
