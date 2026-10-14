@@ -1,5 +1,5 @@
 #1 +10
-#vlm
+#grit
 #v1
 
 
@@ -32,21 +32,11 @@ export NCCL_DEBUG=WARN
 # bash project_commands.sh
 # pwd && ls 
 
-# cd ./offline_olmo7b_b200
-# bash ./project_commands.sh
-
 # cd ./opsd
 # bash ./project_commands.sh
 
 # cd ./talas_vlm_embed
 # bash ./project_commands.sh
 
-# cd ./OpenED
-# GPUS="0 1" bash ./project_commands_8.sh
-
-# cd SpectralGuidedLearning 
-# bash project_commands_qwen25_7b_l100_t1_c2_const.sh
-
-
-# cd ./grit
-# bash ./project_commands.sh
+cd ./grit
+bash ./project_commands.sh
