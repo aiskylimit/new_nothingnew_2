@@ -58,6 +58,10 @@ def main():
     parser.add_argument("--guard-max-tokens", type=int, default=128)
     parser.add_argument("--max-num-seqs", type=int, default=512, help="Concurrent sequences inside vLLM")
     parser.add_argument("--max-num-batched-tokens", type=int, default=16384)
+    parser.add_argument("--attention-backend", default="FLASH_ATTN",
+                        help="vLLM attention backend. FLASH_ATTN ships prebuilt in the vLLM wheel (as P-ALIGN uses on "
+                             "this server); vLLM's automatic choice on B200 is FlashInfer, which JIT-compiles kernels "
+                             "with nvcc at startup. GPUs below sm_80 (e.g. Kaggle T4) fall back to TRITON_ATTN.")
     args = parser.parse_args()
 
     items = read_jsonl(args.items)
@@ -69,11 +73,21 @@ def main():
 
     from transformers import AutoTokenizer
     from vllm import LLM, SamplingParams
+    from vllm.platforms import current_platform
+
+    backend = args.attention_backend
+    capability = current_platform.get_device_capability()  # NVML query, does not initialize CUDA here
+    if backend.upper() == "FLASH_ATTN" and capability is not None and (capability.major, capability.minor) < (8, 0):
+        tick(f"[{args.label}/{args.role}] FLASH_ATTN needs sm_80+, GPU is sm_{capability.major}{capability.minor}: "
+             "using TRITON_ATTN")
+        backend = "TRITON_ATTN"
+    tick(f"[{args.label}/{args.role}] attention backend {backend}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     llm = LLM(model=args.model, tokenizer=args.model, dtype=args.dtype, tensor_parallel_size=1,
               gpu_memory_utilization=args.gpu_mem, max_model_len=args.max_model_len, seed=0,
-              max_num_seqs=args.max_num_seqs, max_num_batched_tokens=args.max_num_batched_tokens)
+              max_num_seqs=args.max_num_seqs, max_num_batched_tokens=args.max_num_batched_tokens,
+              attention_backend=backend)
     # The orchestrator holds a per-GPU startup lock until this line, so concurrent
     # engines never profile memory at the same time.
     print(READY_MARKER, flush=True)
