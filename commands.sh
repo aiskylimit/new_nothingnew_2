@@ -30,8 +30,8 @@ export NCCL_DEBUG=WARN
 
 cd ./VLM_Distillation-main
 # bash project_commands_collect_eval_summary.sh
-# bash project_commands.sh
-pwd && ls 
+bash project_commands.sh
+# pwd && ls 
 
 # cd ./offline_olmo7b_b200
 # bash ./project_commands.sh
