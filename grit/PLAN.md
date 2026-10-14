@@ -1,6 +1,6 @@
 # GRIT on the offline B200 server — project plan
 
-Scope: **Qwen2.5-3B-Instruct on 1 × B200 (180 GB)**, packaged for the offline
+Scope: **Qwen2.5-3B-Instruct on 4 × B200 (180 GB, GPUs 4,5,6,7)**, packaged for the offline
 submit-and-wait framework of this repo (`aiskylimit/new_nothingnew_2`, branch `GRIT`).
 Everything for this project lives in `GRIT/`. Files outside `GRIT/` are only touched
 when explicitly approved (see §6).
@@ -61,8 +61,8 @@ trust region anchored to the base model.
 | Actor | FP32, TF32 off, attention `sdpa`, gradient checkpointing |
 | `rollout_dtype` | `float32` |
 | prep dtype / `base_statistics_dtype` | `float32` / `float32` (must match; the trainer checks) |
-| `rollout_memory_utilization` | 0.30 |
-| `task_microbatch_size` / `preservation_microbatch_size` / `reward_batch_size` | 8 / 2 / 32 (read peak VRAM at steps 1–2, then raise) |
+| `rollout_memory_utilization` | 0.85 (vLLM has GPU 7 to itself) |
+| `task_microbatch_size` / `preservation_microbatch_size` / `reward_batch_size` | 16 / 4 / 64 first; on CUDA OOM 8 / 2 / 32, then 4 / 1 / 16 (`MEM_CONFIGS`) |
 | Batch | 321 prompts × 5 responses, 48 KL contexts per step, top-64 + tail |
 | `max_prompt_length` / `max_response_length` / `max_preserve_length` | 512 / 256 / 2304 |
 | `lr` / `weight_decay` / `adam_eps` | 1e-6 / 0 / 1e-8 |
@@ -247,7 +247,7 @@ evaluable but not resumable.
 6. **Eval (done):**
    - `scripts/eval_run.py` (orchestrator), `eval_worker.py` (vLLM generate / Qwen3Guard guard)
      and `eval_lib.py` (ported from `grit_general_benchmark_v2.ipynb`, local snapshot loaders,
-     no OpenAI).
+     local judging only).
    - PKU safety reports `unsafe_%` (Unsafe or Controversial = the reward rule), `guard_refusal_%`
      and length.
    - AlpacaEval reports over-refusal (`guard_refusal_%`, `refusal_regex_%`) and length.

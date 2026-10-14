@@ -56,7 +56,7 @@ shows the real seconds per step (`step_seconds`).
 ## Job 4: fetch results
 
 ```
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/GRIT/results_grit_3b_lam1/ +a
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/grit/results_grit_3b_lam1/ +a
 #grit
 #v1
 ```
@@ -65,14 +65,15 @@ To only peek at progress, use `#2 -0-3` (last 3 run logs).
 
 ## What to look at
 
-All small outputs are in `GRIT/results_grit_3b_lam1/`:
+All small outputs are in `results_grit_3b_lam1/` next to `project_commands.sh` (on the server:
+`/mnt/local/aiskylimit_new_nothingnew_2/grit/results_grit_3b_lam1/`, the path printed at the end of every job):
 
 | File | Content |
 |---|---|
 | `summary.md` | **final tables**: training curve, eval per benchmark, "Safety vs over-refusal", deltas vs base with 95% CI |
 | `logs/full_run_*.log` | complete console output of each job |
 | `logs/{train,eval}.log` | per-stage logs |
-| `memory_config.txt` | memory setting in use (changes only after a fallback) |
+| `mem_config_in_use.txt` | memory setting in use (changes only after an out-of-memory fallback) |
 | `train/metrics.jsonl` | one line per training step (reward, unsafe rate, KL, response length, alerts, VRAM, time) |
 | `eval/eval_results.json` | all eval numbers |
 
@@ -105,8 +106,9 @@ To change a setting, edit its default near the top of `GRIT/project_commands.sh`
 | `ERROR: /mnt/local/uvenvs/grit does not exist` | Job 1 has not run (or failed). |
 | `ERROR: missing .../config.json` or `SHA256SUMS.json` | Job 2 has not run (or is incomplete). |
 | `ERROR: GPU <id> has only ... MiB free` | Someone else is using that GPU (`nvidia-smi` is printed). Retry later or change `GPU_IDS`. |
-| `training failed with every MEM_CONFIG` | Real error: see `logs/train.log` (the first traceback). |
-| `train FAILED with MEM_CONFIG=...; falling back` | Training resumes with a safer memory setting. Nothing to do. |
+| `train FAILED (not an out-of-memory error)` | Real error: the traceback is printed right above it (also in `logs/train.log`). |
+| `train ran OUT OF MEMORY with MEM_CONFIG=...; falling back` | Training resumes with a safer memory setting. Nothing to do. |
+| `training ran out of memory with every MEM_CONFIG` | Even the smallest setting does not fit: see `logs/train.log`. |
 | Job stopped with `FAILED/STOPPED (exit 143)` | Timeout. Resubmit Job 3 (flip `#v1`/`#v2`). |
 
 The code only reads local files and writes local outputs on the server.

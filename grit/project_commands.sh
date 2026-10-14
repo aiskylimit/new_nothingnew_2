@@ -5,7 +5,7 @@
 #   ROLLOUT_GPU runs the FP32 vLLM rollout alone. Eval spreads its vLLM engines over EVAL_GPUS.
 # Every stage is resumable: training resumes from the latest checkpoint, eval resumes per model/benchmark.
 # Memory: training starts with the most aggressive MEM_CONFIGS entry and falls back to the next one on
-#   failure (resuming from the latest checkpoint); the current entry is kept in memory_config.txt.
+#   CUDA OOM (resuming from the latest checkpoint); the entry in use is kept in mem_config_in_use.txt.
 # Eval: EVAL_SLOTS vLLM engines per GPU run models in parallel (base, step 20, step 40 at once).
 # commands.sh runs exactly "cd ./GRIT" + "bash ./project_commands.sh"; to change a setting, edit its
 # default below (GPU_IDS, RUN_ID, LAMBDA_PRES, MAX_STEPS, STAGES, EVAL_STEPS, EVAL_MAX_SAMPLES, MEM_CONFIGS,
@@ -35,6 +35,10 @@ PRESERVE_FILE="${ARTIFACTS}/data/preservation/split_v1/qwen--qwen2.5-3b-instruct
 PROJECTORS="${ARTIFACTS}/artifacts/qwen--qwen2.5-3b-instruct_split_v1_projectors.pt"
 
 export HF_HOME="${BASE_DIR}/.cache/huggingface"
+# Each rollout sync writes a ~12 GB FP32 weight file to a temp dir, and vLLM/torch.compile keep caches:
+# keep both on /mnt/local instead of a possibly small /tmp or home directory.
+export TMPDIR="${BASE_DIR}/tmp" VLLM_CACHE_ROOT="${BASE_DIR}/.cache/vllm"
+mkdir -p "${TMPDIR}" "${VLLM_CACHE_ROOT}"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1 OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}
 
@@ -163,10 +167,10 @@ train() {  # train <output_dir> <max_steps> <save_steps> <validation_steps> <log
 # 1. Train (resumes from the latest checkpoint; checkpoints every 5 steps, validation every 5)
 # ============================================================
 if want train; then
-  # Explicit MEM_CONFIG > the one an earlier job fell back to > the most aggressive entry.
-  MEM_CONFIG=${MEM_CONFIG:-$(cat "${RESULTS}/memory_config.txt" 2>/dev/null || echo "${MEM_CONFIGS%% *}")}
-  # On failure (e.g. OOM), fall back to the next, less aggressive config and resume from the latest
-  # checkpoint; no partial step is ever committed.
+  # Explicit MEM_CONFIG > the one an earlier job fell back to after an OOM > the most aggressive entry.
+  MEM_CONFIG=${MEM_CONFIG:-$(cat "${RESULTS}/mem_config_in_use.txt" 2>/dev/null || echo "${MEM_CONFIGS%% *}")}
+  # Only a CUDA out-of-memory error falls back to the next, less aggressive config (resuming from the
+  # latest checkpoint; no partial step is ever committed). Any other error stops the job as is.
   fallbacks="${MEM_CONFIG}"; seen=0
   for config in ${MEM_CONFIGS}; do
     [ "${seen}" == "1" ] && fallbacks="${fallbacks} ${config}"
@@ -175,14 +179,20 @@ if want train; then
   trained=0
   for config in ${fallbacks}; do
     mem_args "${config}"
-    echo "${config}" > "${RESULTS}/memory_config.txt"
+    echo "${config}" > "${RESULTS}/mem_config_in_use.txt"
     stage "1. train ${RUN_ID}: lambda_pres=${LAMBDA_PRES}, ${MAX_STEPS} steps, MEM_CONFIG=${config}"
+    log_start=$(( $(wc -l 2>/dev/null < "${RESULTS}/logs/train.log" || echo 0) + 1 ))
     if train "${OUT_DIR}" "${MAX_STEPS}" 5 5 "${RESULTS}/logs/train.log"; then trained=1; break; fi
-    echo "train FAILED with MEM_CONFIG=${config}; falling back to the next config"
-    echo "${config} failed $(date)" >> "${RESULTS}/memory_config_failures.txt"
+    if ! tail -n "+${log_start}" "${RESULTS}/logs/train.log" | grep -qi "out of memory"; then
+      copy_train_results "${OUT_DIR}" "${RESULTS}/train"
+      echo "train FAILED (not an out-of-memory error) - see the traceback above / ${RESULTS}/logs/train.log"
+      exit 1
+    fi
+    echo "train ran OUT OF MEMORY with MEM_CONFIG=${config}; falling back to the next config"
+    echo "${config} OOM $(date)" >> "${RESULTS}/memory_config_failures.txt"
   done
   copy_train_results "${OUT_DIR}" "${RESULTS}/train"
-  [ "${trained}" == "1" ] || { echo "training failed with every MEM_CONFIG - see ${RESULTS}/logs/train.log"; exit 1; }
+  [ "${trained}" == "1" ] || { echo "training ran out of memory with every MEM_CONFIG - see ${RESULTS}/logs/train.log"; exit 1; }
 fi
 
 # ============================================================
