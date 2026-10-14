@@ -11,6 +11,7 @@ Output is appended per batch, so an interrupted run resumes where it stopped.
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
 import time
@@ -21,6 +22,7 @@ if str(ROOT) not in sys.path:
 
 LETTERS = "ABCDEFGHIJKLMNOP"
 READY_MARKER = "[EVAL_WORKER_READY]"
+FINISHED_MARKER = "[EVAL_WORKER_FINISHED]"
 T0 = time.time()
 
 
@@ -151,6 +153,12 @@ def main():
             rate = finished / max(1e-3, time.time() - started)
             tick(f"[{args.label}/{args.role}] {len(done) + finished}/{len(items)} | {rate:.1f} item/s")
     tick(f"[{args.label}/{args.role}] finished -> {args.out}")
+    if os.environ.get("GRIT_EVAL_HANDSHAKE") == "1":
+        # vLLM frees this engine's GPU memory at exit. If another engine on the same GPU is profiling memory
+        # at that moment, its startup fails ("free memory increased"), so exit only once the orchestrator
+        # holds the GPU's startup lock.
+        print(FINISHED_MARKER, flush=True)
+        sys.stdin.readline()
 
 
 if __name__ == "__main__":
