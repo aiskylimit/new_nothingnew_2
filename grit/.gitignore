@@ -20,3 +20,4 @@ tests/
 pytest.ini
 config/
 scripts/verify_artifacts.py
+kaggle_smoke.ipynb

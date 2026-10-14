@@ -11,6 +11,7 @@ Output is appended per batch, so an interrupted run resumes where it stopped.
 
 import argparse
 import json
+import os
 from pathlib import Path
 import sys
 import time
@@ -21,6 +22,7 @@ if str(ROOT) not in sys.path:
 
 LETTERS = "ABCDEFGHIJKLMNOP"
 READY_MARKER = "[EVAL_WORKER_READY]"
+FINISHED_MARKER = "[EVAL_WORKER_FINISHED]"
 T0 = time.time()
 
 
@@ -58,6 +60,10 @@ def main():
     parser.add_argument("--guard-max-tokens", type=int, default=128)
     parser.add_argument("--max-num-seqs", type=int, default=512, help="Concurrent sequences inside vLLM")
     parser.add_argument("--max-num-batched-tokens", type=int, default=16384)
+    parser.add_argument("--attention-backend", default="FLASH_ATTN",
+                        help="vLLM attention backend. FLASH_ATTN ships prebuilt in the vLLM wheel (as P-ALIGN uses on "
+                             "this server); vLLM's automatic choice on B200 is FlashInfer, which JIT-compiles kernels "
+                             "with nvcc at startup. GPUs below sm_80 (e.g. Kaggle T4) fall back to TRITON_ATTN.")
     args = parser.parse_args()
 
     items = read_jsonl(args.items)
@@ -69,11 +75,32 @@ def main():
 
     from transformers import AutoTokenizer
     from vllm import LLM, SamplingParams
+    from vllm.platforms import current_platform
+
+    backend = args.attention_backend
+    capability = current_platform.get_device_capability()  # NVML query, does not initialize CUDA here
+    if backend.upper() == "FLASH_ATTN" and capability is not None and (capability.major, capability.minor) < (8, 0):
+        tick(f"[{args.label}/{args.role}] FLASH_ATTN needs sm_80+, GPU is sm_{capability.major}{capability.minor}: "
+             "using TRITON_ATTN")
+        backend = "TRITON_ATTN"
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
-    llm = LLM(model=args.model, tokenizer=args.model, dtype=args.dtype, tensor_parallel_size=1,
-              gpu_memory_utilization=args.gpu_mem, max_model_len=args.max_model_len, seed=0,
-              max_num_seqs=args.max_num_seqs, max_num_batched_tokens=args.max_num_batched_tokens)
+    # FlashAttention kernels are built/loaded during engine startup (profiling + CUDA graph capture), so a
+    # backend problem surfaces here. TRITON_ATTN is the fallback: it is what the FP32 rollout runs on.
+    backends = [backend] + (["TRITON_ATTN"] if backend.upper() != "TRITON_ATTN" else [])
+    for attempt, backend in enumerate(backends):
+        tick(f"[{args.label}/{args.role}] attention backend {backend}")
+        try:
+            llm = LLM(model=args.model, tokenizer=args.model, dtype=args.dtype, tensor_parallel_size=1,
+                      gpu_memory_utilization=args.gpu_mem, max_model_len=args.max_model_len, seed=0,
+                      max_num_seqs=args.max_num_seqs, max_num_batched_tokens=args.max_num_batched_tokens,
+                      attention_backend=backend)
+            break
+        except Exception as error:  # noqa: BLE001 - retried with the next backend, re-raised if none is left
+            if attempt + 1 == len(backends):
+                raise
+            tick(f"[{args.label}/{args.role}] {backend} engine failed to start ({type(error).__name__}: "
+                 f"{str(error).splitlines()[0][:200]}); retrying with {backends[attempt + 1]}")
     # The orchestrator holds a per-GPU startup lock until this line, so concurrent
     # engines never profile memory at the same time.
     print(READY_MARKER, flush=True)
@@ -137,6 +164,12 @@ def main():
             rate = finished / max(1e-3, time.time() - started)
             tick(f"[{args.label}/{args.role}] {len(done) + finished}/{len(items)} | {rate:.1f} item/s")
     tick(f"[{args.label}/{args.role}] finished -> {args.out}")
+    if os.environ.get("GRIT_EVAL_HANDSHAKE") == "1":
+        # vLLM frees this engine's GPU memory at exit. If another engine on the same GPU is profiling memory
+        # at that moment, its startup fails ("free memory increased"), so exit only once the orchestrator
+        # holds the GPU's startup lock.
+        print(FINISHED_MARKER, flush=True)
+        sys.stdin.readline()
 
 
 if __name__ == "__main__":

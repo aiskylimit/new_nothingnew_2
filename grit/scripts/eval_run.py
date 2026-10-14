@@ -48,28 +48,46 @@ def by_uid(path):
 
 
 def run_worker(args, *, gpu, startup_lock, role, model, label, items, out):
-    """One vLLM engine; holds the GPU's startup lock until the engine reports ready."""
-    from scripts.eval_worker import READY_MARKER
+    """One vLLM engine. The GPU's lock is held while the engine starts (until it reports ready) and while it
+    shuts down, so no engine profiles GPU memory while another one on that GPU allocates or frees memory."""
+    from scripts.eval_worker import FINISHED_MARKER, READY_MARKER
 
-    env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu), TOKENIZERS_PARALLELISM="false", PYTHONUNBUFFERED="1")
+    env = dict(os.environ, CUDA_VISIBLE_DEVICES=str(gpu), TOKENIZERS_PARALLELISM="false", PYTHONUNBUFFERED="1",
+               GRIT_EVAL_HANDSHAKE="1")
     command = [sys.executable, str(ROOT / "scripts" / "eval_worker.py"), "--role", role, "--model", model,
                "--label", label, "--items", str(items), "--out", str(out),
                "--max-model-len", str(args.max_model_len), "--dtype", args.dtype,
                "--gpu-mem", f"{args.gpu_mem / args.slots_per_gpu:.3f}", "--max-num-seqs", str(args.max_num_seqs)]
     startup_lock.acquire()
-    locked = True
+    locked, process = True, None
     try:
         tick(f"{role}: {label} on GPU {gpu} ({model})")
-        process = subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                   text=True, bufsize=1)
+        process = subprocess.Popen(command, env=env, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, text=True, bufsize=1)
         for line in process.stdout:
             print(f"[{label}/{role}] {line}", end="", flush=True)
             if locked and READY_MARKER in line:
                 startup_lock.release()
                 locked = False
-        if process.wait() != 0:
-            raise RuntimeError(f"{role} worker for {label} failed (exit {process.returncode})")
+            elif not locked and FINISHED_MARKER in line:
+                startup_lock.acquire()  # wait for any engine still starting on this GPU, then let this one exit
+                locked = True
+                try:
+                    process.stdin.write("exit\n")
+                    process.stdin.flush()
+                except (BrokenPipeError, OSError):
+                    pass
+        code = process.wait()
+        if locked:
+            time.sleep(3)  # let the driver reclaim the exited engine's memory before the next startup profiles
+        if code != 0:
+            raise RuntimeError(f"{role} worker for {label} failed (exit {code})")
     finally:
+        if process is not None and process.stdin:
+            try:
+                process.stdin.close()
+            except OSError:
+                pass
         if locked:
             startup_lock.release()
 
@@ -93,7 +111,8 @@ def run_parallel(args, jobs):
             except Exception as error:  # noqa: BLE001 - re-raised below after all slots stop
                 errors.append(error)
 
-    threads = [threading.Thread(target=slot, args=(gpu,)) for gpu in gpus for _ in range(args.slots_per_gpu)]
+    # GPU-major order: with fewer jobs than slots, jobs spread over all GPUs before two share a GPU.
+    threads = [threading.Thread(target=slot, args=(gpu,)) for _ in range(args.slots_per_gpu) for gpu in gpus]
     for thread in threads[:len(jobs)]:
         thread.start()
     for thread in threads[:len(jobs)]:
