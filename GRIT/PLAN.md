@@ -247,7 +247,7 @@ evaluable but not resumable.
 6. **Eval (done):**
    - `scripts/eval_run.py` (orchestrator), `eval_worker.py` (vLLM generate / Qwen3Guard guard)
      and `eval_lib.py` (ported from `grit_general_benchmark_v2.ipynb`, local snapshot loaders,
-     no OpenAI).
+     local judging only).
    - PKU safety reports `unsafe_%` (Unsafe or Controversial = the reward rule), `guard_refusal_%`
      and length.
    - AlpacaEval reports over-refusal (`guard_refusal_%`, `refusal_regex_%`) and length.
