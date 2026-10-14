@@ -56,7 +56,7 @@ shows the real seconds per step (`step_seconds`).
 ## Job 4: fetch results
 
 ```
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/GRIT/results_grit_3b_lam1/ +a
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/grit/results_grit_3b_lam1/ +a
 #grit
 #v1
 ```
@@ -65,7 +65,8 @@ To only peek at progress, use `#2 -0-3` (last 3 run logs).
 
 ## What to look at
 
-All small outputs are in `GRIT/results_grit_3b_lam1/`:
+All small outputs are in `results_grit_3b_lam1/` next to `project_commands.sh` (on the server:
+`/mnt/local/aiskylimit_new_nothingnew_2/grit/results_grit_3b_lam1/`, the path printed at the end of every job):
 
 | File | Content |
 |---|---|
