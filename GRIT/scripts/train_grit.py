@@ -152,6 +152,18 @@ def shared_vector_norm(vector):
     return float(local)
 
 
+def parameter_counts(model):
+    """Parameter count with tied weights counted once and counted per use.
+
+    Pinned counts follow whichever convention the original environment reported: Qwen2.5-3B
+    deduplicates its tied embedding, while Qwen3Guard-Gen-4B (tie_word_embeddings=true, but
+    a separate, byte-identical lm_head tensor in the checkpoint) was counted untied.
+    """
+    unique = sum(parameter.numel() for parameter in model.parameters())
+    per_use = sum(parameter.numel() for _, parameter in model.named_parameters(remove_duplicate=False))
+    return {unique, per_use}
+
+
 def broadcast_call(rank, function):
     """Propagate rank-zero rollout/checkpoint failures before other ranks continue."""
     payload = [None]
@@ -467,7 +479,7 @@ def train(args):
             args.resume or args.model_path, torch_dtype=torch.float32, attn_implementation="sdpa",
             **({"trust_remote_code": args.trust_remote_code} if args.resume else base_kwargs),
         ).to(device)
-    if sum(parameter.numel() for parameter in model.parameters()) != profile.policy_parameters:
+    if profile.policy_parameters not in parameter_counts(model):
         raise ValueError("Loaded policy parameter count does not match the pinned checkpoint")
     model.config.use_cache = False
     # Disable dropout consistently for old-policy comparison and central difference.
@@ -494,7 +506,7 @@ def train(args):
             args.safety_model_path, revision=safety_revision, torch_dtype=torch.bfloat16,
             trust_remote_code=args.trust_remote_code,
         ).eval().requires_grad_(False)
-    if sum(parameter.numel() for parameter in safety.parameters()) != profile.safety_parameters:
+    if profile.safety_parameters not in parameter_counts(safety):
         raise ValueError("Loaded reward-model parameter count does not match the pinned checkpoint")
     optimizer = AdamWDirectionPreconditioner(eps=args.adam_eps, weight_decay=args.weight_decay) if args.task_optimizer == "adamw" else None
     start = checkpoint["step"] if checkpoint else 0
