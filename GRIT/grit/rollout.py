@@ -41,7 +41,12 @@ def _worker(connection, config, gpu):
     os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu)
     os.environ["VLLM_WORKER_MULTIPROC_METHOD"] = "spawn"
     os.environ["VLLM_ALLOW_INSECURE_SERIALIZATION"] = "1"
-    for key in ("RANK", "WORLD_SIZE", "LOCAL_RANK", "LOCAL_WORLD_SIZE", "MASTER_ADDR", "MASTER_PORT"):
+    # Drop every torchrun launcher variable. vLLM builds its own 1-process torch.distributed group, and
+    # an inherited TORCHELASTIC_USE_AGENT_STORE=True makes torch (2.10) open only a TCPStore *client*
+    # on every rank, waiting for a torchrun agent store that does not exist: init hangs, then times out.
+    launcher = ("RANK", "WORLD_SIZE", "LOCAL_RANK", "LOCAL_WORLD_SIZE", "GROUP_RANK", "GROUP_WORLD_SIZE",
+                "ROLE_RANK", "ROLE_NAME", "ROLE_WORLD_SIZE", "MASTER_ADDR", "MASTER_PORT")
+    for key in [*launcher, *(key for key in os.environ if key.startswith("TORCHELASTIC_"))]:
         os.environ.pop(key, None)
     try:
         from vllm import LLM, SamplingParams
