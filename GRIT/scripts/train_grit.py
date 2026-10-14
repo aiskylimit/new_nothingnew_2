@@ -568,10 +568,10 @@ def train(args):
         if pres_sampler is not None:
             pres_sampler.load_state_dict(checkpoint["samplers"]["preservation"])
     output = Path(args.output_dir)
-    if not checkpoint:
-        output.mkdir(parents=True, exist_ok=False)
-    else:
-        output.mkdir(parents=True, exist_ok=True)
+    # Only rank 0 writes here (metrics, validation, checkpoints); other ranks racing on mkdir would
+    # hit FileExistsError on a fresh run.
+    if rank == 0:
+        output.mkdir(parents=True, exist_ok=bool(checkpoint))
     rollout = None
     try:
         def start_rollout():

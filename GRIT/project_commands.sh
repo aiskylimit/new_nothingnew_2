@@ -35,6 +35,10 @@ PRESERVE_FILE="${ARTIFACTS}/data/preservation/split_v1/qwen--qwen2.5-3b-instruct
 PROJECTORS="${ARTIFACTS}/artifacts/qwen--qwen2.5-3b-instruct_split_v1_projectors.pt"
 
 export HF_HOME="${BASE_DIR}/.cache/huggingface"
+# Each rollout sync writes a ~12 GB FP32 weight file to a temp dir, and vLLM/torch.compile keep caches:
+# keep both on /mnt/local instead of a possibly small /tmp or home directory.
+export TMPDIR="${BASE_DIR}/tmp" VLLM_CACHE_ROOT="${BASE_DIR}/.cache/vllm"
+mkdir -p "${TMPDIR}" "${VLLM_CACHE_ROOT}"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1
 export TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1 OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}
 
