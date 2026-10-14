@@ -1,5 +1,5 @@
-#2
-#grit
+#i vlm-distill-train.txt
+#vlm
 #v1
 
 
@@ -47,5 +47,5 @@ export NCCL_DEBUG=WARN
 # bash project_commands_qwen25_7b_l100_t1_c2_const.sh
 
 
-cd ./grit
-bash ./project_commands.sh
+# cd ./grit
+# bash ./project_commands.sh
