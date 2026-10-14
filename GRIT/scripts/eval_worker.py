@@ -83,13 +83,24 @@ def main():
         tick(f"[{args.label}/{args.role}] FLASH_ATTN needs sm_80+, GPU is sm_{capability.major}{capability.minor}: "
              "using TRITON_ATTN")
         backend = "TRITON_ATTN"
-    tick(f"[{args.label}/{args.role}] attention backend {backend}")
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
-    llm = LLM(model=args.model, tokenizer=args.model, dtype=args.dtype, tensor_parallel_size=1,
-              gpu_memory_utilization=args.gpu_mem, max_model_len=args.max_model_len, seed=0,
-              max_num_seqs=args.max_num_seqs, max_num_batched_tokens=args.max_num_batched_tokens,
-              attention_backend=backend)
+    # FlashAttention kernels are built/loaded during engine startup (profiling + CUDA graph capture), so a
+    # backend problem surfaces here. TRITON_ATTN is the fallback: it is what the FP32 rollout runs on.
+    backends = [backend] + (["TRITON_ATTN"] if backend.upper() != "TRITON_ATTN" else [])
+    for attempt, backend in enumerate(backends):
+        tick(f"[{args.label}/{args.role}] attention backend {backend}")
+        try:
+            llm = LLM(model=args.model, tokenizer=args.model, dtype=args.dtype, tensor_parallel_size=1,
+                      gpu_memory_utilization=args.gpu_mem, max_model_len=args.max_model_len, seed=0,
+                      max_num_seqs=args.max_num_seqs, max_num_batched_tokens=args.max_num_batched_tokens,
+                      attention_backend=backend)
+            break
+        except Exception as error:  # noqa: BLE001 - retried with the next backend, re-raised if none is left
+            if attempt + 1 == len(backends):
+                raise
+            tick(f"[{args.label}/{args.role}] {backend} engine failed to start ({type(error).__name__}: "
+                 f"{str(error).splitlines()[0][:200]}); retrying with {backends[attempt + 1]}")
     # The orchestrator holds a per-GPU startup lock until this line, so concurrent
     # engines never profile memory at the same time.
     print(READY_MARKER, flush=True)
