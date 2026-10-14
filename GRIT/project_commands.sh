@@ -40,6 +40,10 @@ export HF_HOME="${BASE_DIR}/.cache/huggingface"
 export TMPDIR="${BASE_DIR}/tmp" VLLM_CACHE_ROOT="${BASE_DIR}/.cache/vllm"
 mkdir -p "${TMPDIR}" "${VLLM_CACHE_ROOT}"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1
+# vLLM's engine opens a 1-process torch.distributed group on the host's outward IP, which this server
+# does not let a process reach (TCPStore timed out after 2 x 10 min); loopback works, as for the other
+# projects' MASTER_ADDR=127.0.0.1. Applies to the training rollout engine and every eval engine.
+export VLLM_HOST_IP=127.0.0.1
 export TOKENIZERS_PARALLELISM=false PYTHONUNBUFFERED=1 OMP_NUM_THREADS=${OMP_NUM_THREADS:-8}
 
 # commands.sh only runs "cd ./GRIT && bash ./project_commands.sh", so every default below must be right
