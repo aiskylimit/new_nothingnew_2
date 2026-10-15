@@ -1,4 +1,4 @@
-#1 +60
+#3
 #grit
 #v1
 
@@ -38,5 +38,5 @@ export NCCL_DEBUG=WARN
 # cd ./talas_vlm_embed
 # bash ./project_commands.sh
 
-cd ./grit
-bash ./project_commands.sh
+# cd ./grit
+# bash ./project_commands.sh
