@@ -70,7 +70,8 @@ done
 RUN_ID=${RUN_ID:-grit_3b_lam1}
 LAMBDA_PRES=${LAMBDA_PRES:-1}
 MAX_STEPS=${MAX_STEPS:-40}
-STAGES=${STAGES:-train,eval,summary}
+# Training finished (step 40) on 2026-10-14; eval crashed on an over-long SuperGPQA prompt -> rerun eval only.
+STAGES=${STAGES:-eval,summary}
 # Checkpoints are saved every 5 steps; only these are evaluated (base is always evaluated).
 EVAL_STEPS=${EVAL_STEPS:-"20 40"}
 EVAL_MAX_SAMPLES=${EVAL_MAX_SAMPLES:-}   # e.g. 50 for a quick eval smoke test

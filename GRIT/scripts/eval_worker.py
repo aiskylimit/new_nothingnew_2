@@ -46,6 +46,13 @@ def done_uids(path):
     return done
 
 
+def prompt_text(tokenizer, item):
+    """Exact text sent to vLLM for a generate item."""
+    # raw_prompt: the benchmark's official prompt is already a full chat string (LiveCodeBench).
+    return item["prompt"] if item.get("raw_prompt") else tokenizer.apply_chat_template(
+        [{"role": "user", "content": item["prompt"]}], tokenize=False, add_generation_prompt=True)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--role", choices=["generate", "guard"], required=True)
@@ -53,7 +60,9 @@ def main():
     parser.add_argument("--label", required=True)
     parser.add_argument("--items", required=True, help="generate: prepared items; guard: generations to judge")
     parser.add_argument("--out", required=True)
-    parser.add_argument("--max-model-len", type=int, default=4096)
+    parser.add_argument("--max-model-len", type=int, default=4096,
+                        help="generate: minimum, raised to fit the longest prompt + its token budget (up to the "
+                             "model's context window); guard: used as is")
     parser.add_argument("--batch-size", type=int, default=4096)
     parser.add_argument("--dtype", default="bfloat16")
     parser.add_argument("--gpu-mem", type=float, default=0.90)
@@ -85,6 +94,18 @@ def main():
         backend = "TRITON_ATTN"
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
+    max_model_len = args.max_model_len
+    if args.role == "generate":
+        # Size the context so the longest prompt still gets its full budget (1 letter for mc, max_tokens for gen):
+        # vLLM rejects a whole batch if one prompt does not fit. Measured over all items, not only the pending
+        # ones, so a resumed run uses the same length.
+        from transformers import AutoConfig
+        window = getattr(AutoConfig.from_pretrained(args.model), "max_position_embeddings", None) or max_model_len
+        ids = tokenizer([prompt_text(tokenizer, item) for item in items], add_special_tokens=False)["input_ids"]
+        need = max(len(row) + (1 if item["mode"] == "mc" else item["max_tokens"]) for row, item in zip(ids, items))
+        max_model_len = min(window, max(max_model_len, -(-need // 256) * 256))
+        tick(f"[{args.label}/{args.role}] longest prompt + budget = {need} tokens -> max_model_len {max_model_len} "
+             f"(context window {window})")
     # FlashAttention kernels are built/loaded during engine startup (profiling + CUDA graph capture), so a
     # backend problem surfaces here. TRITON_ATTN is the fallback: it is what the FP32 rollout runs on.
     backends = [backend] + (["TRITON_ATTN"] if backend.upper() != "TRITON_ATTN" else [])
@@ -92,7 +113,7 @@ def main():
         tick(f"[{args.label}/{args.role}] attention backend {backend}")
         try:
             llm = LLM(model=args.model, tokenizer=args.model, dtype=args.dtype, tensor_parallel_size=1,
-                      gpu_memory_utilization=args.gpu_mem, max_model_len=args.max_model_len, seed=0,
+                      gpu_memory_utilization=args.gpu_mem, max_model_len=max_model_len, seed=0,
                       max_num_seqs=args.max_num_seqs, max_num_batched_tokens=args.max_num_batched_tokens,
                       attention_backend=backend)
             break
@@ -123,15 +144,19 @@ def main():
             prompts, params, keep = [], [], []
             for item in batch:
                 if args.role == "generate":
-                    # raw_prompt: the benchmark's official prompt is already a full chat string (LiveCodeBench).
-                    text = item["prompt"] if item.get("raw_prompt") else tokenizer.apply_chat_template(
-                        [{"role": "user", "content": item["prompt"]}], tokenize=False, add_generation_prompt=True)
+                    text = prompt_text(tokenizer, item)
                     n_prompt = len(tokenizer(text, add_special_tokens=False)["input_ids"])
                     if item["mode"] == "mc":
+                        if n_prompt + 1 > max_model_len:
+                            # Only beyond the model's context window: recorded as unanswered (scored wrong for
+                            # every model, so paired deltas hold) instead of failing the whole batch.
+                            handle.write(json.dumps({"uid": item["uid"], "response": "", "choice": None,
+                                                     "finish_reason": "prompt_too_long", "n_tokens": 0}) + "\n")
+                            continue
                         sampling = SamplingParams(temperature=0.0, max_tokens=1,
                                                   allowed_token_ids=letter_ids[: item["n_options"]])
                     else:
-                        budget = min(item["max_tokens"], args.max_model_len - n_prompt)
+                        budget = min(item["max_tokens"], max_model_len - n_prompt)
                         if budget < 16:
                             handle.write(json.dumps({"uid": item["uid"], "response": "", "choice": None,
                                                      "finish_reason": "prompt_too_long", "n_tokens": 0}) + "\n")
@@ -140,10 +165,10 @@ def main():
                 else:
                     text = format_safety_conversation(tokenizer, item["prompt"], item["response"])
                     n_prompt = len(tokenizer(text, add_special_tokens=False)["input_ids"])
-                    if n_prompt + args.guard_max_tokens > args.max_model_len:
+                    if n_prompt + args.guard_max_tokens > max_model_len:
                         # Keep the head of the conversation: the label depends on the prompt and response start.
                         ids = tokenizer(text, add_special_tokens=False)["input_ids"]
-                        text = tokenizer.decode(ids[: args.max_model_len - args.guard_max_tokens])
+                        text = tokenizer.decode(ids[: max_model_len - args.guard_max_tokens])
                     sampling = SamplingParams(temperature=0.0, max_tokens=args.guard_max_tokens)
                 prompts.append(text)
                 params.append(sampling)

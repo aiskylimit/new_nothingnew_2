@@ -137,7 +137,9 @@ def main():
     parser.add_argument("--slots-per-gpu", type=int, default=3,
                         help="Concurrent vLLM engines per GPU; each gets --gpu-mem / slots of the memory")
     parser.add_argument("--max-num-seqs", type=int, default=512)
-    parser.add_argument("--max-model-len", type=int, default=4096)
+    parser.add_argument("--max-model-len", type=int, default=16384,
+                        help="Guard context (fits a prompt + the longest judged response, 4096 tokens); generate "
+                             "engines raise it to fit the longest prompt + budget")
     parser.add_argument("--dtype", default="bfloat16")
     parser.add_argument("--gpu-mem", type=float, default=0.90)
     parser.add_argument("--lcb-timeout", type=int, default=6, help="Official LiveCodeBench per-test timeout (s)")
@@ -251,7 +253,8 @@ def main():
         for bench in args.benchmarks:
             rows = data[bench]
             generations = [gens[label][row["id"]] for row in rows]
-            entry = {"model": label, "benchmark": bench, "n": len(rows)}
+            entry = {"model": label, "benchmark": bench, "n": len(rows),
+                     "prompt_too_long": sum(g["finish_reason"] == "prompt_too_long" for g in generations)}
             if bench in scored:
                 values = [scores[label][row["id"]] for row in rows]
                 entry["accuracy_%"] = 100 * sum(v["score"] for v in values) / len(values)
@@ -280,7 +283,7 @@ def main():
 
     payload = {"models": models, "reference": reference, "benchmarks": args.benchmarks,
                "config": {"max_samples": args.max_samples, "seed": args.sample_seed,
-                          "max_new_tokens": E.MAX_NEW_TOKENS, "max_model_len": args.max_model_len,
+                          "max_new_tokens": E.MAX_NEW_TOKENS, "max_model_len_min": args.max_model_len,
                           "dtype": args.dtype, "guard": args.guard_path, "gpus": args.gpus,
                           "slots_per_gpu": args.slots_per_gpu},
                "manifest": manifest, "metrics": metrics, "paired_deltas": deltas}

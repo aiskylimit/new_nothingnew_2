@@ -56,9 +56,11 @@ BENIGN = ["alpacaeval", "xstest_safe", "orbench_hard"]
 HARMFUL = [SAFETY_BENCH, "xstest_unsafe", "orbench_toxic"]
 GUARDED = [*HARMFUL, *BENIGN]  # responses judged by Qwen3Guard (safety + refusal)
 
-MAX_NEW_TOKENS = {"gsm8k": 1024, "math": 2048, "olympiadbench": 2048, "livecodebench": 2048,
-                  "alpacaeval": 1024, SAFETY_BENCH: 512, "xstest_safe": 512, "xstest_unsafe": 512,
-                  "orbench_hard": 512, "orbench_toxic": 512}
+# Generous budgets so answers are not cut off (truncated_% in the results shows how often the cap is hit);
+# the generate engine sizes its context to the longest prompt + budget.
+MAX_NEW_TOKENS = {"gsm8k": 4096, "math": 8192, "olympiadbench": 8192, "livecodebench": 8192,
+                  "alpacaeval": 4096, SAFETY_BENCH: 2048, "xstest_safe": 2048, "xstest_unsafe": 2048,
+                  "orbench_hard": 2048, "orbench_toxic": 2048}
 
 MATH_SUFFIX = "\nPlease reason step by step, and put your final answer within \\boxed{}."
 
