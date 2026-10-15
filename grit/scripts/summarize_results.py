@@ -30,7 +30,7 @@ TRAIN_COLUMNS = [
 HARMFUL = ["pku_safety", "xstest_unsafe", "orbench_toxic"]
 BENIGN = ["xstest_safe", "orbench_hard", "alpacaeval"]
 EVAL_COLUMNS = ["accuracy_%", "extracted_%", "unsafe_%", "guard_refusal_%", "refusal_regex_%",
-                "mean_tokens", "truncated_%"]
+                "mean_tokens", "truncated_%", "prompt_too_long"]
 
 
 def fmt(value, pattern="{:.2f}"):
