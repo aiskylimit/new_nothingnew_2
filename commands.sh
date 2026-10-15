@@ -1,5 +1,5 @@
-#3
-#vlm
+#1 +10
+#vlm_check
 #v1
 
 
@@ -27,8 +27,8 @@ export NCCL_DEBUG=WARN
 # cd ./learn2follow
 # bash ./project_commands.sh
 
-# cd ./VLM_Distillation-main
-# bash project_commands_collect_eval_summary.sh
+cd ./VLM_Distillation-main
+bash project_commands_collect_eval_summary.sh
 # bash project_commands.sh
 # pwd && ls 
 
