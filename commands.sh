@@ -1,6 +1,6 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
-#vlm
-#v1
+#1 +180
+#grit
+#v2
 
 # cd SpectralGuidedLearning && bash project_commands_qwen25_7b_l100_t1_c2_const.sh
 nvidia-smi
@@ -38,10 +38,13 @@ export NCCL_DEBUG=WARN
 # cd ./opsd
 # bash ./project_commands.sh
 
-cd ./talas_vlm_embed
+cd ./GRIT
 bash ./project_commands.sh
 
-# cd ./OpenED
+# cd ./talas_vlm_embed
+# bash ./project_commands.sh
+
+# # cd ./OpenED
 # bash gather_logs.sh all3
 # tar -czf collected_logs.tar.gz collected_logs/all3/
 # ls -lh collected_logs.tar.gz
