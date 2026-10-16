@@ -2,6 +2,7 @@
 #models
 --hf Qwen/Qwen2.5-3B-Instruct /mnt/local/@PROJECT@/grit/models/Qwen2.5-3B-Instruct
 --hf Qwen/Qwen3Guard-Gen-4B /mnt/local/@PROJECT@/grit/models/Qwen3Guard-Gen-4B
+--hf allenai/wildguard /mnt/local/@PROJECT@/grit/models/wildguard
 #datasets
 --hf-dataset fushinguyenex/GRIT-artifacts /mnt/local/@PROJECT@/grit/prepared
 --hf-dataset cais/mmlu /mnt/local/@PROJECT@/grit/data/raw/mmlu
@@ -13,4 +14,9 @@
 --url https://huggingface.co/datasets/tatsu-lab/alpaca_eval/resolve/main/alpaca_eval.json /mnt/local/@PROJECT@/grit/data/raw/alpaca_eval
 --hf-dataset Paul/XSTest /mnt/local/@PROJECT@/grit/data/raw/XSTest
 --url https://huggingface.co/datasets/bench-llm/or-bench/resolve/main/or-bench-hard-1k.csv /mnt/local/@PROJECT@/grit/data/raw/or-bench
---url https://huggingface.co/datasets/bench-llm/or-bench/resolve/main/or-bench-toxic.csv /mnt/local/@PROJECT@/grit/data/raw/or-bench
+--url https://raw.githubusercontent.com/llm-attacks/llm-attacks/main/data/advbench/harmful_behaviors.csv /mnt/local/@PROJECT@/grit/data/raw/advbench
+--url https://raw.githubusercontent.com/centerforaisafety/HarmBench/main/data/behavior_datasets/harmbench_behaviors_text_test.csv /mnt/local/@PROJECT@/grit/data/raw/harmbench
+--url https://huggingface.co/datasets/JailbreakBench/JBB-Behaviors/resolve/main/data/harmful-behaviors.csv /mnt/local/@PROJECT@/grit/data/raw/JBB-Behaviors
+--hf-dataset sorry-bench/sorry-bench-202406 /mnt/local/@PROJECT@/grit/data/raw/sorry-bench-202406
+--url https://huggingface.co/datasets/declare-lab/HarmfulQA/resolve/main/data_for_hub.json /mnt/local/@PROJECT@/grit/data/raw/HarmfulQA
+--url https://huggingface.co/datasets/Babelscape/ALERT/resolve/main/alert.jsonl /mnt/local/@PROJECT@/grit/data/raw/ALERT
