@@ -1,4 +1,4 @@
-#1 +300
+#1 +60
 #contra1
 #v1
 
@@ -18,7 +18,14 @@ export NCCL_DEBUG=WARN
 
 # cd ./contra-kd
 # bash ./project_commands.sh
-# pkill -f contra1 2>/dev/null || true
+pkill -f 7474 2>/dev/null || true
+ENV_DIR="${ENV_DIR:-/mnt/local/uvenvs/contra}"
+if [[ ! -f "${ENV_DIR}/bin/activate" ]]; then
+    echo "Missing environment: ${ENV_DIR}. Provision contra.txt before running offline." >&2
+    exit 1
+fi
+source "${ENV_DIR}/bin/activate"
+python -m pip list
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
