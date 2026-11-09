@@ -1,5 +1,5 @@
-#1 +30
-#end-prev-contra1
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/logs/gpt2_t0/ +a
+#contra1
 #v1
 
 
@@ -19,7 +19,7 @@ export NCCL_DEBUG=WARN
 
 # cd ./contra-kd
 # bash ./project_commands.sh
-kill 7474
+# kill 7474
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
