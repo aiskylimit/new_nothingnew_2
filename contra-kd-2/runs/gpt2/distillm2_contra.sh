@@ -13,9 +13,9 @@ DEVICE=${CUDA_VISIBLE_DEVICES:-${DEVICE:-0}}
 export CUDA_VISIBLE_DEVICES=${DEVICE}
 STUDENT_PATH=${STUDENT_PATH:-"${BASE_PATH}/results/gpt2/train/init/gpt2-base"}
 TEACHER_PATH=${TEACHER_PATH:-"${BASE_PATH}/results/gpt2/train/sft/gpt2-xlarge"}
-VELOCITY_PATH="${BASE_PATH}/results/gpt2/train/velocity_field_t0/distillm2"
+VELOCITY_PATH="${BASE_PATH}/results/gpt2/train/velocity_field/distillm2"
 DISTILLM2_DATA_DIR="${DISTILLM2_DATA_DIR:?Run project_commands.sh to set the generated data path}"
-ckpt="contra_t0/distillm2/0.1B_1.5B"
+ckpt="contra/distillm2/0.1B_1.5B"
 
 # Download the pretrained teacher SFT and student initialization before running.
 for checkpoint in "${STUDENT_PATH}" "${TEACHER_PATH}"
@@ -38,15 +38,15 @@ echo "========================================"
 for checkpoint in "${VELOCITY_PATH}/velocity_field.pth" "${VELOCITY_PATH}/projector.pth"
 do
     if [ ! -f "${checkpoint}" ]; then
-        echo "Missing pretrained field/projector: ${checkpoint}. Run runs/gpt2/run_t0.sh first." >&2
+        echo "Missing pretrained field/projector: ${checkpoint}. Run runs/gpt2/run_contra.sh first." >&2
         exit 1
     fi
 done
 
-# Setup, data generation, and field pretraining run once in runs/gpt2/run_t0.sh.
+# Setup, data generation, and field pretraining run once in runs/gpt2/run_contra.sh.
 
 # Train with DistiLLM-2 + Contra
-echo "Training with DistiLLM-2 + Contra at t=0..."
+echo "Training with DistiLLM-2 + Contra..."
 bash ${BASE_PATH}/scripts/gpt2/distillm2/contra_0.1B_1.5B.sh ${BASE_PATH} ${MASTER_PORT} ${NUM_GPUS} \
     --data-dir ${DISTILLM2_DATA_DIR}/formatted \
     --model-path ${STUDENT_PATH} \

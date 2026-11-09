@@ -1,4 +1,4 @@
-# Offline GPT-2 +Contra t=0 — GPU 4 only
+# Offline GPT-2 +Contra
 
 The original contra-kd checkout is unchanged. This copy contains source code,
 not the original `data/`, Git metadata, environments, caches or logs.
@@ -33,12 +33,11 @@ downloads resources or installs packages on the offline machine.
 bash project_commands.sh
 ```
 
-**Only physical GPU 4 is used**, including generation, both field pretraining
-jobs, all four student methods and their evaluations. Jobs run **sequentially**:
-generation → offline-Dolly field → DistiLLM2 field → DistiLLM + eval → FDD + eval
-→ DistiLLM2 + eval → CSD + eval. CPU preprocessing hides all GPUs.
-Every torchrun call starts one process. Logical CUDA device 0 inside each job
-maps to physical GPU 4. Old per-stage GPU override variables are ignored.
+CPU preprocessing hides all GPUs. Generation runs on physical GPU 4, followed
+by the shared Dolly field on GPU 4 and the DistiLLM2 field on GPU 5. Once both
+fields are ready, DistiLLM and FDD run on GPU 4 and DistiLLM2 and CSD run on GPU 5.
+Each training job runs its evaluations on the same GPU. Every torchrun call
+starts one process and sees its assigned physical GPU as logical CUDA device 0.
 
 ## Path contract
 
@@ -58,7 +57,7 @@ default `aiskylimit_new_nothingnew_2`. `BASE_DIR` defaults to
 | Converted OpenWebText text | `data/prepared/openwebtext/data.txt` |
 | Tokenized Dolly | `processed_data/dolly/full/gpt2/` |
 | Tokenized OpenWebText | `processed_data/openwebtext/gpt2/512/22.87K/` |
-| Generated DistiLLM2 paired data | `data/generated/distillm2/gpt2/t0/` |
+| Generated DistiLLM2 paired data | `data/generated/distillm2/gpt2/` |
 | Downloaded teacher checkpoint | `results/gpt2/train/sft/gpt2-xlarge/` |
 | Downloaded student initialization | `results/gpt2/train/init/gpt2-base/` |
 
@@ -78,15 +77,14 @@ record cap (the selected snapshot contains 100,000 records).
 Model generation uses the existing Transformers fallback; vLLM is omitted to
 avoid conflicting with the training Transformers pin. The environment uses
 Transformers 4.57.1 and Tokenizers 0.22.1 to read the checkpoint tokenizer format.
-Hyperparameters and the
-four-method t=0 experiment matrix are otherwise unchanged. Offline HF flags
-are enabled. Metrics and checkpoints are stored locally. No NLTK download is needed.
+Field pretraining and periodic field updates sample times uniformly from
+`[0, 1)`. Offline HF flags are enabled. No NLTK download is needed.
 
-Generated field/student checkpoints, evaluation results and logs are written
-under the **code directory** in `results/` and `logs/gpt2_t0/`. Re-running repeats
-generation and training using the same output paths; this is not auto-resume.
-`runs/GPT2_T0.md` describes the original multi-GPU connected version; use this
-file and project_commands.sh for this single-GPU offline copy.
+Outputs are relative to the **code directory**. Fields are written to
+`results/gpt2/train/velocity_field/` and its `distillm2/` subdirectory. Student
+checkpoints go to `results/gpt2/train/contra/`, evaluation results to
+`results/gpt2/eval_main/`, and logs to `logs/gpt2_contra/`. Re-running repeats
+generation and training using the same output paths.
 
 Validation is static plus mocked end-to-end shell execution. No full dependency
 installation, actual model/data provisioning or CUDA training is performed here.

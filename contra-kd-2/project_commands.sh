@@ -24,14 +24,12 @@ export PROCESSED_DATA_ROOT="${BASE_DIR}/processed_data"
 export OPENWEBTEXT_DATASET_PATH="${RAW_DATA_ROOT}/openwebtext-100k"
 export OPENWEBTEXT_TEXT_PATH="${PREPARED_DATA_ROOT}/openwebtext/data.txt"
 export DOLLY_PROMPT_DATA_DIR="${PREPARED_DATA_ROOT}/dolly"
-export DISTILLM2_DATA_DIR="${BASE_DIR}/data/generated/distillm2/gpt2/t0"
+export DISTILLM2_DATA_DIR="${BASE_DIR}/data/generated/distillm2/gpt2"
 export TEACHER_PATH="${TEACHER_PATH:-${BASE_DIR}/results/gpt2/train/sft/gpt2-xlarge}"
 export STUDENT_PATH="${STUDENT_PATH:-${BASE_DIR}/results/gpt2/train/init/gpt2-base}"
 
-# Every generation, field, training and evaluation job runs serially on GPU 4.
-export CUDA_VISIBLE_DEVICES=4
 export BASE_PORT="${BASE_PORT:-20120}"
 export DATA_PROCESS_WORKERS="${DATA_PROCESS_WORKERS:-4}"
 
 cd "${PROJECT_ROOT}"
-exec bash "${PROJECT_ROOT}/runs/gpt2/run_t0.sh" "${PROJECT_ROOT}"
+exec bash "${PROJECT_ROOT}/runs/gpt2/run_contra.sh" "${PROJECT_ROOT}"
