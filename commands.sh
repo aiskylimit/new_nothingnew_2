@@ -1,4 +1,4 @@
-#2 +150
+#i contra.txt
 #contra1
 #v1
 

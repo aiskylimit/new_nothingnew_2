@@ -10,6 +10,10 @@ configuration. Existing console and filesystem logs remain available.
 
 1. Use `../contra.txt` with the environment provisioner, like `opsd.txt`.
    Python 3.11 environment: `contra`, default `/mnt/local/uvenvs/contra`.
+   For NVIDIA B200, provision PyTorch 2.8.0 with CUDA 12.8 and DeepSpeed 0.18.2.
+   CPU-only or older CUDA builds are not suitable for this GPU. The host NVIDIA
+   driver must also support this CUDA runtime. Rebuild the environment after
+   changing contra.txt; editing the file does not update an existing environment.
 2. Use `download.txt` with the external downloader, like `opsd/download.txt`.
    It downloads complete snapshots of:
    - `Elriggs/openwebtext-100k`
