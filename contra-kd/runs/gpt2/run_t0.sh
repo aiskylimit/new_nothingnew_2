@@ -36,6 +36,8 @@ export DISTILLM2_DATA_DIR=${DISTILLM2_DATA_DIR:-"${BASE_DIR}/data/generated/dist
 LOG_DIR=${LOG_DIR:-"${BASE_PATH}/logs/gpt2_t0"}
 export PYTHONPATH=${BASE_PATH}
 export PYTHONUNBUFFERED=1
+# Give each single-node torchrun its own rendezvous on a free local port.
+export PET_STANDALONE=1
 export TOKENIZERS_PARALLELISM=false
 export OMP_NUM_THREADS=${OMP_NUM_THREADS:-1}
 export MKL_NUM_THREADS=${MKL_NUM_THREADS:-1}
@@ -130,14 +132,15 @@ CUDA_VISIBLE_DEVICES=${GENERATE_GPU} bash "${BASE_PATH}/scripts/gpt2/distillm2/g
     2>&1 | tee "${LOG_DIR}/generate_distillm2.log"
 
 echo "Step 5/6: Pretraining two velocity fields sequentially on GPU 4..."
-CUDA_VISIBLE_DEVICES=${OFFLINE_FIELD_GPU} bash "${BASE_PATH}/scripts/gpt2/train_velocity_field.sh" \
-    "${BASE_PATH}" "$((BASE_PORT))" 1 \
-    --model-path "${STUDENT_PATH}" \
-    --teacher-model-path "${TEACHER_PATH}" \
-    --save "${VELOCITY_PATH}" \
-    > "${LOG_DIR}/field_offline.log" 2>&1 &
-PIDS+=("$!")
-JOB_NAMES+=("shared offline-Dolly field on GPU ${OFFLINE_FIELD_GPU}")
+# this is already done, skip
+# CUDA_VISIBLE_DEVICES=${OFFLINE_FIELD_GPU} bash "${BASE_PATH}/scripts/gpt2/train_velocity_field.sh" \
+#     "${BASE_PATH}" "$((BASE_PORT))" 1 \
+#     --model-path "${STUDENT_PATH}" \
+#     --teacher-model-path "${TEACHER_PATH}" \
+#     --save "${VELOCITY_PATH}" \
+#     > "${LOG_DIR}/field_offline.log" 2>&1 &
+# PIDS+=("$!")
+# JOB_NAMES+=("shared offline-Dolly field on GPU ${OFFLINE_FIELD_GPU}")
 # wait_for_jobs
 
 CUDA_VISIBLE_DEVICES=${DISTILLM2_FIELD_GPU} bash "${BASE_PATH}/scripts/gpt2/distillm2/train_velocity_field_distillm2.sh" \
