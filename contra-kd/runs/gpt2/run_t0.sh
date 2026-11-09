@@ -11,14 +11,14 @@ cd "${BASE_PATH}"
 # Offline copy: environment and checkpoints are provisioned separately.
 
 # Single physical GPU only. Ignore old per-stage multi-GPU overrides.
-export CUDA_VISIBLE_DEVICES=6
-GENERATE_GPU=6
-OFFLINE_FIELD_GPU=6
-DISTILLM2_FIELD_GPU=6
-DISTILLM_GPU=6
-FDD_GPU=6
-DISTILLM2_GPU=6
-CSD_GPU=6
+export CUDA_VISIBLE_DEVICES=4
+GENERATE_GPU=4
+OFFLINE_FIELD_GPU=4
+DISTILLM2_FIELD_GPU=4
+DISTILLM_GPU=4
+FDD_GPU=4
+DISTILLM2_GPU=4
+CSD_GPU=4
 BASE_PORT=${BASE_PORT:-20120}
 DATA_PROCESS_WORKERS=${DATA_PROCESS_WORKERS:-4}
 
@@ -129,7 +129,7 @@ CUDA_VISIBLE_DEVICES=${GENERATE_GPU} bash "${BASE_PATH}/scripts/gpt2/distillm2/g
     "${BASE_PATH}" "${DISTILLM2_DATA_DIR}" "${TEACHER_PATH}" "${STUDENT_PATH}" \
     2>&1 | tee "${LOG_DIR}/generate_distillm2.log"
 
-echo "Step 5/6: Pretraining two velocity fields sequentially on GPU 6..."
+echo "Step 5/6: Pretraining two velocity fields sequentially on GPU 4..."
 CUDA_VISIBLE_DEVICES=${OFFLINE_FIELD_GPU} bash "${BASE_PATH}/scripts/gpt2/train_velocity_field.sh" \
     "${BASE_PATH}" "$((BASE_PORT))" 1 \
     --model-path "${STUDENT_PATH}" \
@@ -151,7 +151,7 @@ PIDS+=("$!")
 JOB_NAMES+=("DistiLLM2 field on GPU ${DISTILLM2_FIELD_GPU}")
 wait_for_jobs
 
-echo "Step 6/6: Training and evaluating four methods sequentially on GPU 6..."
+echo "Step 6/6: Training and evaluating four methods sequentially on GPU 4..."
 CUDA_VISIBLE_DEVICES=${DISTILLM_GPU} EVAL_PORT=$((BASE_PORT + 20)) \
     bash "${BASE_PATH}/runs/gpt2/distillm_contra.sh" "${BASE_PATH}" "$((BASE_PORT + 10))" \
     > "${LOG_DIR}/distillm.log" 2>&1 &

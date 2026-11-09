@@ -28,8 +28,8 @@ export DISTILLM2_DATA_DIR="${BASE_DIR}/data/generated/distillm2/gpt2/t0"
 export TEACHER_PATH="${TEACHER_PATH:-${BASE_DIR}/results/gpt2/train/sft/gpt2-xlarge}"
 export STUDENT_PATH="${STUDENT_PATH:-${BASE_DIR}/results/gpt2/train/init/gpt2-base}"
 
-# Every generation, field, training and evaluation job runs serially on GPU 6.
-export CUDA_VISIBLE_DEVICES=6
+# Every generation, field, training and evaluation job runs serially on GPU 4.
+export CUDA_VISIBLE_DEVICES=4
 export BASE_PORT="${BASE_PORT:-20120}"
 export DATA_PROCESS_WORKERS="${DATA_PROCESS_WORKERS:-4}"
 

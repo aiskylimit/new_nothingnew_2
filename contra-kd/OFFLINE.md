@@ -1,4 +1,4 @@
-# Offline GPT-2 +Contra t=0 — GPU 6 only
+# Offline GPT-2 +Contra t=0 — GPU 4 only
 
 The original contra-kd checkout is unchanged. This copy contains source code,
 not the original `data/`, Git metadata, environments, caches or logs.
@@ -29,12 +29,12 @@ downloads resources or installs packages on the offline machine.
 bash project_commands.sh
 ```
 
-**Only physical GPU 6 is used**, including generation, both field pretraining
+**Only physical GPU 4 is used**, including generation, both field pretraining
 jobs, all four student methods and their evaluations. Jobs run **sequentially**:
 generation → offline-Dolly field → DistiLLM2 field → DistiLLM + eval → FDD + eval
 → DistiLLM2 + eval → CSD + eval. CPU preprocessing hides all GPUs.
 Every torchrun call starts one process. Logical CUDA device 0 inside each job
-maps to physical GPU 6. Old per-stage GPU override variables are ignored.
+maps to physical GPU 4. Old per-stage GPU override variables are ignored.
 
 ## Path contract
 
