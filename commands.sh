@@ -1,4 +1,4 @@
-#i contra.txt
+#2
 #contra1
 #v1
 
@@ -18,6 +18,7 @@ export NCCL_DEBUG=WARN
 
 # cd ./contra-kd
 # bash ./project_commands.sh
+pkill -f contra1 2>/dev/null || true
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
