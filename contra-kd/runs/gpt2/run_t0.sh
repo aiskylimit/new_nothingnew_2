@@ -11,14 +11,14 @@ cd "${BASE_PATH}"
 # Offline copy: environment and checkpoints are provisioned separately.
 
 # Single physical GPU only. Ignore old per-stage multi-GPU overrides.
-export CUDA_VISIBLE_DEVICES=4
+export CUDA_VISIBLE_DEVICES=4,5,6,7
 GENERATE_GPU=4
 OFFLINE_FIELD_GPU=4
-DISTILLM2_FIELD_GPU=4
+DISTILLM2_FIELD_GPU=5
 DISTILLM_GPU=4
 FDD_GPU=4
-DISTILLM2_GPU=4
-CSD_GPU=4
+DISTILLM2_GPU=5
+CSD_GPU=5
 BASE_PORT=${BASE_PORT:-20120}
 DATA_PROCESS_WORKERS=${DATA_PROCESS_WORKERS:-4}
 
@@ -138,7 +138,7 @@ CUDA_VISIBLE_DEVICES=${OFFLINE_FIELD_GPU} bash "${BASE_PATH}/scripts/gpt2/train_
     > "${LOG_DIR}/field_offline.log" 2>&1 &
 PIDS+=("$!")
 JOB_NAMES+=("shared offline-Dolly field on GPU ${OFFLINE_FIELD_GPU}")
-wait_for_jobs
+# wait_for_jobs
 
 CUDA_VISIBLE_DEVICES=${DISTILLM2_FIELD_GPU} bash "${BASE_PATH}/scripts/gpt2/distillm2/train_velocity_field_distillm2.sh" \
     "${BASE_PATH}" "$((BASE_PORT + 1))" 1 \
@@ -157,21 +157,21 @@ CUDA_VISIBLE_DEVICES=${DISTILLM_GPU} EVAL_PORT=$((BASE_PORT + 20)) \
     > "${LOG_DIR}/distillm.log" 2>&1 &
 PIDS+=("$!")
 JOB_NAMES+=("DistiLLM +Contra t=0 on GPU ${DISTILLM_GPU}")
-wait_for_jobs
+# wait_for_jobs
 
 CUDA_VISIBLE_DEVICES=${FDD_GPU} EVAL_PORT=$((BASE_PORT + 21)) \
     bash "${BASE_PATH}/runs/gpt2/fdd.sh" "${BASE_PATH}" "$((BASE_PORT + 11))" \
     > "${LOG_DIR}/fdd.log" 2>&1 &
 PIDS+=("$!")
 JOB_NAMES+=("FDD +Contra t=0 on GPU ${FDD_GPU}")
-wait_for_jobs
+# wait_for_jobs
 
 CUDA_VISIBLE_DEVICES=${DISTILLM2_GPU} EVAL_PORT=$((BASE_PORT + 22)) \
     bash "${BASE_PATH}/runs/gpt2/distillm2_contra.sh" "${BASE_PATH}" "$((BASE_PORT + 12))" 1 \
     > "${LOG_DIR}/distillm2.log" 2>&1 &
 PIDS+=("$!")
 JOB_NAMES+=("DistiLLM2 +Contra t=0 on GPU ${DISTILLM2_GPU}")
-wait_for_jobs
+# wait_for_jobs
 
 CUDA_VISIBLE_DEVICES=${CSD_GPU} EVAL_PORT=$((BASE_PORT + 23)) \
     bash "${BASE_PATH}/runs/csd/gpt2.sh" "${BASE_PATH}" "$((BASE_PORT + 13))" \
