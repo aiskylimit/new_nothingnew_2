@@ -1,4 +1,16 @@
-#2 +150
+#d
+#datasets
+--hf-dataset Elriggs/openwebtext-100k /mnt/local/@PROJECT@/contra-kd/data/raw/openwebtext-100k
+--hf-dataset MiniLLM/dolly /mnt/local/@PROJECT@/contra-kd/data/raw/dolly
+--hf-dataset MiniLLM/self-inst /mnt/local/@PROJECT@/contra-kd/data/raw/self-inst
+--hf-dataset MiniLLM/Vicuna /mnt/local/@PROJECT@/contra-kd/data/raw/vicuna
+--hf-dataset MiniLLM/sinst /mnt/local/@PROJECT@/contra-kd/data/raw/sinst
+#models
+--hf bachthetrollface/gpt2-120M-fdd-dolly /mnt/local/@PROJECT@/contra-kd/results/gpt2/train/fdd/base
+--hf bachthetrollface/gpt2-120M-contra-fdd-dolly /mnt/local/@PROJECT@/contra-kd/results/gpt2/train/contra/fdd/base
+--hf bachthetrollface/gpt2-120M-distillm-dolly /mnt/local/@PROJECT@/contra-kd/results/gpt2/train/distillm/base
+--hf bachthetrollface/gpt2-120M-contra-distillm-dolly /mnt/local/@PROJECT@/contra-kd/results/gpt2/train/contra/distillm/base
+
 #contra1
 #v1
 
