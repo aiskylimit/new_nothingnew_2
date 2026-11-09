@@ -1,4 +1,4 @@
-#2 +150
+#2 -0-5 +a
 #contra2
 #v1
 
@@ -27,8 +27,8 @@ export NCCL_DEBUG=WARN
 # cd ./learn2follow
 # bash ./project_commands.sh
 
-cd ./contra-kd-datdvt
-bash ./project_commands.sh
+# cd ./contra-kd-datdvt
+# bash ./project_commands.sh
 
 # cd ./VLM_Distillation-main
 # bash project_commands_collect_eval_summary.sh
