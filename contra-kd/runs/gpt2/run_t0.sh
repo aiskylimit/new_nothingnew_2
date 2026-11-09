@@ -94,42 +94,42 @@ do
 done
 
 echo "Step 3/6: Preprocessing OpenWebText and full Dolly once..."
-CUDA_VISIBLE_DEVICES="" python3 -u "${BASE_PATH}/tools/prepare_offline_dolly.py" \
-    --raw-path "${RAW_DATA_ROOT}/dolly/raw.jsonl" \
-    --output-dir "${DOLLY_PROMPT_DATA_DIR}" --dev-num 1000 \
-    2>&1 | tee "${LOG_DIR}/prepare_dolly.log"
-if [ ! -s "${OPENWEBTEXT_TEXT_PATH}" ]; then
-    CUDA_VISIBLE_DEVICES="" python3 -u "${BASE_PATH}/tools/get_openwebtext.py" \
-        2>&1 | tee "${LOG_DIR}/prepare_openwebtext.log"
-fi
+# CUDA_VISIBLE_DEVICES="" python3 -u "${BASE_PATH}/tools/prepare_offline_dolly.py" \
+#     --raw-path "${RAW_DATA_ROOT}/dolly/raw.jsonl" \
+#     --output-dir "${DOLLY_PROMPT_DATA_DIR}" --dev-num 1000 \
+#     2>&1 | tee "${LOG_DIR}/prepare_dolly.log"
+# if [ ! -s "${OPENWEBTEXT_TEXT_PATH}" ]; then
+#     CUDA_VISIBLE_DEVICES="" python3 -u "${BASE_PATH}/tools/get_openwebtext.py" \
+#         2>&1 | tee "${LOG_DIR}/prepare_openwebtext.log"
+# fi
 
 # Call the Python preprocessors directly, using the local tokenizer in every worker.
 # Only the full Dolly dataset is needed; skip the prompt-only MiniLLM preprocessing.
-CUDA_VISIBLE_DEVICES="" python3 -u "${BASE_PATH}/tools/process_data_pretrain.py" \
-    --data-dir "$(dirname "${OPENWEBTEXT_TEXT_PATH}")" \
-    --processed-data-dir "${PROCESSED_DATA_ROOT}/openwebtext/gpt2/512" \
-    --model-path "${STUDENT_PATH}" \
-    --model-type gpt2 \
-    --max-length 512 \
-    --train-num 22870 \
-    --data-process-workers "${DATA_PROCESS_WORKERS}" \
-    --dev-num 1000 \
-    2>&1 | tee "${LOG_DIR}/preprocess_openwebtext.log"
+# CUDA_VISIBLE_DEVICES="" python3 -u "${BASE_PATH}/tools/process_data_pretrain.py" \
+#     --data-dir "$(dirname "${OPENWEBTEXT_TEXT_PATH}")" \
+#     --processed-data-dir "${PROCESSED_DATA_ROOT}/openwebtext/gpt2/512" \
+#     --model-path "${STUDENT_PATH}" \
+#     --model-type gpt2 \
+#     --max-length 512 \
+#     --train-num 22870 \
+#     --data-process-workers "${DATA_PROCESS_WORKERS}" \
+#     --dev-num 1000 \
+#     2>&1 | tee "${LOG_DIR}/preprocess_openwebtext.log"
 
-CUDA_VISIBLE_DEVICES="" python3 -u "${BASE_PATH}/tools/process_data_dolly.py" \
-    --data-dir "${RAW_DATA_ROOT}/dolly" \
-    --processed-data-dir "${PROCESSED_DATA_ROOT}/dolly/full" \
-    --model-path "${STUDENT_PATH}" \
-    --model-type gpt2 \
-    --max-prompt-length 256 \
-    --data-process-workers "${DATA_PROCESS_WORKERS}" \
-    --dev-num 1000 \
-    2>&1 | tee "${LOG_DIR}/preprocess_dolly.log"
+# CUDA_VISIBLE_DEVICES="" python3 -u "${BASE_PATH}/tools/process_data_dolly.py" \
+#     --data-dir "${RAW_DATA_ROOT}/dolly" \
+#     --processed-data-dir "${PROCESSED_DATA_ROOT}/dolly/full" \
+#     --model-path "${STUDENT_PATH}" \
+#     --model-type gpt2 \
+#     --max-prompt-length 256 \
+#     --data-process-workers "${DATA_PROCESS_WORKERS}" \
+#     --dev-num 1000 \
+#     2>&1 | tee "${LOG_DIR}/preprocess_dolly.log"
 
 echo "Step 4/6: Generating DistiLLM2 response pairs on GPU ${GENERATE_GPU}..."
-CUDA_VISIBLE_DEVICES=${GENERATE_GPU} bash "${BASE_PATH}/scripts/gpt2/distillm2/generate_data.sh" \
-    "${BASE_PATH}" "${DISTILLM2_DATA_DIR}" "${TEACHER_PATH}" "${STUDENT_PATH}" \
-    2>&1 | tee "${LOG_DIR}/generate_distillm2.log"
+# CUDA_VISIBLE_DEVICES=${GENERATE_GPU} bash "${BASE_PATH}/scripts/gpt2/distillm2/generate_data.sh" \
+#     "${BASE_PATH}" "${DISTILLM2_DATA_DIR}" "${TEACHER_PATH}" "${STUDENT_PATH}" \
+#     2>&1 | tee "${LOG_DIR}/generate_distillm2.log"
 
 echo "Step 5/6: Pretraining two velocity fields sequentially on GPU 4..."
 # this is already done, skip
