@@ -7,6 +7,7 @@
 torch==2.8.0
 # Match the checkpoint serialization format and its tokenizer runtime.
 transformers==4.57.1
+vllm==0.11.0
 tokenizers==0.22.1
 peft==0.17.1
 accelerate==1.11.0

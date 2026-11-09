@@ -1,5 +1,5 @@
-#2 -0-5 +a
-#contra2
+#i contra.txt
+#contra1
 #v1
 
 
@@ -16,7 +16,8 @@ export NCCL_DEBUG=WARN
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-
+# cd ./contra-kd
+# bash ./project_commands.sh
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
