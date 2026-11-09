@@ -301,7 +301,8 @@ def train(
         # dp_group = None
         # loss_func = nn.CrossEntropyLoss()
 
-    sampler = DistributedSampler(dataset["train"], shuffle=True, drop_last=True, rank=dp_rank, num_replicas=dp_world_size)
+    sampler = DistributedSampler(dataset["train"], shuffle=True, drop_last=True, rank=dp_rank, num_replicas=dp_world_size,
+                                 seed=args.seed)
     train_dataloader = DataLoader(
         dataset['train'], sampler=sampler, batch_size=args.batch_size, num_workers=args.num_workers, collate_fn=dataset["train"].collate)
     
@@ -423,6 +424,11 @@ def train(
     return velocity_field, projector
 
 
+def save_velocity_checkpoint(path, velocity_field, projector):
+    torch.save(velocity_field.state_dict(), os.path.join(path, "velocity_field.pth"))
+    torch.save(projector.state_dict(), os.path.join(path, "projector.pth"))
+
+
 def main():
     torch.backends.cudnn.enabled = False
     
@@ -526,8 +532,7 @@ def main():
             if dist.get_rank() == 0:
                 os.makedirs(save_dir_path, exist_ok=True)
                 print_rank(f"Model save to {save_dir_path}")
-                torch.save(velocity_field.state_dict(), os.path.join(save_dir_path, "velocity_field.pth"))
-                torch.save(projector.state_dict(), os.path.join(save_dir_path, "projector.pth"))
+                save_velocity_checkpoint(save_dir_path, velocity_field, projector)
         dist.barrier()
     
         

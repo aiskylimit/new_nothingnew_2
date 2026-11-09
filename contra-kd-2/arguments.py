@@ -30,6 +30,7 @@ def add_model_args(parser: argparse.ArgumentParser):
     group.add_argument("--n-gpu", type=int, default=1)
     group.add_argument("--n-nodes", type=int, default=1)
     group.add_argument("--teacher-model-path", type=str)
+    group.add_argument("--baseline-model-path", type=str, help="FDD student checkpoint for layer-change evaluation")
     group.add_argument("--teacher-ckpt-name", type=str)
     group.add_argument("--teacher-model-fp16", action="store_true")
     group.add_argument("--model-parallel", action="store_true")
@@ -118,7 +119,7 @@ def add_hp_args(parser: argparse.ArgumentParser):
     group.add_argument('--max-length', type=int, default=1024,
                        help='max length of input')
     group.add_argument('--seed', type=int, default=1234,
-                       help='random seed for reproducibility')
+                       help='random seed for training, evaluation, and data shuffling')
     group.add_argument("--seed-order", type=int, default=42)
     group.add_argument("--seed-data", type=int, default=42)
     group.add_argument("--seed-ppo", type=int, default=42)
@@ -283,6 +284,8 @@ def add_contrakd_args(parser: argparse.ArgumentParser):
                       help="[DEPRECATED] Path to pre-trained velocity field")
     group.add_argument("--projector-path", type=str, default=None,
                       help="[DEPRECATED] Path to pre-trained projector")
+    group.add_argument("--save-velocity-checkpoints", action="store_true",
+                       help="Save the active projector and velocity field with student checkpoints")
     group.add_argument("--num-distill-layers", type=int, default=6,
                       help="[DEPRECATED] For old 2-stage architecture")
     group.add_argument("--velocity-epochs", type=int, default=1,

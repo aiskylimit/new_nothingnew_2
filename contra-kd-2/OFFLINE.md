@@ -33,6 +33,42 @@ downloads resources or installs packages on the offline machine.
 bash project_commands.sh
 ```
 
+The default launch trains FDD and FDD + CONTRA at seeds `1024`, `2048`, and
+`4096`. The `--seed` argument controls Python, NumPy and PyTorch randomness,
+including training data order in fine-tuning, field pretraining and field
+updates. The launcher preprocesses Dolly and OpenWebText once. Each CONTRA run
+pretrains its own projector and velocity field, then saves the active projector
+and field with the selected student checkpoint.
+
+| Physical GPU | Student pipelines |
+| --- | --- |
+| 4 | FDD + CONTRA, seed 1024 |
+| 5 | FDD + CONTRA, seed 2048 |
+| 6 | FDD + CONTRA and FDD, seed 4096 |
+| 7 | FDD, seeds 1024 and 2048 |
+
+Each pipeline keeps its GPU through training and generation evaluation. Two
+pipelines run concurrently on GPUs 6 and 7. `FDD_STUDY_GPUS` can override the
+four physical indices as a space-separated list. Set `FDD_STUDY_JOBS_PER_GPU=1`
+to run one student pipeline per GPU at a time. Each student runs generation
+evaluation on Dolly, Self-Instruct, Vicuna and SInst with seeds
+`10 20 30 40 50`. After the six pipelines finish, the four GPUs score one
+dataset each for the seed-1024 layer-change comparison. Both students use the
+projector saved with the selected FDD + CONTRA student checkpoint.
+
+Study checkpoints are under `results/gpt2/train/fdd_seed_study/`. The text-only
+outputs are under `results/gpt2/eval_main/fdd_seed_study/`, including generation
+scores, predictions, per-transition MSE, job logs, and `summary.json`. Rerunning
+the launcher reuses completed preprocessing, training and evaluation stages.
+Incomplete training restarts from the initial student checkpoint. Use a fresh
+output directory if you change the study inputs.
+
+## Original four-method workflow
+
+```bash
+bash project_commands.sh contra
+```
+
 CPU preprocessing hides all GPUs. Generation runs on physical GPU 4, followed
 by the shared Dolly field on GPU 4 and the DistiLLM2 field on GPU 5. Once both
 fields are ready, DistiLLM and FDD run on GPU 4 and DistiLLM2 and CSD run on GPU 5.
@@ -80,7 +116,7 @@ Transformers 4.57.1 and Tokenizers 0.22.1 to read the checkpoint tokenizer forma
 Field pretraining and periodic field updates sample times uniformly from
 `[0, 1)`. Offline HF flags are enabled. No NLTK download is needed.
 
-Outputs are relative to the **code directory**. Fields are written to
+Original workflow outputs are relative to the **code directory**. Fields are written to
 `results/gpt2/train/velocity_field/` and its `distillm2/` subdirectory. Student
 checkpoints go to `results/gpt2/train/contra/`, evaluation results to
 `results/gpt2/eval_main/`, and logs to `logs/gpt2_contra/`. Re-running repeats

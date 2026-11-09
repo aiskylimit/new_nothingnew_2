@@ -48,7 +48,7 @@ from distillm.losses import frfd_distillation_loss, get_fdd_loss, get_csd_loss, 
 from distillm2.losses import get_distillm2_loss_split
 
 from rouge_metric import compute_metrics
-from train_velocity_field import train as train_velocity_field
+from train_velocity_field import train as train_velocity_field, save_velocity_checkpoint
 
 from peft import PeftModel
 
@@ -475,7 +475,8 @@ def finetune(
         dp_group = None
         loss_func = nn.CrossEntropyLoss()
 
-    sampler = DistributedSampler(dataset["train"], shuffle=True, drop_last=True, rank=dp_rank, num_replicas=dp_world_size)
+    sampler = DistributedSampler(dataset["train"], shuffle=True, drop_last=True, rank=dp_rank, num_replicas=dp_world_size,
+                                 seed=args.seed)
     train_dataloader = DataLoader(
         dataset['train'], sampler=sampler, batch_size=args.batch_size, num_workers=args.num_workers, collate_fn=dataset["train"].collate)
     
@@ -487,7 +488,8 @@ def finetune(
         # new_sgos = {}
     
     if "pt_train" in dataset:
-        pt_sampler = DistributedSampler(dataset["pt_train"], shuffle=True, drop_last=True, rank=dp_rank, num_replicas=dp_world_size)
+        pt_sampler = DistributedSampler(dataset["pt_train"], shuffle=True, drop_last=True, rank=dp_rank, num_replicas=dp_world_size,
+                                        seed=args.seed)
         pt_train_dataloader = DataLoader(
         dataset['pt_train'], sampler=pt_sampler, batch_size=args.batch_size, num_workers=args.num_workers, collate_fn=dataset["pt_train"].collate)
         pt_train_iter = iter(pt_train_dataloader)
@@ -785,6 +787,8 @@ def finetune(
                             print_rank(f"Model save to {save_dir_path}")
                             tokenizer.save_pretrained(save_dir_path)
                             model.module.save_pretrained(save_dir_path, safe_serialization=False)
+                            if args.save_velocity_checkpoints:
+                                save_velocity_checkpoint(save_dir_path, velocity_field, projector)
                     dist.barrier()
                 model.train()
             torch.cuda.empty_cache()
@@ -1047,6 +1051,8 @@ def main():
     else:
         velocity_field = None
         projector = None
+    if args.save_velocity_checkpoints and velocity_field is None:
+        raise ValueError("--save-velocity-checkpoints requires a loaded velocity field and projector")
     
     if teacher_model:
         teacher_model.resize_token_embeddings(len(tokenizer))
@@ -1058,6 +1064,7 @@ def main():
             type = "lm-distillm2" if "distillm2" in args.type else "lm"
             batch_size = args.batch_size
             num_workers = args.num_workers
+            seed = args.seed
             num_teacher_layers = args.num_teacher_layers
             num_student_layers = args.num_student_layers
             num_distill_layers = args.num_distill_layers
@@ -1137,6 +1144,8 @@ def main():
                     model.module.save_pretrained(args.save, safe_serialization=False, save_embedding_layers=False)
                 else:
                     model.module.save_pretrained(args.save, safe_serialization=False)
+                if args.save_velocity_checkpoints:
+                    save_velocity_checkpoint(args.save, velocity_field, projector)
             else:
                 best_ckpt_path = os.path.join(args.save, str(best_val_iter))
                 import shutil
@@ -1147,6 +1156,13 @@ def main():
                     if os.path.isfile(src_path):  # only copy files
                         shutil.copy2(src_path, dst_path)  # overwrite if exists
             tokenizer.save_pretrained(args.save)
+            if args.save_velocity_checkpoints:
+                with open(os.path.join(args.save, "velocity_checkpoint.json"), "w") as f:
+                    json.dump({
+                        "train_seed": args.seed,
+                        "validation_step": best_val_iter if best_val_iter != -1 else None,
+                        "selection": "best_validation" if best_val_iter != -1 else "last",
+                    }, f, indent=2)
    
     if args.do_eval:
         evaluate(args, tokenizer, model, dataset["test"], "test", 0, device)

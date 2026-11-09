@@ -15,13 +15,13 @@ DISTRIBUTED_ARGS="--nproc_per_node $GPUS_PER_NODE \
 # model
 BASE_PATH=${1-"/home/MiniLLM"}
 CKPT_NAME="gpt2-base"
-CKPT="${BASE_PATH}/results/gpt2/train/init/${CKPT_NAME}"
+CKPT="${STUDENT_PATH:-${BASE_PATH}/results/gpt2/train/init/${CKPT_NAME}}"
 # CKPT="gpt2"
 TEACHER_CKPT_NAME="xlarge-sft"
-TEACHER_CKPT="${BASE_PATH}/results/gpt2/train/sft/gpt2-xlarge/"
+TEACHER_CKPT="${TEACHER_PATH:-${BASE_PATH}/results/gpt2/train/sft/gpt2-xlarge/}"
 # data
-DATA_DIR="${BASE_PATH}/processed_data/dolly/full/gpt2/"
-LM_DATA_DIR="${BASE_PATH}/processed_data/openwebtext/gpt2/512/22.87K/"
+DATA_DIR="${PROCESSED_DATA_ROOT:-${BASE_PATH}/processed_data}/dolly/full/gpt2/"
+LM_DATA_DIR="${PROCESSED_DATA_ROOT:-${BASE_PATH}/processed_data}/openwebtext/gpt2/512/22.87K/"
 # hp
 BATCH_SIZE=8
 LR=0.0005

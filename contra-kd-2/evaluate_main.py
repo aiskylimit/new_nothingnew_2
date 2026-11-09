@@ -53,7 +53,7 @@ def run_model(args, tokenizer, model, dataset: PromptDataset, epoch, device):
         eos_token_id=tokenizer.eos_token_id,
         pad_token_id=tokenizer.pad_token_id,
         return_dict_in_generate=True,
-        output_scores=True
+        output_scores=False
     )
 
     with torch.no_grad():
@@ -155,3 +155,17 @@ def evaluate_main(args, tokenizer, model, dataset: PromptDataset, split, epoch, 
     log_str = f"{split} | name: {args.data_names} | {gen_res} | lm_loss {round(lm_loss, 4)} | avg. gen lenth: {mean_gen_length}"
     print_rank(log_str)
     save_rank(log_str, os.path.join(args.save, "log.txt"))
+    if dist.get_rank() == 0:
+        metrics = {
+            "dataset": args.data_names,
+            "eval_seed": args.seed,
+            "num_examples": len(all_responses),
+            "exact_match": gen_res["exact_match"],
+            "rougeL": gen_res["rougeL"],
+            "lm_loss": lm_loss,
+            "mean_gen_length": float(mean_gen_length),
+        }
+        metrics_path = os.path.join(args.save, "metrics.json")
+        with open(metrics_path + ".tmp", "w") as f:
+            json.dump(metrics, f, indent=2, allow_nan=False)
+        os.replace(metrics_path + ".tmp", metrics_path)

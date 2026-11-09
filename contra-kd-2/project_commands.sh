@@ -2,6 +2,11 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+case "${1:-fdd-seed-study}" in
+    fdd-seed-study) RUN_SCRIPT="run_fdd_seed_study.sh" ;;
+    contra) RUN_SCRIPT="run_contra.sh" ;;
+    *) echo "Usage: bash project_commands.sh [fdd-seed-study|contra]" >&2; exit 2 ;;
+esac
 # Must match @PROJECT@ expanded by the provisioner in download.txt.
 PROJECT_NAME="${PROJECT_NAME:-aiskylimit_new_nothingnew_2}"
 BASE_DIR="${BASE_DIR:-/mnt/local/${PROJECT_NAME}/contra-kd}"
@@ -32,4 +37,4 @@ export BASE_PORT="${BASE_PORT:-20120}"
 export DATA_PROCESS_WORKERS="${DATA_PROCESS_WORKERS:-4}"
 
 cd "${PROJECT_ROOT}"
-exec bash "${PROJECT_ROOT}/runs/gpt2/run_contra.sh" "${PROJECT_ROOT}"
+exec bash "${PROJECT_ROOT}/runs/gpt2/${RUN_SCRIPT}" "${PROJECT_ROOT}"
