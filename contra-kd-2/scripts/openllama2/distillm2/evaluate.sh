@@ -2,7 +2,7 @@
 
 # Evaluate DistiLLM-2 trained OpenLLaMA model
 
-BASE_PATH=${1-"/home/MiniLLM"}
+BASE_PATH=$(cd "${1:-$(dirname "${BASH_SOURCE[0]}")/../../..}" && pwd) || exit 1
 MASTER_PORT=${2-2012}
 GPUS_PER_NODE=${3-8}
 
@@ -12,7 +12,7 @@ PEFT_PATH="${BASE_PATH}/results/openllama2/train/distillm2/3B_7B"  # Trained LoR
 CKPT_NAME="openllama2-3B-distillm2"
 
 # Data configuration
-DATA_DIR="${BASE_PATH}/contra-kd/data/dolly"
+DATA_DIR="${RAW_DATA_ROOT:-${BASE_PATH}/data/raw}/dolly"
 DATA_NAMES="dolly"
 DEV_NUM=1000
 
@@ -33,7 +33,7 @@ REPETITION_PENALTY=1.0
 EVAL_SAVE_DIR="${BASE_PATH}/results/openllama2/eval/distillm2"
 
 # DeepSpeed configuration
-DEEPSPEED_CONFIG="configs/deepspeed/ds_config_zero2.json"
+DEEPSPEED_CONFIG="${BASE_PATH}/configs/deepspeed/ds_config_zero2.json"
 
 echo "================================================"
 echo "DistiLLM-2 Evaluation: OpenLLaMA 3B (Distilled)"
@@ -46,7 +46,7 @@ echo "================================================"
 
 mkdir -p ${EVAL_SAVE_DIR}
 
-deepspeed --num_gpus=${GPUS_PER_NODE} evaluate_distillm2.py \
+deepspeed --num_gpus=${GPUS_PER_NODE} "${BASE_PATH}/evaluate_distillm2.py" \
     --type eval_distillm2 \
     --model-path ${MODEL_PATH} \
     --peft lora \

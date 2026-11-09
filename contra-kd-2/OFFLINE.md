@@ -79,7 +79,8 @@ starts one process and sees its assigned physical GPU as logical CUDA device 0.
 
 `@PROJECT@` in `download.txt` must resolve to `PROJECT_NAME` in the launcher,
 default `aiskylimit_new_nothingnew_2`. `BASE_DIR` defaults to
-`/mnt/local/aiskylimit_new_nothingnew_2/contra-kd`.
+`/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2`. Provision the assets at
+that path before launching.
 
 | Data | Path relative to BASE_DIR |
 | --- | --- |
@@ -98,9 +99,11 @@ default `aiskylimit_new_nothingnew_2`. `BASE_DIR` defaults to
 | Downloaded student initialization | `results/gpt2/train/init/gpt2-base/` |
 
 All active preprocessing, generation, field, training and evaluation scripts
-use the exported absolute paths. There is no fallback to the old checkout's
-`data/`. The code directory may be separate from BASE_DIR. Set `PROJECT_NAME`,
-`BASE_DIR` or `ENV_DIR` before launching if your provisioned root differs.
+use the exported absolute paths. The seed study puts prepared data under
+`data/prepared/fdd_seed_study/` and tokenized data under
+`processed_data/fdd_seed_study/`. The code directory may be separate from
+`BASE_DIR`. Set `PROJECT_NAME`, `BASE_DIR` or `ENV_DIR` before launching if your
+provisioned root differs.
 TEACHER_PATH and STUDENT_PATH may override model locations explicitly.
 
 MiniLLM/dolly has raw.jsonl and valid.jsonl but no train/dev files. The launcher

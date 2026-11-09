@@ -22,7 +22,7 @@ BASE_PORT=${BASE_PORT:-20120}
 DATA_PROCESS_WORKERS=${DATA_PROCESS_WORKERS:-4}
 
 VELOCITY_PATH="${BASE_PATH}/results/gpt2/train/velocity_field"
-BASE_DIR=${BASE_DIR:-"/mnt/local/${PROJECT_NAME:-aiskylimit_new_nothingnew_2}/contra-kd"}
+BASE_DIR=${BASE_DIR:-"/mnt/local/${PROJECT_NAME:-aiskylimit_new_nothingnew_2}/contra-kd-2"}
 export TEACHER_PATH=${TEACHER_PATH:-"${BASE_DIR}/results/gpt2/train/sft/gpt2-xlarge"}
 export STUDENT_PATH=${STUDENT_PATH:-"${BASE_DIR}/results/gpt2/train/init/gpt2-base"}
 export RAW_DATA_ROOT=${RAW_DATA_ROOT:-"${BASE_DIR}/data/raw"}

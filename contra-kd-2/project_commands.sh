@@ -9,7 +9,7 @@ case "${1:-fdd-seed-study}" in
 esac
 # Must match @PROJECT@ expanded by the provisioner in download.txt.
 PROJECT_NAME="${PROJECT_NAME:-aiskylimit_new_nothingnew_2}"
-BASE_DIR="${BASE_DIR:-/mnt/local/${PROJECT_NAME}/contra-kd}"
+BASE_DIR="${BASE_DIR:-/mnt/local/${PROJECT_NAME}/contra-kd-2}"
 ENV_DIR="${ENV_DIR:-/mnt/local/uvenvs/contra}"
 if [[ ! -f "${ENV_DIR}/bin/activate" ]]; then
     echo "Missing environment: ${ENV_DIR}. Provision contra.txt before running offline." >&2

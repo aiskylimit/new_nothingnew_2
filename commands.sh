@@ -1,13 +1,4 @@
-#d
-#datasets
---hf-dataset Elriggs/openwebtext-100k /mnt/local/@PROJECT@/contra-kd-2/data/raw/openwebtext-100k
---hf-dataset MiniLLM/dolly /mnt/local/@PROJECT@/contra-kd-2/data/raw/dolly
---hf-dataset MiniLLM/self-inst /mnt/local/@PROJECT@/contra-kd-2/data/raw/self-inst
---hf-dataset MiniLLM/Vicuna /mnt/local/@PROJECT@/contra-kd-2/data/raw/vicuna
---hf-dataset MiniLLM/sinst /mnt/local/@PROJECT@/contra-kd-2/data/raw/sinst
-#models
---hf bachthetrollface/gpt2-1.5B-teacher-dolly /mnt/local/@PROJECT@/contra-kd-2/results/gpt2/train/sft/gpt2-xlarge
---hf bachthetrollface/gpt2-120M-init-dolly /mnt/local/@PROJECT@/contra-kd-2/results/gpt2/train/init/gpt2-base
+#2 +a
 #contra3
 #v1
 
@@ -42,6 +33,9 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd
 # bash ./project_commands.sh
 # kill 7474
+
+# cd ./contra-kd-2
+# bash ./project_commands.sh
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
