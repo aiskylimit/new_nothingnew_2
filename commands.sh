@@ -1,5 +1,14 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/logs/gpt2_t0/ +a
-#contra1
+#d
+#datasets
+--hf-dataset Elriggs/openwebtext-100k /mnt/local/@PROJECT@/contra-kd-2/data/raw/openwebtext-100k
+--hf-dataset MiniLLM/dolly /mnt/local/@PROJECT@/contra-kd-2/data/raw/dolly
+--hf-dataset MiniLLM/self-inst /mnt/local/@PROJECT@/contra-kd-2/data/raw/self-inst
+--hf-dataset MiniLLM/Vicuna /mnt/local/@PROJECT@/contra-kd-2/data/raw/vicuna
+--hf-dataset MiniLLM/sinst /mnt/local/@PROJECT@/contra-kd-2/data/raw/sinst
+#models
+--hf bachthetrollface/gpt2-1.5B-teacher-dolly /mnt/local/@PROJECT@/contra-kd-2/results/gpt2/train/sft/gpt2-xlarge
+--hf bachthetrollface/gpt2-120M-init-dolly /mnt/local/@PROJECT@/contra-kd-2/results/gpt2/train/init/gpt2-base
+#contra3
 #v1
 
 #d
