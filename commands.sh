@@ -6,11 +6,10 @@
 --hf-dataset MiniLLM/Vicuna /mnt/local/@PROJECT@/contra-kd/data/raw/vicuna
 --hf-dataset MiniLLM/sinst /mnt/local/@PROJECT@/contra-kd/data/raw/sinst
 #models
---hf bachthetrollface/gpt2-1.5B-teacher-dolly /mnt/local/@PROJECT@/contra-kd/results/gpt2/train/sft/gpt2-xlarge
 --hf bachthetrollface/gpt2-120M-init-dolly /mnt/local/@PROJECT@/contra-kd/results/gpt2/train/init/gpt2-base
 
 #contra1
-#v1
+#v2
 
 
 nvidia-smi
