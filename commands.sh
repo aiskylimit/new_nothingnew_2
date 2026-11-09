@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/logs/gpt2_t0/ +a
-#contra1
+#1 +30
+#check-proc
 #v1
 
 
