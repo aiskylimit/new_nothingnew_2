@@ -1,4 +1,4 @@
-#1 +120
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/results/,/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/results/ +a
 #contra1
 #v1
 
@@ -21,8 +21,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh
 
-cd ./contra-kd
-bash ./project_commands.sh
+# cd ./contra-kd-2
+# bash ./project_commands.sh
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
