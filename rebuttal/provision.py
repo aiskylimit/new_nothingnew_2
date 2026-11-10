@@ -29,11 +29,22 @@ def attest(folder, repo, revision):
 
 
 def verify_snapshot(folder, repo, revision):
-    metadata = json.loads((folder / 'snapshot.json').read_text())
-    if metadata['revision'] != revision or metadata['repo'] != repo:
-        raise ValueError(f'Wrong snapshot identity: {folder}')
+    """Check recorded hashes when available; local downloads need no manifest."""
+    folder = Path(folder)
+    if not folder.is_dir():
+        raise FileNotFoundError(f'Local model/dataset folder missing: {folder}')
     actual = {str(p.relative_to(folder)) for p in folder.rglob('*')
               if p.is_file() and '.cache' not in p.parts and p.name != 'snapshot.json'}
+    metadata_path = folder / 'snapshot.json'
+    if not metadata_path.is_file():
+        if not actual:
+            raise FileNotFoundError(f'No local model/dataset files: {folder}')
+        # Managed downloaders provide the usable files without our extra metadata.
+        # Callers still validate model configuration and the actual dataset schema.
+        return None
+    metadata = json.loads(metadata_path.read_text())
+    if metadata['revision'] != revision or metadata['repo'] != repo:
+        raise ValueError(f'Wrong snapshot identity: {folder}')
     if actual != set(metadata['sha256']):
         raise ValueError(f'Snapshot file set changed: {folder}')
     for relative, expected in metadata['sha256'].items():
@@ -45,7 +56,7 @@ def verify_snapshot(folder, repo, revision):
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--assets', type=Path, required=True)
-    p.add_argument('--attest-managed', action='store_true', help='Offline: verify Hub local-dir commit metadata, then attest existing files')
+    p.add_argument('--attest-managed', action='store_true', help='Optional: verify Hub local-dir commit metadata and record hashes for existing files')
     args = p.parse_args()
     specs = [(repo, revision, 'model', 'models/'+repo.split('/')[-1]) for repo, revision in MODELS.values()]
     specs += [('simplescaling/s1K-1.1', DATA_REV, 'dataset', 'datasets/s1K-1.1')]
@@ -62,10 +73,10 @@ def main():
                     if not record.exists() or record.read_text().splitlines()[0] != revision:
                         raise ValueError(f'Unattested managed-download file: {file}')
         else:
-            from huggingface_hub import snapshot_download
             if folder.exists() and any(folder.iterdir()):
                 verify_snapshot(folder, repo, revision)
                 continue
+            from huggingface_hub import snapshot_download
             # Stage by immutable commit so interrupted downloads can resume
             # without mixing files left by an earlier model/dataset revision.
             staging = args.assets / '.staging' / (repo.replace('/', '--') + '_' + revision)

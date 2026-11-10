@@ -32,13 +32,15 @@ def validate(assets, data, runs, environments=False, gpus='0,1,2,3', formal_2h10
         statistics = json.loads((data / 'statistics' / f'{variant}_{size}.json').read_text())
         if statistics['data_sha256'] != sha(data / variant / 'canonical.jsonl'):
             raise ValueError('Teacher statistics do not match canonical training data')
+    checks['model_snapshot_verification'] = {}
     for size, model in {c['model']['size']: c['model'] for c in matrix()}.items():
         folder = assets / 'models' / model['repo'].split('/')[-1]
         if not (folder / 'config.json').is_file() or not (folder / 'tokenizer_config.json').is_file():
             raise FileNotFoundError(folder)
         from rebuttal.provision import verify_snapshot
-        verify_snapshot(folder, model['repo'], model['revision'])
-    checks['checks'].append('both immutable model snapshots hash-verified')
+        metadata = verify_snapshot(folder, model['repo'], model['revision'])
+        checks['model_snapshot_verification'][size] = 'hash_verified' if metadata is not None else 'not_provided'
+    checks['checks'].append('both local model folders found; snapshot hashes checked when provided')
     benchmarks = json.loads((data / 'benchmarks/manifest.json').read_text())
     for name, info in benchmarks.items():
         if sha(data / 'benchmarks' / f'{name}.jsonl') != info['sha256']:
