@@ -1,4 +1,4 @@
-#1 +30
+#1 +300
 #contra3
 #v1
 
@@ -20,8 +20,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh
 
-# cd ./contra-kd-2
-# bash ./project_commands.sh
+cd ./contra-kd-2
+bash ./project_commands.sh
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
