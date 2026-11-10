@@ -1,4 +1,4 @@
-#1 +30
+#1 +10
 #ssft
 #v1
 
@@ -47,5 +47,6 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 cd rebuttal
-bash ./project_commands.sh prepare
-GPUS=0,1,2,3 bash ./project_commands.sh preflight
+tree assets
+# bash ./project_commands.sh prepare
+# GPUS=0,1,2,3 bash ./project_commands.sh preflight
