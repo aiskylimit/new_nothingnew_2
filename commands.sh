@@ -1,19 +1,18 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/logs/gpt2_direct_mlp_ablation/ +a
-#contra-direct-mlp
-#v1
-
 #d
 #datasets
-# --hf-dataset TIGER-Lab/MMEB-train /mnt/local/@PROJECT@/cred/vlm2vec_train/MMEB-train
-# --hf-dataset VoCuc/vlm-teacher-embedding /mnt/local/@PROJECT@/cred/datasets
-# --hf-dataset TIGER-Lab/MMEB-eval /mnt/local/@PROJECT@/cred/vlm2vec_eval/MMEB-eval
-# --url https://huggingface.co/VoCuc/en_core_web_sm/resolve/main/en_core_web_sm.zip /mnt/local/@PROJECT@/cred/en_core_web_sm.zip
+--hf-dataset simplescaling/s1K-1.1 /mnt/local/@PROJECT@/rebuttal/assets/datasets/s1K-1.1
+--hf-dataset Maxwell-Jia/AIME_2024 /mnt/local/@PROJECT@/rebuttal/assets/benchmarks/AIME_2024
+--hf-dataset yentinglin/aime_2025 /mnt/local/@PROJECT@/rebuttal/assets/benchmarks/aime_2025
+--hf-dataset AI-MO/aimo-validation-amc /mnt/local/@PROJECT@/rebuttal/assets/benchmarks/aimo-validation-amc
+--hf-dataset HuggingFaceH4/MATH-500 /mnt/local/@PROJECT@/rebuttal/assets/benchmarks/MATH-500
+--url https://huggingface.co/datasets/allenai/ai2_arc/resolve/210d026faf9955653af8916fad021475a3f00453/ARC-Challenge/test-00000-of-00001.parquet /mnt/local/@PROJECT@/rebuttal/assets/benchmarks/ARC-Challenge/
+--url https://raw.githubusercontent.com/csitfun/LogiQA2.0/31381f5634d201c4ed6f981b87de3c7d9f496002/logiqa/DATA/LOGIQA/test.txt /mnt/local/@PROJECT@/rebuttal/assets/benchmarks/LogiQA2.0/
 #models
-# --hf raghavlite/B3_Qwen2_2B /mnt/local/@PROJECT@/cred/models/B3_Qwen2_2B
-# --hf apple/FastVLM-0.5B /mnt/local/@PROJECT@/cred/models/FastVLM-0.5B
-# --hf apple/FastVLM-1.5B /mnt/local/@PROJECT@/cred/models/FastVLM-1.5B
-# --hf llava-hf/llava-onevision-qwen2-0.5b-ov-hf /mnt/local/@PROJECT@/cred/models/llava-onevision-qwen2-0.5b-ov-hf
+--hf Qwen/Qwen2.5-7B-Instruct /mnt/local/@PROJECT@/rebuttal/assets/models/Qwen2.5-7B-Instruct
+--hf deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B /mnt/local/@PROJECT@/rebuttal/assets/models/DeepSeek-R1-Distill-Qwen-1.5B
 
+#contra-direct-mlp
+#v1
 
 
 nvidia-smi
