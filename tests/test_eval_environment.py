@@ -107,9 +107,11 @@ def test_eval_preflight_uses_eval_python_each_gpu_and_no_training_telemetry(tmp_
         assert 'RANK' not in kwargs['env'] and 'REBUTTAL_STAGE_DIR' not in kwargs['env']
 
 
-def test_eval_manifest_pins_matching_cuda_builds_without_training_frameworks():
+def test_eval_manifest_uses_package_pins_without_direct_urls_or_training_frameworks():
+    from packaging.requirements import Requirement
     text = (ROOT/'rebuttal_eval.txt').read_text()
-    for package, version in [('torch','2.13.0'),('torchvision','0.28.0'),('torchaudio','2.11.0')]:
-        assert f'{package}-{version}%2Bcu129-cp311' in text
-    assert 'vllm-0.27.1%2Bcu129' in text and '#sha256=' in text
-    assert 'llamafactory' not in text and 'unsloth' not in text and 'cu130' not in text
+    requirements = [Requirement(line) for line in text.splitlines() if line and not line.startswith('#')]
+    assert all(requirement.url is None for requirement in requirements)
+    for package, version in [('torch','2.13.0'),('torchvision','0.28.0'),('torchaudio','2.11.0'),('vllm','0.27.1')]:
+        assert f'{package}=={version}' in text.splitlines()
+    assert 'llamafactory' not in text and 'unsloth' not in text
