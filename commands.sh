@@ -1,5 +1,5 @@
-#2 +a
-#contra1
+#i contra.txt
+#contra-math-code
 #v1
 
 nvidia-smi
