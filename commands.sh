@@ -1,5 +1,5 @@
-#2 +a
-#contra3
+#1 +75
+#gpu-check
 #v1
 
 #d
