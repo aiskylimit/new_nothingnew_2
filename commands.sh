@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/logs/gpt2_t0/,/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/ +a
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/ +a
 #contra3
 #v1
 
