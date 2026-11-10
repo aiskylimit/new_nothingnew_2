@@ -130,7 +130,8 @@ backbone, then one merged adapter acts as a fixed teacher for a single student.
    `deepseek_thinking_trajectory` for reasoning and `deepseek_attempt` for the
    answer text. Split reasoning into paragraphs; retain `solution` as the gold
    answer for correctness checks. Write `data/train_s1k.jsonl`.
-2. **Choose a reasoning prefix.** Try 15/30/45/60/80/100% of the reasoning steps.
+2. **Choose a reasoning prefix.** Try 15/30/45/60/80% of the reasoning steps.
+   Full reasoning is the fallback if no shorter prefix passes; it is not tested.
    The frozen base generates four completions per candidate. Choose the shortest
    candidate in this grid with at least two correct completions; otherwise keep
    the full reasoning. Write `data/train_s1k_prefixed.jsonl`. This preprocessing

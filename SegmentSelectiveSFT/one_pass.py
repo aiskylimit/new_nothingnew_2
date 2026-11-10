@@ -262,7 +262,7 @@ def parse_args():
     p.add_argument("--warmup-ratio", type=float, default=0.1)
     p.add_argument("--batch-size", type=int, default=8)
     p.add_argument("--grad-accum", type=int, default=1)
-    p.add_argument("--max-seq-length", type=int, default=32768)
+    p.add_argument("--max-seq-length", type=int, default=16384)
     p.add_argument("--segment-mode", default="paragraph")
     p.add_argument("--think-prefix", default="none", choices=["none", "plain", "special"])
     p.add_argument("--ig-steps", type=int, default=50)

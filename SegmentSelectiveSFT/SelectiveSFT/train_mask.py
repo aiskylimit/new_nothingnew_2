@@ -71,7 +71,7 @@ def parse_args(argv=None):
     parser.add_argument("--split", default="train", type=str)
     parser.add_argument("--overwrite", action="store_true")
     parser.add_argument("--load_in_4bit", action="store_true")
-    parser.add_argument("--max_seq_length", type=int, default=32768)
+    parser.add_argument("--max_seq_length", type=int, default=16384)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--stop_at_epoch", type=float, default=0,
                         help="0 = chay du --epochs; >0 = dung khi state.epoch dat nguong nay")

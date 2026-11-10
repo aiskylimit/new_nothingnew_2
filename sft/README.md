@@ -1,5 +1,7 @@
 # SFT Long-CoT baseline
 
+Training cutoff is 16,384 tokens across all five methods.
+
 The default run is response-only LoRA SFT on Qwen2.5-7B-Instruct using all
 1,000 `deepseek_thinking_trajectory` targets from s1K-1.1. Dataset preparation
 and targets are unchanged.

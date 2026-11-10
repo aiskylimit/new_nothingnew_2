@@ -106,6 +106,7 @@ def ssft(model, source, output, settings=None, shard=0, shards=1):
         args.cumulative_ratio = settings['mass']
         args.coherence_max = settings['coherence']
         args.require_valid_attribution = settings.get('require_valid_attribution', False)
+        args.ig_max_tokens = settings.get('ig_max_tokens', 0)
     cost = one_pass.stage_prep(args, records)
     jsonl(output, records)
     write(str(output)+'.cost.json', cost)

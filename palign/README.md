@@ -1,5 +1,7 @@
 # P-ALIGN
 
+Training cutoff is 16,384 tokens across all five methods.
+
 Adaptive prefix-alignment distillation. Default student: **Qwen2.5-7B-Instruct**.
 
 ```bash

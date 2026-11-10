@@ -8,7 +8,8 @@ from pathlib import Path
 from rebuttal.common import DATA_REV, ROOT, TEACHER_FIELDS, matrix, rows, sha, write
 
 
-def validate(assets, data, runs, environments=False, gpus='0,1,2,3', formal_2h100=False):
+def validate(assets, data, runs, environments=False, gpus='0,1,2,3', formal_2h100=False,
+             check_evaluator=True):
     expected_devices = 2 if formal_2h100 else 4
     gpu_type = 'H100' if formal_2h100 else 'B200'
     if len(gpus.split(',')) != expected_devices or len(set(gpus.split(','))) != expected_devices:
@@ -56,9 +57,10 @@ def validate(assets, data, runs, environments=False, gpus='0,1,2,3', formal_2h10
         if len(hardware['devices']) != expected_devices or any(gpu_type not in device['name'] for device in hardware['devices']):
             raise ValueError(f'Expected {expected_devices} {gpu_type} GPUs; hardware mismatch recorded')
         checks['checks'].append(f'five provisioned environments and {expected_devices} {gpu_type} CUDA/NCCL/bf16 GPUs')
-        from rebuttal.eval_preflight import check_eval
-        check_eval(assets, runs, gpus, sizes=('7b',) if formal_2h100 else ('1.5b','7b'))
-        checks['checks'].append('separate shared evaluator: CUDA kernel and zero-LoRA generation on every reserved GPU')
+        if check_evaluator:
+            from rebuttal.eval_preflight import check_eval
+            check_eval(assets, runs, gpus, sizes=('7b',) if formal_2h100 else ('1.5b','7b'))
+            checks['checks'].append('separate shared evaluator: CUDA kernel and zero-LoRA generation on every reserved GPU')
     checks['persistent_storage'] = {'runs': str(runs.resolve()), 'free_bytes': shutil.disk_usage(runs).free,
                                   'note': 'Required space depends on generated trace lengths; free space is reported, not assumed sufficient.'}
     checks['gpu_training_smoke'] = 'not executed by static preflight; use runner smoke in a separate runs root'

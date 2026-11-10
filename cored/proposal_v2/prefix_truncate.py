@@ -19,7 +19,13 @@ import json
 import math
 import os
 
-FRACS = [0.15, 0.30, 0.45, 0.60, 0.80, 1.00]
+FRACS = [0.15, 0.30, 0.45, 0.60, 0.80]
+
+
+def candidate_prefix_lengths(n_steps):
+    """Only test shorter prefixes; full reasoning is the unconditional fallback."""
+    return sorted({k for frac in FRACS
+                   if 0 < (k := math.ceil(frac * n_steps)) < n_steps})
 
 
 def build_prefix_prompt(tokenizer, question: str, steps, k: int) -> str:
@@ -56,8 +62,6 @@ def main() -> None:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from core.local_assets import local_model_path
     from core.model_utils import load_tokenizer
-    from vllm import LLM, SamplingParams
-    from eval.grade import grade_one
 
     rows = [json.loads(l) for l in open(args.inp)]
     if args.limit:
@@ -77,12 +81,7 @@ def main() -> None:
     for ri, r in enumerate(rows):
         steps = r["steps"]
         ns = len(steps)
-        seen = set()
-        for fi, frac in enumerate(FRACS):
-            k = max(1, min(ns, math.ceil(frac * ns)))
-            if k in seen:
-                continue
-            seen.add(k)
+        for fi, k in enumerate(candidate_prefix_lengths(ns)):
             p = build_prefix_prompt(tok, r["question"], steps, k)
             if len(tok(p, add_special_tokens=False)["input_ids"]) > prompt_cap:
                 n_skip_long += 1
@@ -93,15 +92,19 @@ def main() -> None:
     print(f"[prefix] {len(rows)} mẫu -> {len(prompts)} prompt (grid {FRACS}), "
           f"bỏ {n_skip_long} prompt quá dài (>{prompt_cap} tok)", flush=True)
 
-    options = {'enforce_eager': True, 'max_num_seqs': 1} if args.development_smoke else {}
-    llm = LLM(model=args.model, dtype="bfloat16", gpu_memory_utilization=args.gpu_mem,
-              max_model_len=args.max_model_len, enable_prefix_caching=True, seed=0, **options)
-    sp = SamplingParams(n=args.n, temperature=args.temperature, top_p=0.95,
-                        max_tokens=args.max_tokens, stop=["<|im_end|>", "<|endoftext|>"])
-    outs = llm.generate(prompts, sp)
-    if os.environ.get("REBUTTAL_STAGE_DIR"):
-        from rebuttal.telemetry import inference
-        inference(outs, llm.llm_engine.model_config.hf_config)
+    outs = []
+    if prompts:
+        from vllm import LLM, SamplingParams
+        from eval.grade import grade_one
+        options = {'enforce_eager': True, 'max_num_seqs': 1} if args.development_smoke else {}
+        llm = LLM(model=args.model, dtype="bfloat16", gpu_memory_utilization=args.gpu_mem,
+                  max_model_len=args.max_model_len, enable_prefix_caching=True, seed=0, **options)
+        sp = SamplingParams(n=args.n, temperature=args.temperature, top_p=0.95,
+                            max_tokens=args.max_tokens, stop=["<|im_end|>", "<|endoftext|>"])
+        outs = llm.generate(prompts, sp)
+        if os.environ.get("REBUTTAL_STAGE_DIR"):
+            from rebuttal.telemetry import inference
+            inference(outs, llm.llm_engine.model_config.hf_config)
 
     # gom kết quả theo row
     per_row = {ri: {} for ri in range(len(rows))}

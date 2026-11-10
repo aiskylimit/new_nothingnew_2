@@ -73,7 +73,7 @@ DRY_RUN=1 bash run_pipeline.sh
 # Training (creates env, trains, logs to logs/train_lora.log)
 bash train.sh                       # selective SFT, LoRA — see config table below
 bash train.sh --full-sft            # baseline: supervise the whole CoT
-bash train.sh --full-finetune       # no LoRA (very heavy at seq 32768 on 7B)
+bash train.sh --full-finetune       # full finetuning of the 7B backbone
 bash train.sh --epochs 5 --lr 1e-5 --gpu 1
 bash train.sh --lora-r 32 --lora-alpha 64 --target-modules "q_proj,v_proj"
 bash train.sh --no-grad-checkpoint  # faster, more VRAM
@@ -110,8 +110,8 @@ All three wrappers take `--dry-run` and `-h`.
 | Effective batch | 32 (`per_device 8` x `grad_accum 1` x 4 GPUs) |
 | Optimizer | `adamw_torch`, betas (0.9, 0.999), eps 1e-8, weight_decay 0.0 |
 | Scheduler | cosine + warmup, `warmup_ratio=0.1` (HF builds this as a `LambdaLR`) |
-| `max_seq_length` | 32768 (= Qwen2.5-7B's `max_position_embeddings`; no RoPE scaling) |
-| Gradient checkpointing | on, unsloth's variant (required at 32k on 7B) |
+| `max_seq_length` | 16384 (same training cutoff as CoReD) |
+| Gradient checkpointing | on, unsloth's variant |
 | Segmentation | `paragraph` — split on every `\n\n` |
 
 Effective batch is `per_device x grad_accum x WORLD_SIZE`; the default four-GPU launcher uses `8 x 1 x 4 = 32`.

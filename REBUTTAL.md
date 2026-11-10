@@ -1,5 +1,7 @@
 # Rebuttal defaults
 
+Training cutoff is 16,384 tokens across all five methods.
+
 The finalized **ICLR 2027 main experiment plan supersedes the legacy evaluation
 defaults below**. See [rebuttal/README.md](rebuttal/README.md) and
 [rebuttal/PLAN.md](rebuttal/PLAN.md). The unified entry point is
@@ -99,11 +101,11 @@ Run each command from the repository root in its own shell, or return to the roo
 between commands. The SFT default target is `qwen25_longcot`; it does not launch
 Label training by default. SSFT's `commands.sh` now uses LoRA on the same backbone
 and launches training with torchrun. Its separate `train.sh` also defaults to
-three processes. Override `NPROC_PER_NODE` together with the microbatch if changing
+four processes. Override `NPROC_PER_NODE` together with the microbatch if changing
 the number of GPUs. A smaller microbatch with accumulation can be used if the
 longest sequences exceed GPU memory; GPU memory fit has not been measured here.
 
-CORED's `project_commands.sh` launches a separate three-GPU data-parallel
+CORED's `project_commands.sh` launches a separate four-GPU data-parallel
 pipeline, also with global batch 32, three epochs per phase and seed 42.
 Microbatches are limited by token budget and can accumulate within each global
 batch. Its original modules/scripts retain the single-process execution path.

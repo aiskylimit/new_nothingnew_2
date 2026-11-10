@@ -13,7 +13,7 @@ change.
 | Per-device batch size | 8; gradient accumulation 1 |
 | Scheduler / warmup | cosine / ratio 0.1 |
 | Optimizer | AdamW Torch, betas `(0.9, 0.999)`, eps `1e-8`, wd `0` |
-| Max sequence length | 32,768 |
+| Max sequence length | 16,384 |
 | LoRA | rank 16, alpha 16, dropout 0.05 |
 | LoRA targets | q/k/v/o and gate/up/down projections |
 | Precision | bf16 |

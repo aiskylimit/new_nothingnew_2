@@ -57,6 +57,9 @@ def parse_args():
     p.add_argument("--eval_n", type=int, default=3)
     p.add_argument("--dry_run", type=int, default=0, help="Stop after N updates; rerun without this flag to resume")
     p.add_argument("--development_smoke", action="store_true", help="Isolated short test on two GPUs; requires --dry_run")
+    p.add_argument("--smoke_4gpu", action="store_true", help="Isolated short test on four GPUs; requires --dry_run")
+    p.add_argument("--smoke_context", type=int, default=2048)
+    p.add_argument("--smoke_max_tokens", type=int, default=256)
     p.add_argument("--formal_2h100", action="store_true", help="Full training on two H100s; no smoke limits")
     args = p.parse_args()
     if args.epochs < 1 or args.global_batch < 1 or not 0 < args.key_frac <= 1:
@@ -101,10 +104,14 @@ def main():
                       TOKENIZERS_PARALLELISM="false")
     model = local_model_path(args.model)
     gpus = [value.strip() for value in args.gpus.split(",") if value.strip()]
-    if args.formal_2h100 and (args.development_smoke or args.dry_run or args.eval or len(gpus) != 2):
+    if args.formal_2h100 and (args.development_smoke or args.smoke_4gpu or args.dry_run or args.eval or len(gpus) != 2):
         raise ValueError("Formal H100 profile requires two GPUs and no development/dry-run/legacy-eval flags")
     if args.development_smoke and (len(gpus) != 2 or args.dry_run <= 0 or args.eval):
         raise ValueError("Development smoke requires two GPUs, positive --dry_run, and no legacy --eval")
+    if args.smoke_4gpu and (len(gpus) != 4 or args.dry_run <= 0 or args.eval or args.development_smoke):
+        raise ValueError("Four-GPU smoke requires four GPUs, positive --dry_run, and no other profile")
+    if (args.development_smoke or args.smoke_4gpu) and not 0 < args.smoke_max_tokens < args.smoke_context:
+        raise ValueError("Smoke generation tokens must be positive and smaller than the context")
     world = 2 if args.development_smoke or args.formal_2h100 else 4
     if len(gpus) != world or len(set(gpus)) != world:
         raise ValueError(f"Specify exactly {world} distinct GPU IDs with --gpus")
@@ -295,7 +302,8 @@ def main():
     parts = [run / f"prefix-{i}.jsonl" for i in range(world)]
 
     def prefix():
-        options = ["--max_model_len", "2048", "--max_tokens", "256", "--n", "1", "--development_smoke"] if args.development_smoke else []
+        options = ["--max_model_len", str(args.smoke_context), "--max_tokens", str(args.smoke_max_tokens),
+                   "--n", "1", "--development_smoke"] if args.development_smoke or args.smoke_4gpu else []
         execute([([python, "-m", "proposal_v2.prefix_truncate", "--model", model, "--in", str(train),
                    "--out", str(parts[i]), "--gpu_mem", "0.9", "--shard_id", str(i), "--num_shards", str(world), *options], gpu)
                  for i, gpu in enumerate(gpus)], "prefix")

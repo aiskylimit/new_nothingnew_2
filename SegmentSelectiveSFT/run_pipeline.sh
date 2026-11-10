@@ -73,7 +73,7 @@ IG_GRAD_CKPT="${IG_GRAD_CKPT:-1}"        # 1 = bat gradient checkpointing (it VR
 IG_BATCH_SIZE="${IG_BATCH_SIZE:-4}"      # so buoc IG tinh chung mot forward; tang de dung them VRAM
 EPOCHS="${EPOCHS:-3}"
 LR="${LR:-5e-5}"
-MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
+MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-16384}"
 
 # --- Tracking / logging ---
 # "none" = tat hoan toan (mac dinh). Dat "wandb" + WANDB_PROJECT de bat lai.

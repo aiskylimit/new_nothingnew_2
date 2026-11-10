@@ -25,6 +25,7 @@ def test_final_matrix_and_committed_configs():
         assert config['data']['revision'] == DATA_REV
         assert config['hardware']['training_gpu_count'] == 4
         assert config['train']['global_batch'] == 32
+        assert config['train']['cutoff'] == 16384
         assert config['train']['micro_batch'] == 8
         if config['method'] != 'cored':
             assert (config['train']['micro_batch'] * config['train']['gradient_accumulation']
@@ -51,14 +52,16 @@ def test_main_setting_selection_keeps_train_and_eval_separate(tmp_path, monkeypa
             calls.append(('eval', self.config['setting'], self.config['run_id']))
     monkeypatch.setattr(runner, 'Job', Job)
     monkeypatch.setattr(runner, 'aggregate', lambda *a: None)
-    monkeypatch.setattr(preflight, 'validate', lambda *a, **kw: None)
-    monkeypatch.setattr(eval_preflight, 'check_eval', lambda *a, **kw: None)
+    validations = []
+    monkeypatch.setattr(preflight, 'validate', lambda *a, **kw: validations.append(kw))
+    monkeypatch.setattr(eval_preflight, 'check_eval', lambda *a, **kw: pytest.fail('Runner must not repeat evaluator probes'))
     monkeypatch.setattr(sys, 'argv', ['runner', action, '--runs', str(tmp_path/'runs'),
                                     *(['--settings', *settings] if settings else [])])
     runner.main()
     expected = {c['run_id'] for c in matrix() if not settings or c['setting'] in settings}
     assert len(calls) == count and {run_id for _, _, run_id in calls} == expected
     assert all(stage == action for stage, _, _ in calls)
+    assert len(validations) == 1 and validations[0]['check_evaluator'] is False
     for _, _, run_id in calls:
         jobs = rows(tmp_path/'runs'/run_id/'job_events.jsonl')
         assert len(jobs) == (1 if action == 'train' else 0)

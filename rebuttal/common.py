@@ -94,7 +94,7 @@ def matrix():
                           'gradient_accumulation': 1 if method != 'cored' else 'adaptive token budget',
                           'optimizer': 'AdamW', 'lr': 5e-5, 'weight_decay': 0,
                           'scheduler': 'cosine', 'warmup_ratio': 0.1, 'precision': 'bf16',
-                          'cutoff': 16384 if method == 'cored' else 32768,
+                          'cutoff': 16384,
                           'truncation': 'method_native_recorded_in_adaptations',
                           'lora_rank': 16, 'lora_alpha': 16, 'lora_dropout': 0.05},
                 'method_specific': {'ssft': {'ig_steps': 50, 'mass': .7, 'coherence': .8},

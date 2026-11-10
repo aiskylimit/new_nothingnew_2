@@ -55,7 +55,8 @@ class Job:
         if formal and (formal != 'setting_b_2h100' or config['setting'] != 'B'
                        or config.get('smoke') or config.get('development_smoke')):
             raise ValueError('Formal H100 profile requires a full Setting B run')
-        expected = 2 if config.get('development_smoke') or formal else 4
+        development = config.get('development_smoke')
+        expected = 2 if formal else (development.get('world_size', 2) if development else 4)
         devices = gpus.split(',')
         if len(devices) != expected or len(set(devices)) != expected:
             raise ValueError(f'Expected {expected} distinct GPUs')
@@ -240,7 +241,11 @@ class Job:
                 command += ['--formal_2h100']
             if config.get('smoke'):
                 if config.get('development_smoke'):
-                    command += ['--development_smoke', '--micro_batch_size', '1', '--max_batch_tokens', train['cutoff'],
+                    development = config['development_smoke']
+                    flag = '--smoke_4gpu' if development.get('world_size') == 4 else '--development_smoke'
+                    command += [flag, '--smoke_context', development['context'],
+                                '--smoke_max_tokens', development['new_tokens'],
+                                '--micro_batch_size', '1', '--max_batch_tokens', train['cutoff'],
                                 '--entropy_chunk', '64', '--loss_chunk', '64']
                 self.execute('cored_smoke_phase1', [(command + ['--dry_run', smoke_steps, '--stages', 'prepare', 'prefix', 'key', 'phase1'], self.gpus)], world)
                 self.execute('cored_smoke_student', [(command + ['--dry_run', smoke_steps, '--stages', 'weights', 'merge', 'distill'], self.gpus)], world)
@@ -360,12 +365,16 @@ def main():
     p.add_argument('action', choices=['configs', 'train', 'eval', 'all', 'smoke'])
     p.add_argument('--assets', type=Path, default=ROOT / 'rebuttal/assets')
     p.add_argument('--data', type=Path, default=ROOT / 'rebuttal/prepared')
-    p.add_argument('--runs', type=Path, default=ROOT / 'rebuttal/runs')
+    p.add_argument('--runs', type=Path)
     p.add_argument('--gpus', default='0,1,2,3')
     p.add_argument('--run-id', nargs='+')
     p.add_argument('--settings', nargs='+', choices=['A', 'B', 'C'],
-                   help='Only run these settings; default: A B C')
+                   help='Only run these settings; default: C for smoke, A B C otherwise')
     args = p.parse_args()
+    if args.action == 'smoke' and args.settings is None and args.run_id is None:
+        args.settings = ['C']
+    if args.runs is None:
+        args.runs = ROOT / ('rebuttal/smoke-4gpu' if args.action == 'smoke' else 'rebuttal/runs')
     args.assets, args.data, args.runs = args.assets.resolve(), args.data.resolve(), args.runs.resolve()
     if len(args.gpus.split(',')) != 4 or len(set(args.gpus.split(','))) != 4:
         p.error('Reserve four distinct GPUs')
@@ -382,43 +391,62 @@ def main():
                 and (args.run_id is None or c['run_id'] in args.run_id)]
     if args.run_id and set(args.run_id) != {c['run_id'] for c in selected}:
         p.error('Unknown run ID')
+    if args.action == 'smoke' and args.runs == (ROOT / 'rebuttal/runs').resolve():
+        p.error('Smoke outputs must use a separate runs directory')
     args.runs.mkdir(parents=True, exist_ok=True)
     with (args.runs / '.gpu.lock').open('w') as lock:
         fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-        from rebuttal.preflight import validate
-        validate(args.assets, args.data, args.runs, environments=args.action != 'eval', gpus=args.gpus)
-        if args.action == 'eval':
-            from rebuttal.eval_preflight import check_eval
-            check_eval(args.assets, args.runs, args.gpus, sizes=tuple(sorted({c['model']['size'] for c in selected})))
-        for config in selected:
-            if args.action == 'smoke':
-                config = dict(config, run_id='smoke_'+config['run_id'], smoke=True,
-                              data=dict(config['data'], expected_samples=2))
-            job = Job(config, args.assets.resolve(), args.data.resolve(), args.runs.resolve(), args.gpus)
-            started = time.time()
-            if args.action in {'train', 'all', 'smoke'}:
-                status = 'failed'
-                final = job.root / 'final_checkpoint.json'
-                if final.exists():
-                    checkpoint = Path(json.loads(final.read_text())['path'])
-                    provenance = json.loads((checkpoint / 'checkpoint_manifest.json').read_text())
-                    if any(sha(checkpoint / file) != checksum for file, checksum in provenance['files_sha256'].items()):
-                        raise ValueError('Completed checkpoint was modified')
-                    print(f'[{config["run_id"]}] reuse completed training; no extra training cost charged', flush=True)
-                else:
-                    try:
-                        job.train()
-                        status = 'complete'
-                    except BaseException as error:
-                        write(job.root / 'status.json', {'status': 'failed', 'error': repr(error)})
-                        raise
-                    finally:
-                        with (job.root / 'job_events.jsonl').open('a') as f:
-                            f.write(json.dumps({'wall_seconds': time.time()-started, 'started_unix': started,
-                                                'status': status, 'allocated_gpu_count': len(args.gpus.split(','))})+'\n')
-                        aggregate(job.root)
-            if args.action in {'eval', 'all'}:
-                job.evaluate()
+        from contextlib import nullcontext
+        from rebuttal.smoke import smoke_status
+        guard = (smoke_status(args.runs, ['smoke4_' + c['run_id'] for c in selected])
+                 if args.action == 'smoke' else nullcontext(None))
+        with guard as smoke_summary:
+            from rebuttal.preflight import validate
+            # The explicit preflight command owns the evaluator probe. Real smoke/eval
+            # load their checkpoints directly; do not repeat zero-LoRA probes here.
+            validate(args.assets, args.data, args.runs, environments=args.action != 'eval',
+                     gpus=args.gpus, check_evaluator=False)
+            for config in selected:
+                job_data = args.data
+                if args.action == 'smoke':
+                    from rebuttal.smoke import configuration, prepare_subset
+                    config = configuration(config)
+                    model = args.assets / 'models' / config['model']['repo'].split('/')[-1]
+                    job_data = prepare_subset(model, args.data, args.runs / 'inputs' / config['model']['size'])
+                    smoke_summary['current_run'] = config['run_id']
+                    write(args.runs / 'summary.json', smoke_summary)
+                job = Job(config, args.assets, job_data, args.runs, args.gpus)
+                started = time.time()
+                if args.action in {'train', 'all', 'smoke'}:
+                    status = 'failed'
+                    final = job.root / 'final_checkpoint.json'
+                    if final.exists():
+                        checkpoint = Path(json.loads(final.read_text())['path'])
+                        provenance = json.loads((checkpoint / 'checkpoint_manifest.json').read_text())
+                        if any(sha(checkpoint / file) != checksum for file, checksum in provenance['files_sha256'].items()):
+                            raise ValueError('Completed checkpoint was modified')
+                        print(f'[{config["run_id"]}] reuse completed training; no extra training cost charged', flush=True)
+                    else:
+                        try:
+                            job.train()
+                            status = 'complete'
+                        except BaseException as error:
+                            write(job.root / 'status.json', {'status': 'failed', 'error': repr(error)})
+                            raise
+                        finally:
+                            with (job.root / 'job_events.jsonl').open('a') as f:
+                                f.write(json.dumps({'wall_seconds': time.time()-started, 'started_unix': started,
+                                                    'status': status, 'allocated_gpu_count': len(args.gpus.split(','))})+'\n')
+                            aggregate(job.root)
+                if args.action in {'eval', 'all', 'smoke'}:
+                    job.evaluate()
+                if args.action == 'smoke':
+                    from rebuttal.smoke import verify_run
+                    verify_run(job)
+                    smoke_summary['completed'].append(config['run_id'])
+                    write(args.runs / 'summary.json', smoke_summary)
+        if args.action == 'smoke':
+            print(f'Smoke passed: {len(selected)} runs; summary: {args.runs / "summary.json"}', flush=True)
 
 
 if __name__ == '__main__':

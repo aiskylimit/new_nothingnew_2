@@ -67,7 +67,7 @@ def test_native_commands_have_exact_batch_and_no_smoke_limits(tmp_path, monkeypa
             return
         if stage == 'spectral_masks':
             cmd = commands[0][0]
-            assert cmd[cmd.index('--max-length')+1] == '32768'
+            assert cmd[cmd.index('--max-length')+1] == '16384'
             return
         if stage == 'attribution':
             assert len(commands) == world
@@ -88,13 +88,13 @@ def test_native_commands_have_exact_batch_and_no_smoke_limits(tmp_path, monkeypa
             elif method == 'ssft':
                 assert command[command.index('--gradient_accumulation_steps')+1] == str(accumulation)
                 assert command[command.index('--per_device_train_batch_size')+1] == str(micro)
-                assert command[command.index('--max_seq_length')+1] == '32768'
+                assert command[command.index('--max_seq_length')+1] == '16384'
             else:
                 import yaml
                 value = yaml.safe_load((job.root/'native_train.yaml').read_text())
                 assert value['gradient_accumulation_steps'] == accumulation
                 assert value['per_device_train_batch_size'] == micro
-                assert value['cutoff_len'] == 32768 and 'max_steps' not in value
+                assert value['cutoff_len'] == 16384 and 'max_steps' not in value
         raise Captured
 
     monkeypatch.setattr(job, 'execute', execute)
@@ -187,7 +187,8 @@ def test_note_keeps_short_smoke_section_and_removes_old_long_runbook():
 
 
 @pytest.mark.parametrize('formal,gpu_name', [(True,'H100'), (False,'B200'), (True,'B200')])
-def test_preflight_selects_h100_profile_without_loosening_b200_default(tmp_path, monkeypatch, formal, gpu_name):
+@pytest.mark.parametrize('check_evaluator', [True, False])
+def test_preflight_selects_h100_profile_without_loosening_b200_default(tmp_path, monkeypatch, formal, gpu_name, check_evaluator):
     from rebuttal import preflight, provision, runner
     from rebuttal.common import DATA_REV, MODELS, TEACHER_FIELDS, sha
     assets, data, runs = tmp_path/'assets', tmp_path/'data', tmp_path/'runs'
@@ -218,9 +219,11 @@ def test_preflight_selects_h100_profile_without_loosening_b200_default(tmp_path,
     monkeypatch.setattr(preflight.subprocess, 'run', command)
     if gpu_name != expected_name:
         with pytest.raises(ValueError, match='hardware mismatch'):
-            preflight.validate(assets, data, runs, environments=True, gpus='0,1', formal_2h100=formal)
+            preflight.validate(assets, data, runs, environments=True, gpus='0,1', formal_2h100=formal,
+                               check_evaluator=check_evaluator)
     else:
         result = preflight.validate(assets, data, runs, environments=True,
-                                    gpus='0,1' if formal else '0,1,2,3', formal_2h100=formal)
+                                    gpus='0,1' if formal else '0,1,2,3', formal_2h100=formal,
+                                    check_evaluator=check_evaluator)
         assert result['configurations'] == (5 if formal else 15)
-        assert eval_checks == [('7b',) if formal else ('1.5b','7b')]
+        assert eval_checks == ([('7b',) if formal else ('1.5b','7b')] if check_evaluator else [])

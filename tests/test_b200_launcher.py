@@ -145,3 +145,14 @@ def test_unknown_mode_fails_before_any_external_action(tmp_path):
     env = launcher_environment(tmp_path, installed=False)
     result = invoke(tmp_path, ['endtoend','--unknown'], env)
     assert result.returncode == 2 and not events(tmp_path)
+
+
+def test_smoke_uses_separate_outputs_and_passes_setting_selection(tmp_path):
+    env = launcher_environment(tmp_path, installed=True)
+    env['REBUTTAL_SMOKE_RUNS'] = str(tmp_path/'smoke-runs')
+    result = invoke(tmp_path, ['smoke', '--settings', 'C'], env)
+    assert result.returncode == 0, result.stderr
+    args = events(tmp_path)[0]['args']
+    assert args[2] == 'smoke' and args[args.index('--runs')+1] == str(tmp_path/'smoke-runs')
+    assert args[-2:] == ['--settings', 'C']
+    assert not (tmp_path/'runs').exists()

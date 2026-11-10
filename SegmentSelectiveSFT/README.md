@@ -1,5 +1,7 @@
 # Segment-Level Attribution for Selective Learning of Long Reasoning Traces
 
+Training cutoff is 16,384 tokens across all five methods.
+
 ## Rebuttal configuration
 
 The active wrappers use Qwen2.5-7B-Instruct, LoRA, 3 epochs, seed 42,

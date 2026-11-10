@@ -16,7 +16,7 @@ lora_dropout: 0.05
 dataset: palign_qwen25_7b_sft
 dataset_dir: data
 template: qwen3
-cutoff_len: 32768
+cutoff_len: 16384
 overwrite_cache: true
 preprocessing_num_workers: 16
 train_on_prompt: false

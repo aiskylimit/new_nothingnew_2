@@ -1,5 +1,7 @@
 # Spectral-guided Learning
 
+Training cutoff is 16,384 tokens across all five methods.
+
 Implementation of *Uncovering the Gradient Geometry of Long
 CoT: A Spectral-guided Approach to Reasoning Distillation*.
 

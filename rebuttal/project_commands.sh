@@ -68,7 +68,9 @@ case "$ACTION" in
     ;;
   prepare) exec "$PY" -m rebuttal.data --assets "$ASSETS" --out "$DATA" "$@" ;;
   preflight) exec "$PY" -m rebuttal.preflight --assets "$ASSETS" --data "$DATA" --runs "$RUNS" --environments --gpus "${GPUS:-0,1,2,3}" "$@" ;;
-  configs|train|eval|all|smoke) exec "$PY" -m rebuttal.runner "$ACTION" --assets "$ASSETS" --data "$DATA" --runs "$RUNS" --gpus "${GPUS:-0,1,2,3}" "$@" ;;
+  smoke) exec "$PY" -m rebuttal.runner smoke --assets "$ASSETS" --data "$DATA" \
+    --runs "${REBUTTAL_SMOKE_RUNS:-$PWD/rebuttal/smoke-4gpu}" --gpus "${GPUS:-0,1,2,3}" "$@" ;;
+  configs|train|eval|all) exec "$PY" -m rebuttal.runner "$ACTION" --assets "$ASSETS" --data "$DATA" --runs "$RUNS" --gpus "${GPUS:-0,1,2,3}" "$@" ;;
   report)
     "$PY" -m rebuttal.statistics --runs "$RUNS" --output "$REPORTS" "$@"
     exec "$PY" -m rebuttal.cost --runs "$RUNS" --output "$REPORTS"

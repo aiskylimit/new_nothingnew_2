@@ -30,7 +30,7 @@
     "scheduler": "cosine",
     "warmup_ratio": 0.1,
     "precision": "bf16",
-    "cutoff": 32768,
+    "cutoff": 16384,
     "truncation": "method_native_recorded_in_adaptations",
     "lora_rank": 16,
     "lora_alpha": 16,
