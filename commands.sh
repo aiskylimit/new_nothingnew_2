@@ -25,7 +25,7 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 cd ./contra-kd-math-code
-bash ./project_commands.sh .
+bash ./project_commands.sh --sft-only
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
