@@ -1,4 +1,4 @@
-#i cored.txt
+#i rebuttal_eval.txt
 #gpu-check
 #v1
 
