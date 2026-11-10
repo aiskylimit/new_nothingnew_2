@@ -1,4 +1,4 @@
-#i SegmentSelectiveSFT.txt
+#i cored.txt
 #gpu-check
 #v1
 
