@@ -666,7 +666,8 @@ def finetune(
                     student_schedule, mask,
                     args.num_distill_layers,
                     cur_t=cur_t,
-                    device=device
+                    device=device,
+                    representation_model=args.representation_model
                 )
                 loss += args.kd_ratio * contra_loss
             else:
@@ -1077,6 +1078,7 @@ def main():
             velocity_limit_data = args.velocity_limit_data
             velocity_data_start = args.velocity_data_start
             velocity_data_end = args.velocity_data_end
+            representation_model = args.representation_model
             
         configs = UpdateVelocityFieldConfig()
         args.velocity_num_data = int(args.train_iters_per_epoch * args.velocity_data_frac)

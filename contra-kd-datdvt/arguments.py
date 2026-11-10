@@ -263,6 +263,8 @@ def add_contrakd_args(parser: argparse.ArgumentParser):
                       help="Hidden dimension for MTL velocity field shared body")
     group.add_argument("--velocity-n-layers", type=int, default=6,
                       help="Number of layers in MTL velocity field shared body")
+    group.add_argument("--representation-model", choices=["velocity", "direct-mlp"], default="velocity",
+                      help="Predict teacher minus student (velocity) or teacher state directly; both use the same backbone")
     group.add_argument("--velocity-head-dim", type=int, default=512,
                       help="Hidden dimension for MTL velocity field specialist heads")
     group.add_argument("--otcfm-ratio", type=float, default=1.0,

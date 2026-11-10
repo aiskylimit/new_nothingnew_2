@@ -357,7 +357,8 @@ def train(
                 teacher_schedule,
                 student_schedule,
                 model_batch["attention_mask"],
-                args.student_device
+                args.student_device,
+                representation_model=args.representation_model
             ) / args.gradient_accumulation_steps
 
             loss.backward()
@@ -526,7 +527,8 @@ def main():
             if dist.get_rank() == 0:
                 os.makedirs(save_dir_path, exist_ok=True)
                 print_rank(f"Model save to {save_dir_path}")
-                torch.save(velocity_field.state_dict(), os.path.join(save_dir_path, "velocity_field.pth"))
+                model_filename = "direct_state_mlp.pth" if args.representation_model == "direct-mlp" else "velocity_field.pth"
+                torch.save(velocity_field.state_dict(), os.path.join(save_dir_path, model_filename))
                 torch.save(projector.state_dict(), os.path.join(save_dir_path, "projector.pth"))
         dist.barrier()
     

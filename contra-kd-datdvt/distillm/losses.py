@@ -293,7 +293,8 @@ def velocity_field_loss(
     teacher_schedule,
     student_schedule,
     attention_mask,
-    device=0
+    device=0,
+    representation_model="velocity",
 ):
     """
     Compute FRFD velocity field loss for rectified flow distillation.
@@ -317,7 +318,7 @@ def velocity_field_loss(
         Y_t = (1 - t) * y_S + t * y_T
         
         # Compute target velocity
-        target_velocity = y_T - y_S
+        target_velocity = y_T if representation_model == "direct-mlp" else y_T - y_S
         
         # Predict velocity using the velocity field model
         layer_indices = torch.tensor([j] * y_S.size(0), device=device, dtype=torch.long)
@@ -340,7 +341,8 @@ def frfd_distillation_loss(
     attention_mask,
     num_distill_layers,
     cur_t=1,
-    device=0
+    device=0,
+    representation_model="velocity",
 ):
     """
     Compute FRFD rectified flow distillation loss.
@@ -366,7 +368,10 @@ def frfd_distillation_loss(
                 ideal_update = velocity_field(y_S_j, t, layer_indices)
                 
                 # Target for next layer: Euler step from current layer
-                target_y_next = y_S_j + cur_t * ideal_update #* delta_t
+                if representation_model == "direct-mlp":
+                    target_y_next = (1 - cur_t) * y_S_j + cur_t * ideal_update
+                else:
+                    target_y_next = y_S_j + cur_t * ideal_update #* delta_t
             
             layer_loss = cosine_similarity_loss_masked(actual_y_next, target_y_next, attention_mask)
             loss_rfd += layer_loss / (num_distill_layers)
