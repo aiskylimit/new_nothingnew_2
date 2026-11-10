@@ -51,6 +51,10 @@ export NCCL_DEBUG=WARN
 # cd ./grit
 # bash ./project_commands.sh
 
+mkdir -p /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal
+mv /mnt/local/aiskylimit_new_nothingnew_2/rebuttal/assets \
+   /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal/
+
 cd rebuttal_cored
 bash rebuttal/project_commands.sh prepare && \
 GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \
