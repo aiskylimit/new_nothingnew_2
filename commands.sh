@@ -1,4 +1,4 @@
-#1 +300
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/logs/,/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/logs/ +a
 #contra-math-code
 #v1
 
@@ -24,8 +24,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-2
 # bash ./project_commands.sh
 
-cd ./contra-kd-math-code
-CUDA_VISIBLE_DEVICES=4,5 bash ./project_commands.sh --sft-only
+# cd ./contra-kd-math-code
+# bash ./project_commands.sh .
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
