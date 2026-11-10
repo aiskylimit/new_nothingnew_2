@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_loss_ramp_ablation/ +a
-#contra-loss-ramp
+#1 +30
+#ssft
 #v1
 
 nvidia-smi
@@ -47,7 +47,6 @@ export NCCL_DEBUG=WARN
 # cd ./grit
 # bash ./project_commands.sh
 
-# cd rebuttal
-# tree assets
-# bash ./project_commands.sh prepare
-# GPUS=0,1,2,3 bash ./project_commands.sh preflight
+cd rebuttal
+bash ./project_commands.sh prepare
+GPUS=0,1,2,3 bash ./project_commands.sh preflight
