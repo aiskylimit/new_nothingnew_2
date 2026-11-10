@@ -27,11 +27,20 @@ configuration. Existing console and filesystem logs remain available.
 No datasets from the original checkout are copied or used. The pipeline never
 downloads resources or installs packages on the offline machine.
 
-## Run
+## Export saved evaluation results
 
 ```bash
 bash project_commands.sh
 ```
+
+The launcher copies `results/gpt2/eval_main/` into its `results/` subdirectory.
+The copy preserves relative paths and skips `preds.txt` and `answers.jsonl`.
+The script prints the export size. Move an existing export before running
+another export.
+
+## t=0 training workflow
+
+The training launcher is retained as comments in `project_commands.sh`.
 
 **Only physical GPU 4 is used**, including generation, both field pretraining
 jobs, all four student methods and their evaluations. Jobs run **sequentially**:
@@ -85,8 +94,7 @@ are enabled. Metrics and checkpoints are stored locally. No NLTK download is nee
 Generated field/student checkpoints, evaluation results and logs are written
 under the **code directory** in `results/` and `logs/gpt2_t0/`. Re-running repeats
 generation and training using the same output paths; this is not auto-resume.
-`runs/GPT2_T0.md` describes the original multi-GPU connected version; use this
-file and project_commands.sh for this single-GPU offline copy.
+`runs/GPT2_T0.md` describes the original multi-GPU connected version.
 
 Validation is static plus mocked end-to-end shell execution. No full dependency
 installation, actual model/data provisioning or CUDA training is performed here.
