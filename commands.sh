@@ -1,5 +1,5 @@
-#2
-#ssft
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_direct_mlp_ablation/ +a
+#contra-direct-mlp
 #v1
 
 nvidia-smi
