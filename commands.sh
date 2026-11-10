@@ -1,5 +1,5 @@
-#i rebuttal_eval.txt
-#contra-direct-mlp
+#1 +30
+#ssft-test
 #v1
 
 
@@ -47,3 +47,7 @@ export NCCL_DEBUG=WARN
 
 # cd ./grit
 # bash ./project_commands.sh
+
+cd rebuttal
+bash ./project_commands.sh prepare
+GPUS=0,1,2,3 bash ./project_commands.sh preflight
