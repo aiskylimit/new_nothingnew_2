@@ -1,62 +1,17 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_direct_mlp_ablation/ +a
-#contra-direct-mlp
-#v2
-
 #d
 #datasets
-# --hf-dataset TIGER-Lab/MMEB-train /mnt/local/@PROJECT@/cred/vlm2vec_train/MMEB-train
-# --hf-dataset VoCuc/vlm-teacher-embedding /mnt/local/@PROJECT@/cred/datasets
-# --hf-dataset TIGER-Lab/MMEB-eval /mnt/local/@PROJECT@/cred/vlm2vec_eval/MMEB-eval
-# --url https://huggingface.co/VoCuc/en_core_web_sm/resolve/main/en_core_web_sm.zip /mnt/local/@PROJECT@/cred/en_core_web_sm.zip
+--hf-dataset liuhuohuo2/pick-a-pic-v2 /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/data/pickapic_v2_full
+--hf-dataset nateraw/parti-prompts /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/eval_sources/parti-prompts
+--hf-dataset ymhao/HPDv2 /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/eval_sources/HPDv2
 #models
-# --hf raghavlite/B3_Qwen2_2B /mnt/local/@PROJECT@/cred/models/B3_Qwen2_2B
-# --hf apple/FastVLM-0.5B /mnt/local/@PROJECT@/cred/models/FastVLM-0.5B
-# --hf apple/FastVLM-1.5B /mnt/local/@PROJECT@/cred/models/FastVLM-1.5B
-# --hf llava-hf/llava-onevision-qwen2-0.5b-ov-hf /mnt/local/@PROJECT@/cred/models/llava-onevision-qwen2-0.5b-ov-hf
-
-
-
-nvidia-smi
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/logs/gpt2_t0/,/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/ +a
-
-
-export PATH=/usr/local/cuda/bin:$PATH
-export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
-export HF_HUB_OFFLINE=1
-export TRANSFORMERS_OFFLINE=1
-export HF_DATASETS_OFFLINE=1
-export NCCL_DEBUG=WARN
-
-# CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
-
-# cd ./contra-kd-datdvt
-# bash ./project_commands.sh
-# kill 7474
-
-# cd ./contra-kd-2
-# bash ./project_commands.sh
-
-# ls OPSD/results/raw/olmo3-7b-think/opsd/
-# ls OPSD/res_tar
-# mkdir -p ./res_tar
-# cd OPSD
-# tar -czf - ./results/raw/ | split -b 24M - ./res_tar/opsd_2.tar.gz.part-
-
-# cd ./learn2follow
-# bash ./project_commands.sh
-
-# cd ./contra-kd-datdvt
-# bash ./project_commands.sh
-
-# cd ./cred
-# bash ./project_commands.sh
-
-# cd ./opsd
-# bash ./project_commands.sh
-
-# cd ./talas_vlm_embed
-# bash ./project_commands.sh
-
-# cd ./grit
-# bash ./project_commands.sh
+--hf stabilityai/stable-diffusion-xl-base-1.0 /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/models/stable-diffusion-xl-base-1.0
+--hf madebyollin/sdxl-vae-fp16-fix /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/models/sdxl-vae-fp16-fix
+--hf laion/CLIP-ViT-H-14-laion2B-s32B-b79K /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/reward_models/CLIP-ViT-H-14-laion2B-s32B-b79K
+--hf yuvalkirstain/PickScore_v1 /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/reward_models/PickScore_v1
+--hf bert-base-uncased /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/reward_models/bert-base-uncased
+--url https://huggingface.co/xswu/HPSv2/resolve/main/HPS_v2.1_compressed.pt /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/reward_models/HPSv2/
+--url https://raw.githubusercontent.com/tgxs002/HPSv2/master/hpsv2/src/open_clip/bpe_simple_vocab_16e6.txt.gz /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/reward_models/HPSv2/
+--url https://openaipublic.azureedge.net/clip/models/b8cca3fd41ae0c99ba7e8951adf17d267cdb84cd88be6f7c2e0eca1737a03836/ViT-L-14.pt /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/reward_models/open_clip/
+--url https://huggingface.co/trl-lib/ddpo-aesthetic-predictor/resolve/main/aesthetic-model.pth /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/reward_models/ddpo-aesthetic-predictor/
+--url https://huggingface.co/THUDM/ImageReward/resolve/main/ImageReward.pt /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/reward_models/ImageReward/
+--url https://huggingface.co/THUDM/ImageReward/resolve/main/med_config.json /mnt/local/aiskylimit_new_nothing/sdxl_q3_offline_b200_2gpu/offline_assets/reward_models/ImageReward/

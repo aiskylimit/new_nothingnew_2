@@ -1,3 +1,0 @@
-variant: graph
-fixed_mixture: true
-output_dir: adaptive_graph_ftrl_redesign/outputs/fixed_mixture

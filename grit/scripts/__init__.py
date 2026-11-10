@@ -1,1 +1,0 @@
-"""GRIT command-line entrypoints."""
