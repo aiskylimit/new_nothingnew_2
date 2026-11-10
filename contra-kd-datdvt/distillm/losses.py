@@ -295,14 +295,17 @@ def velocity_field_loss(
     attention_mask,
     device=0,
     representation_model="velocity",
+    velocity_train_time="uniform",
 ):
     """
     Compute FRFD velocity field loss for rectified flow distillation.
     """
     total_loss = torch.tensor(0.0, device=device, dtype=torch.float32)
-    # Train only at the student endpoint, matching the distillation-time query.
     batch_size = student_hiddens[0].size(0)
-    t = torch.zeros(batch_size, 1, 1, device=device, dtype=torch.float32)
+    if representation_model == "direct-mlp" or velocity_train_time == "zero":
+        t = torch.zeros(batch_size, 1, 1, device=device, dtype=torch.float32)
+    else:
+        t = torch.rand(batch_size, 1, 1, device=device, dtype=torch.float32)
     num_distill_layers = len(teacher_schedule)
     
     # Loop over all distillation layers

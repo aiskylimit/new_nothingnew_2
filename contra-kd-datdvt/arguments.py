@@ -265,6 +265,10 @@ def add_contrakd_args(parser: argparse.ArgumentParser):
                       help="Number of layers in MTL velocity field shared body")
     group.add_argument("--representation-model", choices=["velocity", "direct-mlp"], default="velocity",
                       help="Predict teacher minus student (velocity) or teacher state directly; both use the same backbone")
+    group.add_argument("--contra-curriculum", choices=["target", "loss-ramp"], default="target",
+                      help="Ramp the velocity target (original) or ramp only the Contra loss weight")
+    group.add_argument("--velocity-train-time", choices=["uniform", "zero"], default="uniform",
+                      help="Sample t uniformly as in submission-neurips, or train only at t=0")
     group.add_argument("--velocity-head-dim", type=int, default=512,
                       help="Hidden dimension for MTL velocity field specialist heads")
     group.add_argument("--otcfm-ratio", type=float, default=1.0,

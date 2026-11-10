@@ -358,7 +358,8 @@ def train(
                 student_schedule,
                 model_batch["attention_mask"],
                 args.student_device,
-                representation_model=args.representation_model
+                representation_model=args.representation_model,
+                velocity_train_time=args.velocity_train_time
             ) / args.gradient_accumulation_steps
 
             loss.backward()

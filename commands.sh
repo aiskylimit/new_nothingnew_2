@@ -1,5 +1,5 @@
-#1 +10
-#ssft
+#1 +150
+#contra-loss-ramp
 #v1
 
 nvidia-smi
@@ -16,8 +16,8 @@ export NCCL_DEBUG=WARN
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-# cd ./contra-kd-datdvt
-# bash ./project_commands.sh
+cd ./contra-kd-datdvt
+bash ./project_commands.sh
 
 # cd ./contra-kd-2
 # bash ./project_commands.sh
@@ -46,7 +46,7 @@ export NCCL_DEBUG=WARN
 # cd ./grit
 # bash ./project_commands.sh
 
-cd rebuttal
-tree assets
+# cd rebuttal
+# tree assets
 # bash ./project_commands.sh prepare
 # GPUS=0,1,2,3 bash ./project_commands.sh preflight

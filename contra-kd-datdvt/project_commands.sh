@@ -22,6 +22,7 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-4}"
 export STUDENT_PATH="${STUDENT_PATH:-${BASE_DIR}/results/gpt2/train/init/gpt2-base}"
 export TEACHER_PATH="${TEACHER_PATH:-${BASE_DIR}/results/gpt2/train/sft/gpt2-xlarge}"
 export PROCESSED_DATA_ROOT="${PROCESSED_DATA_ROOT:-${BASE_DIR}/processed_data}"
+export RAW_DATA_ROOT="${RAW_DATA_ROOT:-${BASE_DIR}/data/raw}"
 
 cd "${PROJECT_ROOT}"
-exec bash "${PROJECT_ROOT}/runs/gpt2/run_direct_mlp_ablation.sh" "${PROJECT_ROOT}"
+exec bash "${PROJECT_ROOT}/runs/gpt2/run_loss_ramp_ablation.sh" "${PROJECT_ROOT}"

@@ -519,7 +519,8 @@ def finetune(
     
     for epoch in range(args.epochs):
         sampler.set_epoch(epoch)
-        cur_t = (epoch+1)/args.epochs # for curriculum-based contra target
+        ramp_fraction = (epoch + 1) / args.epochs
+        cur_t = 1.0 if args.contra_curriculum == "loss-ramp" else ramp_fraction
         
         # generate new SGOs
         
@@ -669,7 +670,8 @@ def finetune(
                     device=device,
                     representation_model=args.representation_model
                 )
-                loss += args.kd_ratio * contra_loss
+                contra_weight = ramp_fraction if args.contra_curriculum == "loss-ramp" else 1.0
+                loss += args.kd_ratio * contra_weight * contra_loss
             else:
                 contra_loss = torch.tensor(0.0).to(loss.device)
                 
@@ -1079,6 +1081,7 @@ def main():
             velocity_data_start = args.velocity_data_start
             velocity_data_end = args.velocity_data_end
             representation_model = args.representation_model
+            velocity_train_time = args.velocity_train_time
             
         configs = UpdateVelocityFieldConfig()
         args.velocity_num_data = int(args.train_iters_per_epoch * args.velocity_data_frac)
