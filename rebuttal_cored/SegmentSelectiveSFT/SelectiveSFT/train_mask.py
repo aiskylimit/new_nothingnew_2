@@ -408,7 +408,6 @@ def run(args):
             seed = args.seed,
             report_to = REPORT_TO,
             run_name = args.run_name,
-            push_to_hub = False,
             save_strategy = args.save_strategy,
             overwrite_output_dir=True,
             save_total_limit = args.save_total_limit,
