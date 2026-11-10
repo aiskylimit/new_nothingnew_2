@@ -39,7 +39,7 @@ case "$ACTION" in
   setup-eval) exec bash rebuttal/setup_eval.sh "$@" ;;
   check-eval)
     HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 \
-      exec "$PY" -m rebuttal.eval_preflight --assets "$ASSETS" --runs "$RUNS" --gpus "${GPUS:-3,4,5}" "$@"
+      exec "$PY" -m rebuttal.eval_preflight --assets "$ASSETS" --runs "$RUNS" --gpus "${GPUS:-0,1,2,3}" "$@"
     ;;
   download)
     HF_HUB_OFFLINE=0 HF_DATASETS_OFFLINE=0 TRANSFORMERS_OFFLINE=0 \
@@ -67,8 +67,8 @@ case "$ACTION" in
     done
     ;;
   prepare) exec "$PY" -m rebuttal.data --assets "$ASSETS" --out "$DATA" "$@" ;;
-  preflight) exec "$PY" -m rebuttal.preflight --assets "$ASSETS" --data "$DATA" --runs "$RUNS" --environments --gpus "${GPUS:-3,4,5}" "$@" ;;
-  configs|train|eval|all|smoke) exec "$PY" -m rebuttal.runner "$ACTION" --assets "$ASSETS" --data "$DATA" --runs "$RUNS" --gpus "${GPUS:-3,4,5}" "$@" ;;
+  preflight) exec "$PY" -m rebuttal.preflight --assets "$ASSETS" --data "$DATA" --runs "$RUNS" --environments --gpus "${GPUS:-0,1,2,3}" "$@" ;;
+  configs|train|eval|all|smoke) exec "$PY" -m rebuttal.runner "$ACTION" --assets "$ASSETS" --data "$DATA" --runs "$RUNS" --gpus "${GPUS:-0,1,2,3}" "$@" ;;
   report)
     "$PY" -m rebuttal.statistics --runs "$RUNS" --output "$REPORTS" "$@"
     exec "$PY" -m rebuttal.cost --runs "$RUNS" --output "$REPORTS"

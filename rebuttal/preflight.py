@@ -8,8 +8,8 @@ from pathlib import Path
 from rebuttal.common import DATA_REV, ROOT, TEACHER_FIELDS, matrix, rows, sha, write
 
 
-def validate(assets, data, runs, environments=False, gpus='3,4,5', formal_2h100=False):
-    expected_devices = 2 if formal_2h100 else 3
+def validate(assets, data, runs, environments=False, gpus='0,1,2,3', formal_2h100=False):
+    expected_devices = 2 if formal_2h100 else 4
     gpu_type = 'H100' if formal_2h100 else 'B200'
     if len(gpus.split(',')) != expected_devices or len(set(gpus.split(','))) != expected_devices:
         raise ValueError(f'Reserve {expected_devices} distinct GPUs')
@@ -74,7 +74,7 @@ def main():
     p.add_argument('--data', type=Path, required=True)
     p.add_argument('--runs', type=Path, required=True)
     p.add_argument('--environments', action='store_true')
-    p.add_argument('--gpus', default='3,4,5')
+    p.add_argument('--gpus', default='0,1,2,3')
     args = p.parse_args()
     args.assets, args.data, args.runs = args.assets.resolve(), args.data.resolve(), args.runs.resolve()
     args.runs.mkdir(parents=True, exist_ok=True)

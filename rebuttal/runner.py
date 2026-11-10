@@ -55,10 +55,14 @@ class Job:
         if formal and (formal != 'setting_b_2h100' or config['setting'] != 'B'
                        or config.get('smoke') or config.get('development_smoke')):
             raise ValueError('Formal H100 profile requires a full Setting B run')
-        expected = 2 if config.get('development_smoke') or formal else 3
+        expected = 2 if config.get('development_smoke') or formal else 4
         devices = gpus.split(',')
         if len(devices) != expected or len(set(devices)) != expected:
             raise ValueError(f'Expected {expected} distinct GPUs')
+        train = config['train']
+        if config['method'] != 'cored' and (
+                train['micro_batch'] * train['gradient_accumulation'] * expected != train['global_batch']):
+            raise ValueError('Effective batch must equal micro_batch * gradient_accumulation * GPU count')
         self.config, self.assets, self.data, self.gpus = config, assets, data, gpus
         self.root = runs / config['run_id']
         self.root.mkdir(parents=True, exist_ok=True)
@@ -228,11 +232,12 @@ class Job:
             command = [python, '-m', 'train.pipeline_b200', '--model', self.model,
                 '--dataset', self.input / 'sgl/train.jsonl', '--gpus', self.gpus,
                 '--output_root', run / 'artifacts', '--run_id', 'cored', '--epochs', train['epochs'],
-                '--seed', train['seed'], '--global_batch', train['global_batch'], '--cutoff_len', train['cutoff'],
+                '--seed', train['seed'], '--global_batch', train['global_batch'],
+                '--micro_batch_size', train['micro_batch'], '--cutoff_len', train['cutoff'],
                 '--lr_phase1', train['lr'], '--lr_distill', config['method_specific']['student_lr'],
                 '--lora_r', train['lora_rank'], '--lora_alpha', train['lora_alpha'], '--lora_dropout', train['lora_dropout']]
             if config.get('formal_profile') == 'setting_b_2h100':
-                command += ['--formal_2h100', '--micro_batch_size', train['micro_batch']]
+                command += ['--formal_2h100']
             if config.get('smoke'):
                 if config.get('development_smoke'):
                     command += ['--development_smoke', '--micro_batch_size', '1', '--max_batch_tokens', train['cutoff'],
@@ -356,14 +361,14 @@ def main():
     p.add_argument('--assets', type=Path, default=ROOT / 'rebuttal/assets')
     p.add_argument('--data', type=Path, default=ROOT / 'rebuttal/prepared')
     p.add_argument('--runs', type=Path, default=ROOT / 'rebuttal/runs')
-    p.add_argument('--gpus', default='3,4,5')
+    p.add_argument('--gpus', default='0,1,2,3')
     p.add_argument('--run-id', nargs='+')
     p.add_argument('--settings', nargs='+', choices=['A', 'B', 'C'],
                    help='Only run these settings; default: A B C')
     args = p.parse_args()
     args.assets, args.data, args.runs = args.assets.resolve(), args.data.resolve(), args.runs.resolve()
-    if len(args.gpus.split(',')) != 3 or len(set(args.gpus.split(','))) != 3:
-        p.error('Reserve three distinct GPUs')
+    if len(args.gpus.split(',')) != 4 or len(set(args.gpus.split(','))) != 4:
+        p.error('Reserve four distinct GPUs')
     configs = matrix()
     if args.action == 'configs':
         for config in configs:
@@ -410,7 +415,7 @@ def main():
                     finally:
                         with (job.root / 'job_events.jsonl').open('a') as f:
                             f.write(json.dumps({'wall_seconds': time.time()-started, 'started_unix': started,
-                                                'status': status, 'allocated_gpu_count': 3})+'\n')
+                                                'status': status, 'allocated_gpu_count': len(args.gpus.split(','))})+'\n')
                         aggregate(job.root)
             if args.action in {'eval', 'all'}:
                 job.evaluate()

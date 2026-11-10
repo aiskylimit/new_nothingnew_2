@@ -88,9 +88,17 @@ def test_native_development_commands_use_two_workers_and_small_limits(tmp_path, 
         job.train()
 
 
-def test_main_job_refuses_two_gpus(tmp_path):
-    with pytest.raises(ValueError, match='3 distinct'):
-        Job(matrix()[0], tmp_path, tmp_path, tmp_path, '0,1')
+@pytest.mark.parametrize('gpus', ['0,1', '0,1,2', '0,1,2,2'])
+def test_main_job_requires_four_distinct_gpus(tmp_path, gpus):
+    with pytest.raises(ValueError, match='4 distinct'):
+        Job(matrix()[0], tmp_path, tmp_path, tmp_path, gpus)
+
+
+def test_main_job_rejects_batch_inconsistent_with_four_gpus(tmp_path):
+    config = matrix()[0]
+    config['train']['micro_batch'] = 11
+    with pytest.raises(ValueError, match='Effective batch'):
+        Job(config, tmp_path, tmp_path, tmp_path, '0,1,2,3')
 
 
 def test_execute_records_path_arguments_as_json_without_gpu(tmp_path):

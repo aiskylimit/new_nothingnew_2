@@ -21,8 +21,8 @@
   "train": {
     "seed": 42,
     "epochs": 3,
-    "global_batch": 33,
-    "micro_batch": 11,
+    "global_batch": 32,
+    "micro_batch": 8,
     "gradient_accumulation": "adaptive token budget",
     "optimizer": "AdamW",
     "lr": 5e-05,
@@ -82,9 +82,9 @@
     "logiqa_max_tokens": 4096
   },
   "hardware": {
-    "gpus": "3,4,5",
+    "gpus": "0,1,2,3",
     "type": "NVIDIA B200 180GB",
-    "training_gpu_count": 3
+    "training_gpu_count": 4
   },
   "protocol_basis": "current rebuttal implementations; differences retained, not a paper-equivalence certification"
 }

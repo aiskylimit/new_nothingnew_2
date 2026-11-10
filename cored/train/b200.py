@@ -35,7 +35,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     add_common_args(parser)
     parser.add_argument("--stage", choices=["phase1", "distill"], required=True)
-    parser.add_argument("--micro_batch_size", type=int, default=11)
+    parser.add_argument("--micro_batch_size", type=int, default=8)
     parser.add_argument("--max_batch_tokens", type=int, default=32768)
     parser.add_argument("--loss_chunk", type=int, default=256)
     parser.add_argument("--attn_implementation", choices=["sdpa", "flash_attention_2"], default="sdpa")
@@ -55,7 +55,7 @@ def parse_args():
     parser.add_argument("--checkpoint_every", type=int, default=0,
                         help="Extra resume checkpoints per N updates; epoch checkpoints are default")
     parser.add_argument("--cpu_float32", action="store_true", help="CPU integration tests only")
-    parser.set_defaults(model_name="models/Qwen2.5-7B-Instruct", global_batch=33,
+    parser.set_defaults(model_name="models/Qwen2.5-7B-Instruct", global_batch=32,
                         cutoff_len=16384, loss_reduction="step_mean", out_dir="outputs/b200/phase1")
     args = track_cli_provided(parser)
     if args.stage == "distill" and "lr" not in args._cli_provided and not args.config:

@@ -54,7 +54,7 @@ if os.environ.get('TEST_FAIL_SETUP') and args[:2] == ['pip','install']: sys.exit
     env.update(PATH=str(binary)+os.pathsep+os.environ['PATH'], REBUTTAL_ENV_ROOT=str(env_root),
         REBUTTAL_ASSETS=str(tmp_path/'assets'), REBUTTAL_DATA=str(tmp_path/'prepared'),
         REBUTTAL_RUNS=str(tmp_path/'runs'), REBUTTAL_REPORTS=str(tmp_path/'reports'),
-        REBUTTAL_LAUNCHER_LOGS=str(tmp_path/'logs'), GPUS='0,1,2',
+        REBUTTAL_LAUNCHER_LOGS=str(tmp_path/'logs'), GPUS='0,1,2,3',
         TEST_EVENTS=str(tmp_path/'events.jsonl'), TEST_PYTHON_TEMPLATE=str(template))
     return env
 
@@ -77,7 +77,7 @@ def test_offline_end_to_end_never_installs_or_downloads(tmp_path, mode):
     recorded = events(tmp_path)
     assert [e['stage'] for e in recorded] == ['prepare','preflight','all','statistics','cost']
     assert all(e['tool']=='python' and e['offline']=='1' for e in recorded)
-    assert recorded[1]['args'][-2:] == ['--gpus','0,1,2']
+    assert recorded[1]['args'][-2:] == ['--gpus','0,1,2,3']
     assert all(e['ssft_python'] == str(tmp_path/'envs/SegmentSelectiveSFT/bin/python') for e in recorded)
     assert (tmp_path/'logs/endtoend.log').is_file()
 

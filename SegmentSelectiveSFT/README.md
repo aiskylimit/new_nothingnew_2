@@ -3,7 +3,7 @@
 ## Rebuttal configuration
 
 The active wrappers use Qwen2.5-7B-Instruct, LoRA, 3 epochs, seed 42,
-and batch 33 on 3 GPUs (11 each, accumulation 1). See [REBUTTAL.md](../REBUTTAL.md).
+and batch 32 on 4 GPUs (8 each, accumulation 1). See [REBUTTAL.md](../REBUTTAL.md).
 `commands.sh` runs attribution, distributed LoRA training and the shared P-ALIGN
 vLLM/math-verify evaluator; provide `EVAL_PYTHON` for the separate vLLM environment.
 `train.sh` and `eval.sh` are the separate-stage entrypoints. `EVAL_N` defaults to 3.

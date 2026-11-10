@@ -1,12 +1,13 @@
 # ICLR 2027 main experiments
 
-`PLAN.md` is the supplied finalized plan. This entry point schedules **15 runs**:
+`PLAN.md` is the supplied plan; this branch uses four GPUs and effective batch 32.
+This entry point schedules **15 runs**:
 five native methods × A (7B/original), B (7B/Gemini), C (1.5B/original), one
-training seed 42, default physical GPUs **3,4,5**. No 8B, extra training seeds or
+training seed 42, default physical GPUs **0,1,2,3**. No 8B, extra training seeds or
 CoReD ablations are scheduled. `configs/*.json` are the 15 frozen configurations;
 they are validated against `common.matrix()` to prevent unnoticed drift.
 
-## Main three-B200 launcher
+## Main four-B200 launcher
 
 For short commands that train all **A+C** runs before evaluation, see the
 [root README](../README.md#chạy-lần-lượt-từng-bước-chỉ-setting-a-và-c).
@@ -15,9 +16,9 @@ Use `--run-id` to select individual methods/runs instead.
 
 ```bash
 # Offline B200 server: environments and attested assets must already be provisioned.
-GPUS=3,4,5 bash rebuttal/project_commands.sh endtoend --offline
-# Online machine with three B200s: also install dependencies and download assets.
-GPUS=3,4,5 bash rebuttal/project_commands.sh endtoend --online
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh endtoend --offline
+# Online machine with four B200s: also install dependencies and download assets.
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh endtoend --online
 ```
 
 Choose the command matching the machine; `endtoend` defaults to offline. The
@@ -27,7 +28,7 @@ and `download` (pinned model/data provisioner), then both modes run `prepare`,
 Install `uv` before online setup if missing (`python3 -m pip install uv`). Runtime
 stages remain offline. Logs are appended to `rebuttal/launcher-logs/endtoend.log`
 or `REBUTTAL_LAUNCHER_LOGS`; native per-run status/logs retain their existing paths.
-Set `GPUS` to the three actual physical indices allocated to the experiment.
+Set `GPUS` to the four actual physical indices allocated to the experiment.
 
 `setup` and `download` can also be invoked separately, as in the H100/3090 scripts.
 Download uses `rebuttal.provision` with the same sources listed in
@@ -78,9 +79,9 @@ Rerun the same `all` command to resume; changed code/config/data requires a fres
 output directory. Other actions: `prepare`, `preflight`, `train`, `eval`, `report`.
 `all --run-id B_cored_7b_seed42` runs/resumes only that method and omits the final
 five-method report. Run `report` after all five methods finish.
-`project_commands.sh`, the frozen 15 main configs and their default three-B200
-profile remain separate; do not combine H100/batch-32 timing with B200/batch-33
-as if they used the same hardware/training batch.
+`project_commands.sh`, the frozen 15 main configs and their default four-B200
+profile remain separate; do not combine H100/two-GPU timing with B200/four-GPU
+as if they used the same hardware or per-device batch.
 
 ## Environments and immutable assets
 
@@ -154,7 +155,7 @@ CUDA mismatch even after the shared evaluator passes.
 ```bash
 python -m rebuttal.data --assets rebuttal/assets --out rebuttal/prepared
 python -m rebuttal.preflight --assets rebuttal/assets --data rebuttal/prepared \
-  --runs rebuttal/runs --environments --gpus 3,4,5
+  --runs rebuttal/runs --environments --gpus 0,1,2,3
 ```
 
 Both teachers use **one pinned `simplescaling/s1K-1.1` snapshot**. Original uses
@@ -180,7 +181,7 @@ Adapters preserve each method's response format. SGL receives aliases pointing
 to the selected teacher, never silently to DeepSeek in B. SSFT keeps reasoning
 as its solution and its native attribution target policy (last boxed answer,
 fallback gold, <=200 characters); rejected IDs/counts are saved. Attribution runs
-as three independent workers, one per GPU, with unchanged IG/segment selection.
+as four independent workers, one per GPU, with unchanged IG/segment selection.
 Each worker writes a separate shard; the coordinator validates IDs and restores
 source order before training. Empty shards are allowed for small smokes; zero
 retained samples overall is an error. P-ALIGN reruns
@@ -192,7 +193,8 @@ native available context; overlong judge prompts fail explicitly.
 The correctness filter follows [P-ALIGN Eq.9](https://arxiv.org/html/2601.10064v1).
 
 The presets preserve the current rebuttal method implementations: baseline
-LoRA rank/alpha 16, dropout .05, LR 5e-5, 3 epochs, batch 33; CoReD keeps its
+LoRA rank/alpha 16, dropout .05, LR 5e-5, 3 epochs, batch 32 (8 per GPU,
+accumulation 1); CoReD keeps its
 16k cutoff, three experts, SVGD/key-step/council/TIES recipe and student LR 1e-4.
 Other baselines keep 32k and their method-specific masks/truncation. These
 presets do not certify that every inherited detail matches an original paper.
@@ -233,13 +235,13 @@ training/eval stages; changed code/config/data requires a fresh
 `REBUTTAL_2GPU_RUNS`. Existing main/prepared data and the frozen main configs are
 not used as writable test outputs. These results are not paper metrics or a
 guarantee of B200/long-context/full-batch compatibility. The main entry point
-below still requires three B200s and the original experimental protocol.
+below requires four B200s and effective batch 32.
 
 ```bash
 # Two input examples and two optimizer updates; isolated from main run IDs.
 python -m rebuttal.runner smoke --runs rebuttal/smoke-runs
 
-# All 15 runs sequentially, reserving the same three GPUs.
+# All 15 runs sequentially, reserving the same four GPUs.
 python -m rebuttal.runner train
 
 # One selected run (repeat this command to resume).
@@ -251,7 +253,7 @@ CoReD smoke exercises both expert training and student distillation. A filter
 retaining zero samples is an explicit failure; it does not silently train an
 unfiltered substitute. Native checkpoint resume is enabled for all methods.
 Preprocessing stages persist artifacts separately from optimization. P-ALIGN
-persists completed examples; SSFT repeats all three shards of an interrupted
+persists completed examples; SSFT repeats all four shards of an interrupted
 attribution stage, but does not repeat a completed one. CoReD uses its stage/sample resume path.
 SGL retains its native mask-resume behavior. Resume can repeat work after the
 last checkpoint; failed attempts remain in cost logs.
@@ -274,7 +276,7 @@ python -m rebuttal.runner eval
 python -m rebuttal.runner all
 ```
 
-Each checkpoint uses three independent vLLM replicas, one GPU each, TP=1, with
+Each checkpoint uses four independent vLLM replicas, one GPU each, TP=1, with
 disjoint questions. All methods use the P-ALIGN math prompt/chat-template helper
 and math-verify extraction. Math uses seeds **1,2,3,4,5** with **13,13,13,13,12**
 responses per question, temperature .6, top-p .9, repetition penalty 1.05 and
@@ -336,7 +338,7 @@ report as incomplete. AIME intervals may be wide.
 
 Cost definitions are identical across methods:
 
-- **Allocated GPU-hours:** training-job wall seconds × 3 / 3,600, summed across
+- **Allocated GPU-hours:** training-job wall seconds × 4 / 3,600, summed across
   invocations, including failed attempts. This accounts for the reserved GPU set.
 - **Active stage GPU-hours:** sum of each worker's wall seconds × its GPU count,
   including necessary prefix/attribution/mask/council/merge stages. CoReD is not

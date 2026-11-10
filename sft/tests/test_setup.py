@@ -146,7 +146,7 @@ class ConfigurationMatrixTests(unittest.TestCase):
         "lora_dropout": 0.05,
         "cutoff_len": 32768,
         "train_on_prompt": False,
-        "per_device_train_batch_size": 11,
+        "per_device_train_batch_size": 8,
         "gradient_accumulation_steps": 1,
         "num_train_epochs": 3.0,
         "learning_rate": 5.0e-5,

@@ -40,14 +40,15 @@ def examples():
                  answer='x' * 201 if i == 2 else str(i)) for i in range(8)]
 
 
-def test_three_shards_match_serial_native_selection(tmp_path, attribution_backend):
+@pytest.mark.parametrize('shards', [3, 4])
+def test_shards_match_serial_native_selection(tmp_path, attribution_backend, shards):
     source, serial, merged = (tmp_path / name for name in ('source.jsonl', 'serial.jsonl', 'merged.jsonl'))
     jsonl(source, examples())
     settings = {'ig_steps': 50, 'mass': .7, 'coherence': .8}
     ssft('local-model', source, serial, settings)
-    parts = [tmp_path / f'part-{i}.jsonl' for i in range(3)]
+    parts = [tmp_path / f'part-{i}.jsonl' for i in range(shards)]
     for i, part in enumerate(parts):
-        ssft('local-model', source, part, settings, i, 3)
+        ssft('local-model', source, part, settings, i, shards)
     merge_ssft(source, parts, merged)
     assert rows(merged) == rows(serial)
     assert [r['id'] for r in rows(merged)] == ['0', '1', '3', '4', '5', '6', '7']
@@ -61,10 +62,10 @@ def test_three_shards_match_serial_native_selection(tmp_path, attribution_backen
 def test_empty_shards_support_two_sample_smoke(tmp_path, attribution_backend):
     source, output = tmp_path / 'source.jsonl', tmp_path / 'selected.jsonl'
     jsonl(source, examples()[:2])
-    parts = [tmp_path / f'part-{i}.jsonl' for i in range(3)]
+    parts = [tmp_path / f'part-{i}.jsonl' for i in range(4)]
     for i, part in enumerate(parts):
-        ssft('local-model', source, part, shard=i, shards=3)
-    assert rows(parts[2]) == []
+        ssft('local-model', source, part, shard=i, shards=4)
+    assert rows(parts[2]) == rows(parts[3]) == []
     assert len(attribution_backend) == 2
     merge_ssft(source, parts, output)
     assert [r['id'] for r in rows(output)] == ['0', '1']
@@ -94,11 +95,11 @@ def test_merge_rejects_incomplete_or_invalid_results(tmp_path, problem):
     assert not (tmp_path / 'selected.jsonl').exists()
 
 
-def test_runner_dispatches_attribution_to_three_distinct_gpus(tmp_path, monkeypatch):
+def test_runner_dispatches_attribution_to_four_distinct_gpus(tmp_path, monkeypatch):
     from rebuttal import runner
     job = object.__new__(runner.Job)
     job.config = next(c for c in matrix() if c['run_id'] == 'A_ssft_7b_seed42')
-    job.root, job.model, job.input, job.gpus = tmp_path, tmp_path / 'model', tmp_path / 'data', '3,4,5'
+    job.root, job.model, job.input, job.gpus = tmp_path, tmp_path / 'model', tmp_path / 'data', '0,1,2,3'
     job.model.mkdir()
     write(job.model / 'config.json', {})
     write(job.root / 'run.json', job.config)
@@ -109,14 +110,14 @@ def test_runner_dispatches_attribution_to_three_distinct_gpus(tmp_path, monkeypa
         pass
 
     def execute(stage, commands, gpu_count):
-        assert stage == 'attribution' and gpu_count == 3
-        assert [gpu for command, gpu in commands] == ['3', '4', '5']
+        assert stage == 'attribution' and gpu_count == 4
+        assert [gpu for command, gpu in commands] == ['0', '1', '2', '3']
         destinations = []
         for i, (command, _) in enumerate(commands):
             assert command[command.index('--shard') + 1] == str(i)
-            assert command[command.index('--shards') + 1] == '3'
+            assert command[command.index('--shards') + 1] == '4'
             destinations.append(command[command.index('--output') + 1])
-        assert len(set(destinations)) == 3
+        assert len(set(destinations)) == 4
         raise Dispatched
 
     monkeypatch.setattr(job, 'execute', execute)

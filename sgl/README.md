@@ -35,8 +35,8 @@ supervised.
 ## Rebuttal run
 
 See [the shared rebuttal settings](../REBUTTAL.md) for the current configuration.
-The default is Qwen2.5-7B-Instruct, 3 epochs, seed 42, and effective batch 33
-(11 per GPU, 3 GPUs, accumulation 1).
+The default is Qwen2.5-7B-Instruct, 3 epochs, seed 42, and effective batch 32
+(8 per GPU, 4 GPUs, accumulation 1).
 
 Install the training package in the training environment:
 
@@ -45,7 +45,7 @@ python -m pip install -e ".[dev]"
 EVAL_PYTHON=/path/to/vllm-env/bin/python bash project_commands.sh
 ```
 
-The launcher builds masks on three GPUs, trains with torchrun on three GPUs,
+The launcher builds masks on four GPUs, trains with torchrun on four GPUs,
 then uses the shared P-ALIGN evaluator. Set `EVAL_N=5` to change the number of
 samples per question. Set `EVAL_DATA_DIR` for another normalized JSONL suite.
 Adapter checkpoints remain under `checkpoints/`; evaluation supports them directly.

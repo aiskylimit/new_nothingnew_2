@@ -9,8 +9,8 @@ change.
 | Method | response-only SFT with LoRA |
 | Epochs | 3 |
 | Learning rate | `5e-5` |
-| Effective batch size | 33 (3 GPUs) |
-| Per-device batch size | 11; gradient accumulation 1 |
+| Effective batch size | 32 (4 GPUs) |
+| Per-device batch size | 8; gradient accumulation 1 |
 | Scheduler / warmup | cosine / ratio 0.1 |
 | Optimizer | AdamW Torch, betas `(0.9, 0.999)`, eps `1e-8`, wd `0` |
 | Max sequence length | 32,768 |

@@ -8,7 +8,7 @@ EVAL_N=5 bash project_commands.sh eval
 ```
 
 See [REBUTTAL.md](../REBUTTAL.md) for shared defaults: 3 epochs, seed 42,
-effective batch 33 on 3 GPUs (11 per GPU, accumulation 1). The 966-row training
+effective batch 32 on 4 GPUs (8 per GPU, accumulation 1). The 966-row training
 file is unchanged. Optional Qwen3 configs remain available for explicit use.
 
 `src/run_eval.py` is the shared vLLM/math-verify evaluator for all four folders.

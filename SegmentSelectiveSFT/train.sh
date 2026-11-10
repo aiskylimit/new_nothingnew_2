@@ -11,7 +11,7 @@
 #
 # Mac dinh (LoRA tren Qwen2.5-7B-Instruct, du lieu s1K-1.1):
 #   r=16 alpha=16 dropout=0.05 tren q/k/v/o/gate/up/down_proj
-#   lr 5e-5, 3 epoch, seq 32768, batch 11 x accum 1 x 3 GPU = 33 mau/step
+#   lr 5e-5, 3 epoch, seq 32768, batch 8 x accum 1 x 4 GPU = 32 mau/step
 #   AdamW betas (0.9, 0.999) eps 1e-8 wd 0.0, cosine + warmup_ratio 0.1
 #
 # Tuy chon:
@@ -47,18 +47,18 @@ ENV_NAME="${ENV_NAME:-ssft_train}"
 PYTHON_VERSION="${PYTHON_VERSION:-3.11}"
 MODEL="${MODEL:-$ROOT_DIR/models/Qwen2.5-7B-Instruct}"
 DATA="${DATA:-data/s1k/solutions_selected.jsonl}"
-GPU="${GPU:-0,1,2}"
+GPU="${GPU:-0,1,2,3}"
 EPOCHS="${EPOCHS:-3}"
 LR="${LR:-5e-5}"
 LOG_DIR="${LOG_DIR:-logs}"
 
 # 32768 = dung tran max_position_embeddings cua Qwen2.5-7B-Instruct.
 MAX_SEQ_LENGTH="${MAX_SEQ_LENGTH:-32768}"
-# Rebuttal: 11 mau/GPU x 3 GPU x accum 1 = 33 mau/step.
-BATCH_SIZE="${BATCH_SIZE:-11}"
+# Rebuttal: 8 mau/GPU x 4 GPU x accum 1 = 32 mau/step.
+BATCH_SIZE="${BATCH_SIZE:-8}"
 GRAD_ACCUM="${GRAD_ACCUM:-1}"
 TRAIN_SEED="${TRAIN_SEED:-42}"
-NPROC_PER_NODE="${NPROC_PER_NODE:-3}"
+NPROC_PER_NODE="${NPROC_PER_NODE:-4}"
 GROUP_BY_LENGTH="${GROUP_BY_LENGTH:-0}"   # 1 = gom mau cung do dai, bo padding thua
 # Seq 32768 tren 7B thi gradient checkpointing la bat buoc -> mac dinh BAT.
 NO_GRAD_CKPT="${NO_GRAD_CKPT:-0}"         # 1 = tat (ton VRAM, nhanh hon)

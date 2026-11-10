@@ -107,14 +107,14 @@ All three wrappers take `--dry-run` and `-h`.
 | Tuning | LoRA r=16, alpha=16, dropout=0.05, bias=none |
 | `target_modules` | `q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj` |
 | LR / epochs | 5e-5 / 3 |
-| Effective batch | 32 (`per_device 1` x `grad_accum 32` x 1 GPU) |
+| Effective batch | 32 (`per_device 8` x `grad_accum 1` x 4 GPUs) |
 | Optimizer | `adamw_torch`, betas (0.9, 0.999), eps 1e-8, weight_decay 0.0 |
 | Scheduler | cosine + warmup, `warmup_ratio=0.1` (HF builds this as a `LambdaLR`) |
 | `max_seq_length` | 32768 (= Qwen2.5-7B's `max_position_embeddings`; no RoPE scaling) |
 | Gradient checkpointing | on, unsloth's variant (required at 32k on 7B) |
 | Segmentation | `paragraph` — split on every `\n\n` |
 
-Effective batch is `per_device x grad_accum x WORLD_SIZE` — launching under DDP with more than one process multiplies it past 32.
+Effective batch is `per_device x grad_accum x WORLD_SIZE`; the default four-GPU launcher uses `8 x 1 x 4 = 32`.
 
 ## Pipeline data flow
 

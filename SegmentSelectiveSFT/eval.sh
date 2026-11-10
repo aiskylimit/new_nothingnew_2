@@ -8,7 +8,7 @@ DATA_DIR="${EVAL_DATA_DIR:-$ROOT/../palign/data/raw}"
 RESULT_DIR="${RESULT_DIR:-$ROOT/Eval/outputs_rebuttal}"
 EVAL_PYTHON="${EVAL_PYTHON:-python}"
 N="${EVAL_N:-3}"
-export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-${GPU:-0,1,2}}"
+export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-${GPU:-0,1,2,3}}"
 EXTRA=()
 while [[ $# -gt 0 ]]; do
   case "$1" in

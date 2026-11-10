@@ -25,7 +25,7 @@ BENCH_DIR="${BENCH_DIR:-$ROOT/../palign/data/raw}"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT/outputs/rebuttal}"
 EVAL_PYTHON="${EVAL_PYTHON:-/mnt/local/uvenvs/palign/bin/python}"
 RUN_ID="${RUN_ID:-ssft_qwen25_7b_seed42}"
-GPU="${GPU:-0,1,2}"
+GPU="${GPU:-0,1,2,3}"
 
 
 die() { printf '\033[1;31m[ERROR]\033[0m %s\n' "$*" >&2; exit 1; }
@@ -71,8 +71,8 @@ python -u "${ROOT}/one_pass.py" \
   --eval-backend vllm --eval-python "$EVAL_PYTHON" \
   --eval-n "${EVAL_N:-3}" --seed "${TRAIN_SEED:-42}" \
   --epochs "${EPOCHS:-3}" --lr "${LR:-5e-5}" \
-  --nproc-per-node "${NPROC_PER_NODE:-3}" \
-  --batch-size "${BATCH_SIZE:-11}" --grad-accum "${GRAD_ACCUM:-1}"
+  --nproc-per-node "${NPROC_PER_NODE:-4}" \
+  --batch-size "${BATCH_SIZE:-8}" --grad-accum "${GRAD_ACCUM:-1}"
 
 # -----------------------------------------------------------------------------
 # 2. In ket qua. Checkpoint van nam tren dia neu eval dung giua chung.

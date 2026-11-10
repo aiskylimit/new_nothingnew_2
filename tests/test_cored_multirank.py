@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pytest
 import torch
 from safetensors.torch import load_file
 
@@ -140,7 +141,7 @@ def test_pipeline_preparation_reuses_data_but_rejects_changed_recipe(tmp_path):
                     "deepseek_attempt": "A", "solution": "A"}]), dataset / "train-00000.parquet")
     command = [sys.executable, "-m", "train.pipeline_b200", "--model", str(model),
                "--dataset", str(dataset.parent), "--output_root", str(tmp_path / "pipeline"),
-               "--run_id", "test-run", "--gpus", "0,1,2", "--stages", "prepare"]
+               "--run_id", "test-run", "--gpus", "0,1,2,3", "--stages", "prepare"]
     env = {**os.environ, "PYTHONPATH": str(ROOT / "cored"), "PYTHONDONTWRITEBYTECODE": "1",
            "CUDA_VISIBLE_DEVICES": "", "OMP_NUM_THREADS": "1"}
     first = subprocess.run(command, cwd=ROOT / "cored", env=env, capture_output=True, text=True, timeout=30)
@@ -170,22 +171,23 @@ def test_pipeline_preparation_reuses_data_but_rejects_changed_recipe(tmp_path):
     assert "Run configuration differs" in changed.stderr
 
 
-def test_two_rank_three_experts_and_student_match_single_rank(tmp_path):
-    """Real two-process CPU/Gloo coverage for the development topology."""
+@pytest.mark.parametrize('world', [2, 4])
+def test_distributed_three_experts_and_student_match_single_rank(tmp_path, world):
+    """CPU/Gloo coverage for development and main GPU process counts."""
     from proposal.merge import merge_experts, save_merged_adapter
     model, source, keys, weights = tiny_assets(tmp_path)
-    one, two = tmp_path / 'one', tmp_path / 'two'
+    one, distributed = tmp_path / 'one', tmp_path / 'distributed'
     extra = ['--keystep_dir', keys, '--lr', '0.003']
     launch(tmp_path, 1, 'phase1', one, model, source, extra)
-    launch(tmp_path, 2, 'phase1', two, model, source, extra)
-    compare_adapters(one, two, [f'expert_{i}' for i in range(3)])
-    assert len(list(two.glob('timing-rank-*.json'))) == 2
-    state, rank = merge_experts([str(two / f'expert_{i}') for i in range(3)], 'ties',
+    launch(tmp_path, world, 'phase1', distributed, model, source, extra)
+    compare_adapters(one, distributed, [f'expert_{i}' for i in range(3)])
+    assert len(list(distributed.glob('timing-rank-*.json'))) == world
+    state, rank = merge_experts([str(distributed / f'expert_{i}') for i in range(3)], 'ties',
                                 out_rank=2, density=0.2, device='cpu')
-    teacher = save_merged_adapter(state, rank, str(two / 'expert_0'), str(tmp_path/'merged'))
+    teacher = save_merged_adapter(state, rank, str(distributed / 'expert_0'), str(tmp_path/'merged'))
     options = ['--teacher_adapter', teacher, '--weights_dir', weights, '--lr', '0.003']
-    dist_one, dist_two = tmp_path/'dist-one', tmp_path/'dist-two'
+    dist_one, dist_distributed = tmp_path/'dist-one', tmp_path/'dist-distributed'
     launch(tmp_path, 1, 'distill', dist_one, model, source, options)
-    launch(tmp_path, 2, 'distill', dist_two, model, source, options)
-    compare_adapters(dist_one, dist_two, ['student'])
-    assert (dist_two/'student/adapter_model.safetensors').is_file()
+    launch(tmp_path, world, 'distill', dist_distributed, model, source, options)
+    compare_adapters(dist_one, dist_distributed, ['student'])
+    assert (dist_distributed/'student/adapter_model.safetensors').is_file()

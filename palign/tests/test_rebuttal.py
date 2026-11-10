@@ -170,15 +170,15 @@ def test_ssft_shell_routes_sample_override_to_shared_evaluator():
     assert "--model adapter" in result.stdout
 
 
-def test_ssft_training_launch_uses_three_workers_and_absolute_data(tmp_path):
+def test_ssft_training_launch_uses_four_workers_and_absolute_data(tmp_path):
     source = tmp_path / "selected.jsonl"
     source.write_text("{}\n")
     result = subprocess.run([
         "bash", str(ROOT / "SegmentSelectiveSFT/train.sh"), "--skip-setup",
         "--dry-run", "--data", str(source),
     ], check=True, capture_output=True, text=True)
-    assert "--standalone --nproc_per_node 3" in result.stdout
-    assert "--per_device_train_batch_size 11" in result.stdout
+    assert "--standalone --nproc_per_node 4" in result.stdout
+    assert "--per_device_train_batch_size 8" in result.stdout
     assert "--gradient_accumulation_steps 1" in result.stdout
     assert "--seed 42" in result.stdout
     assert f"--data_names {source}" in result.stdout

@@ -1,4 +1,4 @@
-"""Offline, resumable CORED pipeline on three B200s; one timing record per stage."""
+"""Offline, resumable CORED pipeline on four B200s; one timing record per stage."""
 from __future__ import annotations
 
 import argparse
@@ -31,14 +31,14 @@ def digest(path):
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--model", default="models/Qwen2.5-7B-Instruct")
-    p.add_argument("--gpus", default=os.environ.get("CUDA_VISIBLE_DEVICES", "0,1,2"))
+    p.add_argument("--gpus", default=os.environ.get("CUDA_VISIBLE_DEVICES", "0,1,2,3"))
     p.add_argument("--run_id", default=None)
     p.add_argument("--output_root", default="outputs/b200")
     p.add_argument("--dataset", default="datasets/s1K-1.1")
     p.add_argument("--epochs", type=int, default=3)
     p.add_argument("--seed", type=int, default=42)
-    p.add_argument("--global_batch", type=int, default=33)
-    p.add_argument("--micro_batch_size", type=int, default=11)
+    p.add_argument("--global_batch", type=int, default=32)
+    p.add_argument("--micro_batch_size", type=int, default=8)
     p.add_argument("--max_batch_tokens", type=int, default=32768)
     p.add_argument("--cutoff_len", type=int, default=16384)
     p.add_argument("--loss_chunk", type=int, default=256)
@@ -105,9 +105,9 @@ def main():
         raise ValueError("Formal H100 profile requires two GPUs and no development/dry-run/legacy-eval flags")
     if args.development_smoke and (len(gpus) != 2 or args.dry_run <= 0 or args.eval):
         raise ValueError("Development smoke requires two GPUs, positive --dry_run, and no legacy --eval")
-    world = 2 if args.development_smoke or args.formal_2h100 else 3
+    world = 2 if args.development_smoke or args.formal_2h100 else 4
     if len(gpus) != world or len(set(gpus)) != world:
-        raise ValueError("Specify exactly three distinct GPU IDs with --gpus (default 0,1,2)")
+        raise ValueError(f"Specify exactly {world} distinct GPU IDs with --gpus")
     if args.run_id and (args.run_id in {".", ".."} or Path(args.run_id).name != args.run_id):
         raise ValueError("run_id must be a single folder name")
     run_id = args.run_id or f"{Path(model).name}_seed{args.seed}"

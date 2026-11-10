@@ -10,7 +10,7 @@ published in the paper. See [REBUTTAL.md](../REBUTTAL.md).
 | Tuning | response-only LoRA |
 | Epochs / LR | 3 / 5e-5 |
 | Seed / data seed | 42 / 42 |
-| Effective batch | 33 = 11 per GPU x 3 GPUs x accumulation 1 |
+| Effective batch | 32 = 8 per GPU x 4 GPUs x accumulation 1 |
 | Sequence length | 32,768 |
 | LoRA | rank 16, alpha 16, dropout 0.05, seven projections |
 | Optimizer | AdamW, betas (0.9, 0.999), eps 1e-8, weight decay 0 |

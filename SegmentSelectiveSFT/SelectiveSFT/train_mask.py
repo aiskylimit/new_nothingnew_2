@@ -79,7 +79,7 @@ def parse_args(argv=None):
 
     # --- Optimizer / scheduler ---
     parser.add_argument("--learning_rate", type=float, default=5e-5)
-    parser.add_argument("--per_device_train_batch_size", type=int, default=11)
+    parser.add_argument("--per_device_train_batch_size", type=int, default=8)
     parser.add_argument("--gradient_accumulation_steps", type=int, default=1)
     parser.add_argument("--optim", default="adamw_torch", type=str,
                         help="adamw_torch (mac dinh) hoac adamw_8bit de tiet kiem VRAM optimizer state")

@@ -1,5 +1,7 @@
-# Chạy thực nghiệm rebuttal trên 3 B200
+# Chạy thực nghiệm rebuttal trên 4 B200
 
+Mặc định dùng GPU `0,1,2,3`, batch `8` mỗi GPU và gradient accumulation 1:
+effective batch size 32.
 
 ## Chạy lần lượt từng bước, chỉ setting A và C
 
@@ -12,11 +14,11 @@ bash rebuttal/project_commands.sh download
 
 # Chuẩn bị và kiểm tra
 bash rebuttal/project_commands.sh prepare
-GPUS=3,4,5 bash rebuttal/project_commands.sh preflight
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight
 
 # Train hết 10 run A+C thành công rồi mới eval; không chạy setting B
-GPUS=3,4,5 bash rebuttal/project_commands.sh train --settings A C && \
-GPUS=3,4,5 bash rebuttal/project_commands.sh eval --settings A C
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh train --settings A C && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh eval --settings A C
 
 # Xuất báo cáo cho kết quả A+C
 bash rebuttal/project_commands.sh report --allow-partial

@@ -90,7 +90,7 @@ def matrix():
                          'expected_samples': 1000, 'teacher': 'DeepSeek-R1' if teacher == 'original' else 'Gemini Flash Thinking',
                          'trace_source': TEACHER_FIELDS[teacher][0],
                          'answer_source': TEACHER_FIELDS[teacher][1], 'variant': teacher},
-                'train': {'seed': 42, 'epochs': 3, 'global_batch': 33, 'micro_batch': 11,
+                'train': {'seed': 42, 'epochs': 3, 'global_batch': 32, 'micro_batch': 8,
                           'gradient_accumulation': 1 if method != 'cored' else 'adaptive token budget',
                           'optimizer': 'AdamW', 'lr': 5e-5, 'weight_decay': 0,
                           'scheduler': 'cosine', 'warmup_ratio': 0.1, 'precision': 'bf16',
@@ -108,7 +108,7 @@ def matrix():
                                'seeds': list(SEEDS), 'budgets': list(BUDGETS), 'math_max_tokens': 4096,
                                'temperature': .6, 'top_p': .9, 'repetition_penalty': 1.05,
                                'ood_temperature': 0, 'arc_max_tokens': 1024, 'logiqa_max_tokens': 4096},
-                'hardware': {'gpus': '3,4,5', 'type': 'NVIDIA B200 180GB', 'training_gpu_count': 3},
+                'hardware': {'gpus': '0,1,2,3', 'type': 'NVIDIA B200 180GB', 'training_gpu_count': 4},
                 'protocol_basis': 'current rebuttal implementations; differences retained, not a paper-equivalence certification',
             })
     return result

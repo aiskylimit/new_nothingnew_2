@@ -5,7 +5,7 @@ The default run is response-only LoRA SFT on Qwen2.5-7B-Instruct using all
 and targets are unchanged.
 
 Current defaults and evaluation protocol: [REBUTTAL.md](../REBUTTAL.md).
-Training uses 3 GPUs, batch 11 per GPU, accumulation 1, 3 epochs, seed 42.
+Training uses 4 GPUs (0,1,2,3), batch 8 per GPU, accumulation 1, 3 epochs, seed 42.
 
 ```bash
 bash project_commands.sh

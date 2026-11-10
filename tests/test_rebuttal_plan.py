@@ -16,13 +16,19 @@ def test_final_matrix_and_committed_configs():
     for setting in 'ABC':
         selected = [c for c in configurations if c['setting'] == setting]
         assert len(selected) == 5
-        assert all(c['hardware']['gpus'] == '3,4,5' and c['train']['seed'] == 42 for c in selected)
+        assert all(c['hardware']['gpus'] == '0,1,2,3' and c['train']['seed'] == 42 for c in selected)
         assert all(bool(c['evaluation']['ood']) == (setting != 'B') for c in selected)
     for config in configurations:
         assert json.loads((ROOT / 'rebuttal/configs' / (config['run_id']+'.json')).read_text()) == config
         assert '8B' not in config['model']['repo']
         assert config['data']['repo'] == 'simplescaling/s1K-1.1'
         assert config['data']['revision'] == DATA_REV
+        assert config['hardware']['training_gpu_count'] == 4
+        assert config['train']['global_batch'] == 32
+        assert config['train']['micro_batch'] == 8
+        if config['method'] != 'cored':
+            assert (config['train']['micro_batch'] * config['train']['gradient_accumulation']
+                    * config['hardware']['training_gpu_count']) == 32
         if config['setting'] == 'B':
             assert config['data']['trace_source'] == 'gemini_thinking_trajectory'
             assert config['data']['answer_source'] == 'gemini_attempt'
@@ -53,6 +59,10 @@ def test_main_setting_selection_keeps_train_and_eval_separate(tmp_path, monkeypa
     expected = {c['run_id'] for c in matrix() if not settings or c['setting'] in settings}
     assert len(calls) == count and {run_id for _, _, run_id in calls} == expected
     assert all(stage == action for stage, _, _ in calls)
+    for _, _, run_id in calls:
+        jobs = rows(tmp_path/'runs'/run_id/'job_events.jsonl')
+        assert len(jobs) == (1 if action == 'train' else 0)
+        assert all(job['allocated_gpu_count'] == 4 for job in jobs)
 
 
 def test_paired_teacher_mapping_no_gold_as_training_trace(tmp_path):

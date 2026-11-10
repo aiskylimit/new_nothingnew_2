@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Pipeline CORED tren 3 GPU B200; moi du lieu/model deu local.
+# Pipeline CORED tren 4 GPU B200; moi du lieu/model deu local.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 if [[ -n "${CORED_VENV:-}" ]]; then

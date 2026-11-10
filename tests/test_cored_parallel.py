@@ -83,19 +83,20 @@ def test_oom_retry_rolls_back_partial_gradients_and_rng():
     assert retries == 3
 
 
-def test_global_batches_do_not_pad_repeat_or_drop_partial_shards():
-    order = list(range(67))
-    ranks = [list(global_windows(order, 33, rank, 3)) for rank in range(3)]
+@pytest.mark.parametrize('batch,world', [(33, 3), (32, 4)])
+def test_global_batches_do_not_pad_repeat_or_drop_partial_shards(batch, world):
+    order = list(range(batch * 2 + 1))
+    ranks = [list(global_windows(order, batch, rank, world)) for rank in range(world)]
     all_ids = []
     for window in range(3):
-        grouped = [ranks[rank][window] for rank in range(3)]
-        expected_count = 33 if window < 2 else 1
+        grouped = [ranks[rank][window] for rank in range(world)]
+        expected_count = batch if window < 2 else 1
         assert all(count == expected_count for _, count in grouped)
         merged = [item for ids, _ in grouped for item in ids]
         assert len(merged) == expected_count
         all_ids.extend(merged)
     assert sorted(all_ids) == order
-    assert ranks[1][-1][0] == ranks[2][-1][0] == []
+    assert all(ranks[rank][-1][0] == [] for rank in range(1, world))
 
 
 def test_token_budget_bucketing_covers_every_example():

@@ -31,9 +31,9 @@ Use separate processed data, key-step caches and output directories per backbone
 these artifacts depend on the tokenizer/model. The legacy ablation-metrics
 launcher still uses its `MODEL=7b|8b` selector.
 
-## Run on three B200 GPUs
+## Run on four B200 GPUs
 
-The default entry point uses all three GPUs for preprocessing and both training
+The default entry point uses all four GPUs for preprocessing and both training
 phases. Provision `cored.txt` and `download.txt`, then run from `cored/`:
 
 ```bash
@@ -47,30 +47,30 @@ bash project_commands.sh --eval --eval_n 3
 ```
 
 The launcher activates `/mnt/local/uvenvs/cored` when present; `CORED_VENV` or
-`PY` can select a different provisioned environment. `--gpus 0,1,2` chooses the
-three devices. This is a single-node launcher: run it once, not once per GPU.
+`PY` can select a different provisioned environment. `--gpus 0,1,2,3` chooses the
+four devices. This is a single-node launcher: run it once, not once per GPU.
 `HF_HUB_OFFLINE`, `HF_DATASETS_OFFLINE` and `TRANSFORMERS_OFFLINE` stay enabled.
 
 The accelerated execution preserves the main recipe's losses:
 
-- Prefix selection, key-step entropy and council weighting run as three
+- Prefix selection, key-step entropy and council weighting run as four
   independent inference workers on disjoint rows. Prefix shards are merged in
   source order; exact cache ID coverage is checked before training continues.
-- Phase 1 and distillation launch three data-parallel replicas using `torchrun`.
+- Phase 1 and distillation launch four data-parallel replicas using `torchrun`.
   Each Phase 1 replica has the whole council, preserving cross-expert loss terms.
   Only LoRA gradients are summed once per optimizer update; logits/activations
   are not transferred between GPUs. Orthogonal regularization is evaluated once
   per update, with the same coefficient as its per-example average.
-- Global batch is **33**, epochs **3 per phase**, seed **42**. Each rank receives
-  up to 11 examples per update, balanced by sequence length. Tokenization is
+- Global batch is **32**, epochs **3 per phase**, seed **42**. Each rank receives
+  up to 8 examples per update, balanced by sequence length. Tokenization is
   cached in CPU RAM for all epochs. The final partial batch is used exactly
   once, normalized by its actual size; the LR schedule uses the real number of
-  updates, `epochs * ceil(N / 33)`.
-- Local examples are packed into microbatches with at most 11 sequences and
+  updates, `epochs * ceil(N / 32)`.
+- Local examples are packed into microbatches with at most 8 sequences and
   **32,768 padded tokens**. Long sequences therefore use accumulation inside
   the global batch. If a microbatch runs out of memory, restore its LoRA
   gradients/RNG and retry smaller pieces, then lower that rank's token budget.
-  There is no guarantee that 11 long CoTs fit in one forward pass.
+  There is no guarantee that 8 long CoTs fit in one forward pass.
 - Exact NLL and full-vocabulary KL use chunked fp32 computation with analytical
   backward and bf16 logits. There is no top-k teacher approximation. Fused
   CUDA AdamW, bf16 autocast (with fp32 LoRA master weights/gradients), SDPA and
@@ -172,9 +172,9 @@ backbone, then one merged adapter acts as a fixed teacher for a single student.
 | LoRA rank / alpha / dropout | 16 / 16 / 0.05 | Inherited from merged adapter |
 | Cutoff length | 16,384 tokens | 16,384 tokens |
 | Optimizer / scheduler | AdamW / cosine, 10% warmup | AdamW / cosine, 10% warmup |
-| Global batch | 33 | 33 |
-| GPU workers | 3 data-parallel replicas | 3 data-parallel replicas |
-| Local microbatch | Up to 11, token-budget limited | Up to 11, token-budget limited |
+| Global batch | 32 | 32 |
+| GPU workers | 4 data-parallel replicas | 4 data-parallel replicas |
+| Local microbatch | Up to 8, token-budget limited | Up to 8, token-budget limited |
 
 For training-time reporting, record prefix selection, key-step selection,
 Phase 1, council computation, merge and Phase 2 separately.

@@ -77,8 +77,8 @@ LogiQA uses the English MRC file, not its Chinese or NLI variants.
 ## Experiment defaults (four baselines)
 
 The default backbone for all four methods is `Qwen/Qwen2.5-7B-Instruct`.
-Training uses LoRA, 3 epochs, seed 42, 3 GPUs, microbatch 11 per GPU, and
-gradient accumulation 1: effective batch **33**. Dataset selection and the
+Training uses LoRA, 3 epochs, seed 42, 4 GPUs (0,1,2,3), microbatch 8 per GPU, and
+gradient accumulation 1: effective batch **32**. Dataset selection and the
 method-specific masks/prefixes are unchanged. Optional Qwen3 presets remain
 available in `sft/configs/` and `palign/configs/`.
 
@@ -104,7 +104,7 @@ the number of GPUs. A smaller microbatch with accumulation can be used if the
 longest sequences exceed GPU memory; GPU memory fit has not been measured here.
 
 CORED's `project_commands.sh` launches a separate three-GPU data-parallel
-pipeline, also with global batch 33, three epochs per phase and seed 42.
+pipeline, also with global batch 32, three epochs per phase and seed 42.
 Microbatches are limited by token budget and can accumulate within each global
 batch. Its original modules/scripts retain the single-process execution path.
 See `cored/README.md` for its full pipeline, timings and validation limits.

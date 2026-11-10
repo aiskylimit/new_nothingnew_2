@@ -32,60 +32,68 @@ def test_formal_profile_keeps_real_gemini_protocol_and_main_configs():
 
 
 @pytest.mark.parametrize('method', ['longcot', 'palign', 'sgl', 'ssft', 'cored'])
-def test_formal_native_commands_have_no_smoke_limits(tmp_path, monkeypatch, method):
+@pytest.mark.parametrize('profile', ['formal_2h100', 'main_4gpu'])
+def test_native_commands_have_exact_batch_and_no_smoke_limits(tmp_path, monkeypatch, method, profile):
     from rebuttal import runner, method_prep
     from rebuttal.smoke_2gpu import fixtures
     # Fixture input is only for command construction, never the formal launcher.
     fixtures(tmp_path/'data')
-    config = next(c for c in configurations() if c['method'] == method)
+    formal = profile == 'formal_2h100'
+    world, micro, accumulation = (2, 1, 16) if formal else (4, 8, 1)
+    config = next(c for c in (configurations() if formal else matrix()) if c['method'] == method)
     model = tmp_path/'assets/models'/config['model']['repo'].split('/')[-1]
     model.mkdir(parents=True)
     write(model/'config.json', {})
     monkeypatch.setattr(runner, 'python_for', lambda _: sys.executable)
     monkeypatch.setattr(runner.subprocess, 'check_output', lambda *a, **kw: '{}')
     monkeypatch.setattr(method_prep, 'merge_ssft', lambda *a: None)
-    job = Job(config, tmp_path/'assets', tmp_path/'data', tmp_path/'runs', '0,1')
+    job = Job(config, tmp_path/'assets', tmp_path/'data', tmp_path/'runs',
+              ','.join(str(i) for i in range(world)))
 
     class Captured(Exception):
         pass
 
     def execute(stage, commands, gpu_count):
-        assert gpu_count == 2
+        assert gpu_count == world
         for command, _ in commands:
             assert '--development_smoke' not in command and '--dry_run' not in command
             assert '--max_steps' not in command and '--max-steps' not in command
         if stage == 'prefix_alignment':
-            assert len(commands) == 2
+            assert len(commands) == world
             values = rows(job.input/'canonical.jsonl')
-            for i in range(2):
+            for i in range(world):
                 jsonl(job.root/f'palign-{i}.jsonl', [dict(r, accepted=True, prefix=r['thinking'],
-                      continuation=r['answer_text']) for r in values[i::2]])
+                      continuation=r['answer_text']) for r in values[i::world]])
             return
         if stage == 'spectral_masks':
             cmd = commands[0][0]
             assert cmd[cmd.index('--max-length')+1] == '32768'
             return
         if stage == 'attribution':
-            assert len(commands) == 2
+            assert len(commands) == world
             assert config['method_specific']['ig_steps'] == 50
             return
         command = commands[0][0]
         if method == 'cored':
-            assert stage == 'cored_pipeline' and '--formal_2h100' in command
+            assert stage == 'cored_pipeline' and ('--formal_2h100' in command) == formal
             assert command[command.index('--global_batch')+1] == 32
+            assert command[command.index('--micro_batch_size')+1] == micro
+            assert command[command.index('--gpus')+1] == job.gpus
             assert command[command.index('--epochs')+1] == 3
         else:
-            assert stage == 'optimization' and '--nproc_per_node=2' in command
+            assert stage == 'optimization' and f'--nproc_per_node={world}' in command
             if method == 'sgl':
                 assert command[command.index('--global-batch-size')+1] == '32'
-                assert command[command.index('--per-device-train-batch-size')+1] == '1'
+                assert command[command.index('--per-device-train-batch-size')+1] == str(micro)
             elif method == 'ssft':
-                assert command[command.index('--gradient_accumulation_steps')+1] == '16'
+                assert command[command.index('--gradient_accumulation_steps')+1] == str(accumulation)
+                assert command[command.index('--per_device_train_batch_size')+1] == str(micro)
                 assert command[command.index('--max_seq_length')+1] == '32768'
             else:
                 import yaml
                 value = yaml.safe_load((job.root/'native_train.yaml').read_text())
-                assert value['gradient_accumulation_steps'] == 16 and value['per_device_train_batch_size'] == 1
+                assert value['gradient_accumulation_steps'] == accumulation
+                assert value['per_device_train_batch_size'] == micro
                 assert value['cutoff_len'] == 32768 and 'max_steps' not in value
         raise Captured
 
@@ -201,7 +209,7 @@ def test_preflight_selects_h100_profile_without_loosening_b200_default(tmp_path,
     from rebuttal import eval_preflight
     eval_checks = []
     monkeypatch.setattr(eval_preflight, 'check_eval', lambda *a, **kw: eval_checks.append(kw['sizes']))
-    count, expected_name = (2,'H100') if formal else (3,'B200')
+    count, expected_name = (2,'H100') if formal else (4,'B200')
     def command(args, **kwargs):
         if '-m' in args:
             assert args[args.index('--expected_devices')+1] == str(count)
@@ -213,6 +221,6 @@ def test_preflight_selects_h100_profile_without_loosening_b200_default(tmp_path,
             preflight.validate(assets, data, runs, environments=True, gpus='0,1', formal_2h100=formal)
     else:
         result = preflight.validate(assets, data, runs, environments=True,
-                                    gpus='0,1' if formal else '0,1,2', formal_2h100=formal)
+                                    gpus='0,1' if formal else '0,1,2,3', formal_2h100=formal)
         assert result['configurations'] == (5 if formal else 15)
         assert eval_checks == [('7b',) if formal else ('1.5b','7b')]
