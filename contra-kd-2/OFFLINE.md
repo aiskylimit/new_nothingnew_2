@@ -71,6 +71,20 @@ the study reuses completed preprocessing, training and evaluation stages.
 Incomplete training restarts from the initial student checkpoint. Use a fresh
 output directory if you change the study inputs.
 
+## Dolly one-step evaluation
+
+```bash
+bash project_commands.sh one-step-dolly
+```
+
+This uses the saved seed-1024 FDD + CONTRA student, projector, and velocity
+field. It projects each aligned student layer into teacher space, takes a full
+Euler step from time zero, and compares the result with the corresponding
+teacher layer on Dolly reference-response tokens. The per-layer and overall
+MSE, cosine similarity, and cosine distance are saved to
+`results/gpt2/eval_main/fdd_seed_study/one_step/1024/dolly/one_step.json`.
+The job uses GPU 4 by default. Set `ONE_STEP_GPU` to select a different GPU.
+
 ## Original four-method workflow
 
 The retained training launcher accepts the `contra` argument for this workflow.

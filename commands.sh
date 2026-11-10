@@ -1,5 +1,5 @@
-#1 +300
-#contra-math-code
+#1 +10
+#gpu-check
 #v1
 
 nvidia-smi
@@ -22,10 +22,10 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 # cd ./contra-kd-2
-# bash ./project_commands.sh
+# bash ./project_commands.sh one-step-dolly/export
 
-cd ./contra-kd-math-code
-bash ./project_commands.sh --sft-only
+# cd ./contra-kd-math-code
+# bash ./project_commands.sh --sft-only/.
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
