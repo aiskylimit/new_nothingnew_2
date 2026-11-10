@@ -1,5 +1,5 @@
-#2
-#contra-direct-mlp
+#1 +30
+#ssft
 #v1
 
 nvidia-smi
