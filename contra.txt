@@ -2,12 +2,13 @@
 # python: 3.11
 # Environment name: contra
 # Prepared by the environment provisioner BEFORE entering the offline machine.
-# vLLM is intentionally omitted: generation uses the existing Transformers fallback.
 # NVIDIA B200 (sm_100): provision the Linux CUDA 12.8 wheel, not a cu12.6/CPU build.
 torch==2.8.0
 # Match the checkpoint serialization format and its tokenizer runtime.
 transformers==4.57.1
 vllm==0.11.0
+# Use the harness release compatible with this vLLM pin.
+lm_eval[hf,vllm,math]==0.4.11
 tokenizers==0.22.1
 peft==0.17.1
 accelerate==1.11.0
