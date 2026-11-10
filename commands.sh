@@ -1,5 +1,5 @@
-#2 -0
-#contra-math-code
+#1 +10
+#gpu-check
 #v1
 
 nvidia-smi
