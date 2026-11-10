@@ -1,4 +1,4 @@
-#1 +10
+#i sft.txt
 #gpu-check
 #v1
 
