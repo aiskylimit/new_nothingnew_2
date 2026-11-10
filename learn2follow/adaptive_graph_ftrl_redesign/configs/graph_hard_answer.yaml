@@ -1,0 +1,7 @@
+variant: graph
+teacher_selection: hard
+mask_teacher_include_final_answer: true
+seed: 42
+eval_seed: 42
+full_opsd_warmup_steps: 5
+output_dir: adaptive_graph_ftrl_redesign/outputs/graph_hard_answer

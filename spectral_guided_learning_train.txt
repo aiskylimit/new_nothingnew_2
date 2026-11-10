@@ -1,0 +1,14 @@
+# manager: uv
+# python: 3.11
+# Env train rieng cho SpectralGuidedLearning/src/train_sft_unsloth.py (scripts/sft/sft_unsloth_*.sh, scripts/spectral/spectral_unsloth_*.sh, scripts/spectral/spectral_r1-*.sh, scripts/iwc/train_iwc_unsloth.sh). KHONG cai chung voi spectral_guided_learning: env do ghim torch 2.13.0 + transformers 5.5.3 + datasets 5.0.1 cho vllm 0.27.1, con unsloth (moi nhat 2026.9.5) doi torch<2.13, transformers<=5.5.0, datasets<4.4 -> uv khong resolve duoc. Stack duoi mirror ssft_train.txt (da chay tren B200: torch 2.9.0 wheel cu128 co sm_100; torchao<0.18 bat buoc, 0.18 lam 'import unsloth' chet); train_sft_unsloth.py duoc viet theo Trainer cua transformers 4.57 (docstring) nen khop luon. Chi can cho train: data prep / gradient_capture / build_masks / eval van chay bang env spectral_guided_learning. peft, xformers, triton, unsloth_zoo do unsloth tu keo theo. pyyaml vi train_sft_unsloth.py doc configs/*.yaml.
+torch==2.9.0
+transformers==4.57.1
+datasets==4.3.0
+trl==0.23.0
+unsloth==2025.11.3
+torchao<0.18
+bitsandbytes>=0.45.5,!=0.46.0,!=0.48.0
+numpy==2.2.6
+accelerate==1.10.1
+pyyaml==6.0.3
+tqdm

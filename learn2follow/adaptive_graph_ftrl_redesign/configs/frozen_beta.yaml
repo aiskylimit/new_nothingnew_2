@@ -1,0 +1,3 @@
+variant: graph
+frozen_controller: true
+output_dir: adaptive_graph_ftrl_redesign/outputs/frozen_beta

@@ -1,0 +1,25 @@
+# manager: uv
+# python: 3.13
+# Environment name: learn2follow
+# Canonical dependencies and lockfile: learn2follow/pyproject.toml and uv.lock
+# Install from learn2follow/: uv sync --frozen --extra cuda --group dev
+accelerate==1.11.0
+datasets==3.6.0
+einops==0.8.1
+math-verify==0.8.0
+peft==0.17.1
+safetensors==0.5.3
+sentencepiece==0.2.1
+tiktoken==0.9.0
+torch==2.8.0
+tqdm>=4.67,<5
+transformers==4.57.1
+trl==0.26.0
+wandb==0.22.3
+bitsandbytes==0.48.2; sys_platform == 'linux'
+deepspeed==0.18.2; sys_platform == 'linux'
+triton==3.4.0; sys_platform == 'linux' and platform_machine == 'x86_64'
+vllm==0.11.0; sys_platform == 'linux' and platform_machine == 'x86_64'
+xformers==0.0.32.post1; sys_platform == 'linux' and platform_machine == 'x86_64'
+pytest>=8.3,<9
+ruff>=0.12,<0.14

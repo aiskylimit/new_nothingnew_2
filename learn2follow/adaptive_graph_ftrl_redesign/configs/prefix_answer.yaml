@@ -1,0 +1,3 @@
+variant: prefix
+mask_teacher_include_final_answer: true
+output_dir: adaptive_graph_ftrl_redesign/outputs/prefix_answer
