@@ -9,6 +9,21 @@ Chạy từ root repo. Trên server không có Internet, bỏ hai lệnh `setup`
 `download`: môi trường do quản lý server cài từ các file `.txt`, model/data
 được tải theo `rebuttal/download.txt`.
 
+Các file môi trường và đường dẫn mặc định:
+
+| File thư viện | Venv | Công việc |
+|---|---|---|
+| `rebuttal.txt` | `/mnt/local/uvenvs/rebuttal` | Điều phối, prepare, báo cáo, chọn dữ liệu smoke |
+| `sft.txt` | `/mnt/local/uvenvs/sft` | Train SFT(Long-CoT) |
+| `palign.txt` | `/mnt/local/uvenvs/palign` | Tiền xử lý P-ALIGN và train P-ALIGN |
+| `sgl.txt` | `/mnt/local/uvenvs/sgl` | Tạo spectral mask và train SGL |
+| `SegmentSelectiveSFT.txt` | `/mnt/local/uvenvs/SegmentSelectiveSFT` | Attribution và train SSFT |
+| `cored.txt` | `/mnt/local/uvenvs/cored` | Prefix, key step, expert, council, TIES và student CoReD |
+| `rebuttal_eval.txt` | `/mnt/local/uvenvs/rebuttal_eval` | Probe evaluator, sinh đáp án và chấm eval của mọi phương pháp |
+
+Script gọi trực tiếp Python trong đúng venv ở từng bước; không cần activate thủ
+công khi chuyển phương pháp.
+
 ```bash
 # Chỉ dùng trên máy có Internet; bỏ qua trên server chạy thí nghiệm
 bash rebuttal/project_commands.sh setup

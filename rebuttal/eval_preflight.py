@@ -7,6 +7,7 @@ import time
 from pathlib import Path
 
 from rebuttal.common import MODELS, ROOT
+from rebuttal.environments import environment_for
 
 
 def check_eval(assets, runs, gpus, sizes=('1.5b','7b')):
@@ -14,9 +15,9 @@ def check_eval(assets, runs, gpus, sizes=('1.5b','7b')):
     python = python_for('eval')
     directory = Path(runs)/'eval-preflight'
     directory.mkdir(parents=True, exist_ok=True)
-    environment = {**os.environ, 'HF_HUB_OFFLINE':'1', 'HF_DATASETS_OFFLINE':'1', 'TRANSFORMERS_OFFLINE':'1',
-                   'WANDB_MODE':'disabled', 'TOKENIZERS_PARALLELISM':'false', 'OMP_NUM_THREADS':'1',
-                   'PYTHONPATH':os.pathsep.join([str(ROOT), os.environ.get('PYTHONPATH','')])}
+    environment = environment_for(python, {**os.environ, 'HF_HUB_OFFLINE':'1', 'HF_DATASETS_OFFLINE':'1',
+                   'TRANSFORMERS_OFFLINE':'1', 'WANDB_MODE':'disabled', 'TOKENIZERS_PARALLELISM':'false',
+                   'OMP_NUM_THREADS':'1'})
     for key in ('RANK','LOCAL_RANK','WORLD_SIZE','LOCAL_WORLD_SIZE','MASTER_ADDR','MASTER_PORT','REBUTTAL_STAGE_DIR'):
         environment.pop(key, None)
     for size in sizes:

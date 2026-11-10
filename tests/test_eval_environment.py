@@ -12,6 +12,7 @@ def test_eval_python_is_independent_of_native_palign(monkeypatch, tmp_path):
     from rebuttal.runner import python_for
     python = tmp_path/'eval-python'
     python.touch()
+    python.chmod(0o755)
     monkeypatch.setenv('REBUTTAL_EVAL_PYTHON', str(python))
     monkeypatch.setenv('REBUTTAL_PYTHON_PALIGN', '/missing/native/palign')
     assert python_for('eval') == str(python)

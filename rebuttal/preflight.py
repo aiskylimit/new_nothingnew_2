@@ -3,9 +3,11 @@ import argparse
 import json
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from rebuttal.common import DATA_REV, ROOT, TEACHER_FIELDS, matrix, rows, sha, write
+from rebuttal.environments import environment_for
 
 
 def validate(assets, data, runs, environments=False, gpus='0,1,2,3', formal_2h100=False,
@@ -45,14 +47,19 @@ def validate(assets, data, runs, environments=False, gpus='0,1,2,3', formal_2h10
     checks['checks'].append('4 math and 2 OOD benchmark hashes')
     if environments:
         from rebuttal.runner import python_for
+        checks['coordinator_python'] = sys.executable
+        checks['python_environments'] = {method: python_for(method)
+                                         for method in ('longcot', 'sgl', 'ssft', 'palign', 'cored', 'eval')}
         for method in ('longcot', 'sgl', 'ssft', 'palign', 'cored'):
-            py = python_for(method)
+            py = checks['python_environments'][method]
+            print(f'[environment] {method}: {py}', flush=True)
             imports = ('import unsloth; ' if method == 'ssft' else '') + 'import torch,transformers,peft; print(torch.__version__,transformers.__version__)'
-            subprocess.run([py, '-c', imports], check=True)
+            subprocess.run([py, '-c', imports], check=True, env=environment_for(py))
         import os
         subprocess.run([python_for('cored'), '-m', 'train.hardware_probe', '--out', str(runs / 'hardware.json'),
                         '--expected_devices', str(expected_devices), '--required_gpu_name', gpu_type],
-            cwd=ROOT / 'cored', env={**os.environ, 'CUDA_VISIBLE_DEVICES': gpus}, check=True)
+            cwd=ROOT / 'cored', env=environment_for(checks['python_environments']['cored'],
+                                                  {**os.environ, 'CUDA_VISIBLE_DEVICES': gpus}), check=True)
         hardware = json.loads((runs / 'hardware.json').read_text())
         if len(hardware['devices']) != expected_devices or any(gpu_type not in device['name'] for device in hardware['devices']):
             raise ValueError(f'Expected {expected_devices} {gpu_type} GPUs; hardware mismatch recorded')

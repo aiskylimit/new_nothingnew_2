@@ -13,17 +13,7 @@ from pathlib import Path
 
 from rebuttal.common import ROOT, matrix, rows, sha, signature, write
 from rebuttal.cost import aggregate
-
-
-def python_for(method):
-    folder = {'longcot': 'sft', 'ssft': 'SegmentSelectiveSFT', 'eval': 'rebuttal_eval'}.get(method, method)
-    root = Path(os.environ.get('REBUTTAL_ENV_ROOT', '/mnt/local/uvenvs'))
-    variable = 'REBUTTAL_EVAL_PYTHON' if method == 'eval' else 'REBUTTAL_PYTHON_' + method.upper()
-    default = Path(os.environ.get('REBUTTAL_EVAL_VENV', str(root / folder))) if method == 'eval' else root / folder
-    value = os.environ.get(variable, str(default / 'bin/python'))
-    if not Path(value).is_file():
-        raise FileNotFoundError(f'Provision {folder}.txt or set {variable}: {value}')
-    return value
+from rebuttal.environments import environment_for, python_for
 
 
 def checkpoint_manifest(path, config, base):
@@ -120,7 +110,6 @@ class Job:
         (self.root / 'logs').mkdir(exist_ok=True)
         base_env = {**os.environ, 'HF_HUB_OFFLINE': '1', 'HF_DATASETS_OFFLINE': '1',
                     'TRANSFORMERS_OFFLINE': '1', 'WANDB_MODE': 'disabled', 'TOKENIZERS_PARALLELISM': 'false',
-                    'PYTHONPATH': os.pathsep.join([str(ROOT / 'sgl/src'), str(ROOT), str(ROOT / 'cored'), os.environ.get('PYTHONPATH', '')]),
                     'OMP_NUM_THREADS': '4', 'REBUTTAL_STAGE_DIR': str(telemetry)}
         if not instrument:
             base_env.pop('REBUTTAL_STAGE_DIR', None)
@@ -154,7 +143,8 @@ class Job:
                 handle = (self.root / 'logs' / f'{attempt}-{i}.log').open('w')
                 handles.append(handle)
                 processes.append(subprocess.Popen(list(map(str, command)), cwd=ROOT,
-                    env={**base_env, 'CUDA_VISIBLE_DEVICES': gpu, 'REBUTTAL_WORKER_ID': str(i)},
+                    env=environment_for(command[0], {**base_env, 'CUDA_VISIBLE_DEVICES': gpu,
+                                                    'REBUTTAL_WORKER_ID': str(i)}),
                     stdout=handle, stderr=subprocess.STDOUT, start_new_session=True))
                 worker_starts.append(time.perf_counter())
             pending = set(range(len(processes)))
@@ -215,11 +205,13 @@ class Job:
         python = python_for(method)
         train = config['train']
         environment_script = (
-            "import torch,json,importlib.metadata as m; "
+            "import torch,json,sys,importlib.metadata as m; "
             "names=('torch','transformers','peft','accelerate','deepspeed','vllm','unsloth'); "
             "installed={d.metadata['Name'].lower():d.version for d in m.distributions()}; "
-            "print(json.dumps({'cuda':torch.version.cuda,'packages':{n:installed.get(n) for n in names}}))")
-        environment = json.loads(subprocess.check_output([python, '-c', environment_script], text=True))
+            "print(json.dumps({'python':sys.executable,'prefix':sys.prefix,'cuda':torch.version.cuda,"
+            "'packages':{n:installed.get(n) for n in names}}))")
+        environment = json.loads(subprocess.check_output([python, '-c', environment_script], text=True,
+                                                        env=environment_for(python)))
         actual_config = json.loads((run / 'run.json').read_text())
         actual_config['environment'] = environment
         write(run / 'run.json', actual_config)

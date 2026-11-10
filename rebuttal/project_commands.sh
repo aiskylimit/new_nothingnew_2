@@ -2,25 +2,15 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 SCRIPT="$PWD/rebuttal/project_commands.sh"
-ENV_ROOT="${REBUTTAL_ENV_ROOT:-/mnt/local/uvenvs}"
-export REBUTTAL_VENV="${REBUTTAL_VENV:-$ENV_ROOT/rebuttal}"
-export REBUTTAL_PYTHON_LONGCOT="${REBUTTAL_PYTHON_LONGCOT:-$ENV_ROOT/sft/bin/python}"
-export REBUTTAL_PYTHON_PALIGN="${REBUTTAL_PYTHON_PALIGN:-$ENV_ROOT/palign/bin/python}"
-export REBUTTAL_PYTHON_SGL="${REBUTTAL_PYTHON_SGL:-$ENV_ROOT/sgl/bin/python}"
-export REBUTTAL_PYTHON_SSFT="${REBUTTAL_PYTHON_SSFT:-$ENV_ROOT/SegmentSelectiveSFT/bin/python}"
-export REBUTTAL_PYTHON_CORED="${REBUTTAL_PYTHON_CORED:-$ENV_ROOT/cored/bin/python}"
-EVAL_ENV="${REBUTTAL_EVAL_VENV:-$ENV_ROOT/rebuttal_eval}"
-export REBUTTAL_EVAL_PYTHON="${REBUTTAL_EVAL_PYTHON:-$EVAL_ENV/bin/python}"
+source "$PWD/rebuttal/runtime_env.sh"
 ACTION="${1:-preflight}"
 if [[ $# -gt 0 ]]; then shift; fi
-# Setup must work before the environment exists. End-to-end delegates activation
-# to each child stage, after optional online setup has created the environment.
-if [[ "$ACTION" != setup && "$ACTION" != endtoend && -f "$REBUTTAL_VENV/bin/activate" ]]; then
-  source "$REBUTTAL_VENV/bin/activate"
+# Runtime commands always use the coordinator interpreter, even in another active venv.
+if [[ "$ACTION" != setup && "$ACTION" != setup-eval && "$ACTION" != endtoend ]]; then
+  rebuttal_use_coordinator
 fi
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 WANDB_MODE=disabled
 export TOKENIZERS_PARALLELISM=false
-PY="${PY:-python}"
 ASSETS="${REBUTTAL_ASSETS:-$PWD/rebuttal/assets}"
 DATA="${REBUTTAL_DATA:-$PWD/rebuttal/prepared}"
 RUNS="${REBUTTAL_RUNS:-$PWD/rebuttal/runs}"

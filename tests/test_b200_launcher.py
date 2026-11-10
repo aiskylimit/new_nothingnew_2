@@ -23,6 +23,10 @@ stage = {'rebuttal.provision':'download','rebuttal.data':'prepare',
 with open(os.environ['TEST_EVENTS'], 'a') as f:
     f.write(json.dumps({'tool':'python','stage':stage,'args':args,
         'offline':os.environ.get('HF_HUB_OFFLINE'),
+        'entrypoint':sys.argv[0], 'venv':os.environ.get('VIRTUAL_ENV'),
+        'path':os.environ.get('PATH'), 'pythonpath':os.environ.get('PYTHONPATH'),
+        'pythonhome':os.environ.get('PYTHONHOME'), 'nouser':os.environ.get('PYTHONNOUSERSITE'),
+        'libraries':os.environ.get('LD_LIBRARY_PATH'),
         'ssft_python':os.environ.get('REBUTTAL_PYTHON_SSFT')})+'\\n')
 if stage == os.environ.get('TEST_FAIL_STAGE'): sys.exit(7)
 ''')
@@ -156,3 +160,35 @@ def test_smoke_uses_separate_outputs_and_passes_setting_selection(tmp_path):
     assert args[2] == 'smoke' and args[args.index('--runs')+1] == str(tmp_path/'smoke-runs')
     assert args[-2:] == ['--settings', 'C']
     assert not (tmp_path/'runs').exists()
+
+
+@pytest.mark.parametrize('script,action', [('project_commands.sh', 'prepare'),
+    ('formal_B_2h100.sh', 'prepare'), ('smoke_2x3090.sh', 'all')])
+def test_runtime_ignores_foreign_active_environment_and_ambient_python(tmp_path, script, action):
+    env = launcher_environment(tmp_path, installed=True)
+    wrong = tmp_path/'wrong-env'
+    (wrong/'bin').mkdir(parents=True)
+    executable = wrong/'bin/python'
+    executable.write_text('#!/bin/sh\nexit 99\n')
+    executable.chmod(0o755)
+    env.update(PY=str(executable), VIRTUAL_ENV=str(wrong), PYTHONHOME=str(wrong),
+               PYTHONPATH=str(wrong/'site-packages'), PATH=str(wrong/'bin')+os.pathsep+env['PATH'],
+               LD_LIBRARY_PATH=str(wrong/'lib')+os.pathsep+'/usr/local/cuda/lib64',
+               REBUTTAL_2GPU_RUNS=str(tmp_path/'dev-runs'))
+    result = subprocess.run(['bash', str(ROOT/'rebuttal'/script), action], cwd=tmp_path,
+                            env=env, capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, result.stderr
+    record = events(tmp_path)[0]
+    target = tmp_path/'envs/rebuttal'
+    assert record['entrypoint'] == str(target/'bin/python') and record['venv'] == str(target)
+    assert record['path'].split(os.pathsep)[0] == str(target/'bin')
+    assert str(wrong) not in record['path'] and str(wrong) not in record['pythonpath']
+    assert record['pythonhome'] is None and record['nouser'] == '1'
+    assert record['libraries'] == '/usr/local/cuda/lib64'
+
+
+def test_missing_coordinator_does_not_fall_back_to_system_python(tmp_path):
+    env = launcher_environment(tmp_path, installed=False)
+    result = invoke(tmp_path, ['prepare'], env)
+    assert result.returncode != 0 and 'Missing coordinator Python' in result.stderr
+    assert not events(tmp_path)

@@ -11,6 +11,7 @@ from pathlib import Path
 from rebuttal.common import ROOT, jsonl, matrix, sha, write
 from rebuttal.data import adapt
 from rebuttal.runner import Job, python_for
+from rebuttal.environments import environment_for
 
 
 def probe_worker():
@@ -130,14 +131,14 @@ def main():
                 verify_snapshot(assets / 'models' / repo.split('/')[-1], repo, revision)
             environments = {python_for(c['method']) for c in selected} | {python_for('eval')}
             probe_env = {**os.environ, 'CUDA_VISIBLE_DEVICES': args.gpus,
-                         'PYTHONPATH': os.pathsep.join([str(ROOT), os.environ.get('PYTHONPATH', '')]), 'OMP_NUM_THREADS': '1'}
+                         'OMP_NUM_THREADS': '1'}
             for key in ('RANK', 'WORLD_SIZE', 'LOCAL_RANK', 'LOCAL_WORLD_SIZE', 'MASTER_ADDR', 'MASTER_PORT'):
                 probe_env.pop(key, None)
             for i, python in enumerate(sorted(environments)):
                 print(f'[dev2] NCCL/bf16 probe: {python}', flush=True)
                 with (runs / f'probe-{i}.log').open('w') as log:
                     subprocess.run([python, '-m', 'torch.distributed.run', '--standalone', '--nproc_per_node=2',
-                        '-m', 'rebuttal.smoke_2gpu', '--probe-worker'], cwd=ROOT, env=probe_env,
+                        '-m', 'rebuttal.smoke_2gpu', '--probe-worker'], cwd=ROOT, env=environment_for(python, probe_env),
                         stdout=log, stderr=subprocess.STDOUT, check=True, timeout=240)
             from rebuttal.eval_preflight import check_eval
             check_eval(assets, runs, args.gpus, sizes=tuple(sorted({c['model']['size'] for c in selected})))

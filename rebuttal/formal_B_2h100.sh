@@ -2,22 +2,16 @@
 # Full real-data Setting B on two H100s; separate from B200 and development smoke.
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
-ENV_ROOT="${REBUTTAL_ENV_ROOT:-/mnt/local/uvenvs}"
-export REBUTTAL_VENV="${REBUTTAL_VENV:-$ENV_ROOT/rebuttal}"
-export REBUTTAL_PYTHON_LONGCOT="${REBUTTAL_PYTHON_LONGCOT:-$ENV_ROOT/sft/bin/python}"
-export REBUTTAL_PYTHON_PALIGN="${REBUTTAL_PYTHON_PALIGN:-$ENV_ROOT/palign/bin/python}"
-export REBUTTAL_PYTHON_SGL="${REBUTTAL_PYTHON_SGL:-$ENV_ROOT/sgl/bin/python}"
-export REBUTTAL_PYTHON_SSFT="${REBUTTAL_PYTHON_SSFT:-$ENV_ROOT/SegmentSelectiveSFT/bin/python}"
-export REBUTTAL_PYTHON_CORED="${REBUTTAL_PYTHON_CORED:-$ENV_ROOT/cored/bin/python}"
-EVAL_ENV="${REBUTTAL_EVAL_VENV:-$ENV_ROOT/rebuttal_eval}"
-export REBUTTAL_EVAL_PYTHON="${REBUTTAL_EVAL_PYTHON:-$EVAL_ENV/bin/python}"
-PY="${PY:-$REBUTTAL_VENV/bin/python}"
+source "$PWD/rebuttal/runtime_env.sh"
 ASSETS="${REBUTTAL_ASSETS:-$PWD/rebuttal/assets}"
 DATA="${REBUTTAL_DATA:-$PWD/rebuttal/prepared}"
 RUNS="${REBUTTAL_H100_RUNS:-$PWD/rebuttal/runs-B-2h100}"
 REPORTS="${REBUTTAL_H100_REPORTS:-$PWD/rebuttal/reports-B-2h100}"
 ACTION="${1:-all}"
 if [[ $# -gt 0 ]]; then shift; fi
+if [[ "$ACTION" != setup && "$ACTION" != setup-eval ]]; then
+  rebuttal_use_coordinator
+fi
 case "$ACTION" in
   setup)
     command -v uv >/dev/null || { echo 'Install uv first: python3 -m pip install uv' >&2; exit 1; }
