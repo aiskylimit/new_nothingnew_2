@@ -1,5 +1,5 @@
-#1 +120
-#cot
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/logs/,/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/logs/ +a
+#contrakd2
 #v1
 
 nvidia-smi
