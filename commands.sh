@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/logs/,/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/logs/ +a
+#1 +10
 #contra-math-code
 #v1
 

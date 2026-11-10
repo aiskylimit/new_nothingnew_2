@@ -217,7 +217,7 @@ sft_ready() {
 }
 
 train_student() {
-    local i=$1 port=$2
+    local i=$1
     local family=${FAMILIES[$i]} model_path=${MODEL_PATHS[$i]}
     local script base_model
     case "${family}" in
@@ -257,7 +257,8 @@ train_student() {
     fi
 
     echo "[GPU ${CUDA_VISIBLE_DEVICES}] Training ${family} student SFT. Log at ${log_dir}/${family}.log"
-    if ! bash "${BASE_PATH}/${script}" "${BASE_PATH}" "${port}" 1 --model-path "${base_model}" \
+    # Give each single-node torchrun its own rendezvous on a free local port.
+    if ! PET_STANDALONE=1 bash "${BASE_PATH}/${script}" "${BASE_PATH}" 0 1 --model-path "${base_model}" \
         > "${log_dir}/${family}.log" 2>&1; then
         fail "Student SFT failed for ${family}. See ${log_dir}/${family}.log"
     fi
@@ -267,7 +268,7 @@ train_student() {
 train_on_gpu() {
     local gpu_index=$1 i
     for ((i = gpu_index; i < ${#SFT_INDICES[@]}; i += ${#GPU_IDS[@]})); do
-        train_student "${SFT_INDICES[$i]}" "$((${SFT_BASE_PORT:-2012} + i))"
+        train_student "${SFT_INDICES[$i]}"
     done
 }
 
