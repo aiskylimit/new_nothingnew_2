@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/ +a
-#contra3
+#1 +120
+#contra1
 #v1
 
 nvidia-smi
@@ -20,8 +20,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh
 
-# cd ./contra-kd-2
-# bash ./project_commands.sh
+cd ./contra-kd-2
+bash ./project_commands.sh
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar

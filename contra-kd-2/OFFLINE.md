@@ -27,13 +27,21 @@ configuration. Existing console and filesystem logs remain available.
 No datasets from the original checkout are copied or used. The pipeline never
 downloads resources or installs packages on the offline machine.
 
-## Run
+## Export saved evaluation results
 
 ```bash
 bash project_commands.sh
 ```
 
-The default launch trains FDD and FDD + CONTRA at seeds `1024`, `2048`, and
+The launcher copies `results/gpt2/eval_main/` into its `results/` subdirectory.
+The copy preserves relative paths and skips `preds.txt` and `answers.jsonl`.
+The script prints the export size. Move an existing export before running
+another export.
+
+## Multi-seed study
+
+The training launcher is retained as comments in `project_commands.sh`.
+The study trains FDD and FDD + CONTRA at seeds `1024`, `2048`, and
 `4096`. The `--seed` argument controls Python, NumPy and PyTorch randomness,
 including training data order in fine-tuning, field pretraining and field
 updates. The launcher preprocesses Dolly and OpenWebText once. Each CONTRA run
@@ -59,15 +67,13 @@ projector saved with the selected FDD + CONTRA student checkpoint.
 Study checkpoints are under `results/gpt2/train/fdd_seed_study/`. The text-only
 outputs are under `results/gpt2/eval_main/fdd_seed_study/`, including generation
 scores, predictions, per-transition MSE, job logs, and `summary.json`. Rerunning
-the launcher reuses completed preprocessing, training and evaluation stages.
+the study reuses completed preprocessing, training and evaluation stages.
 Incomplete training restarts from the initial student checkpoint. Use a fresh
 output directory if you change the study inputs.
 
 ## Original four-method workflow
 
-```bash
-bash project_commands.sh contra
-```
+The retained training launcher accepts the `contra` argument for this workflow.
 
 CPU preprocessing hides all GPUs. Generation runs on physical GPU 4, followed
 by the shared Dolly field on GPU 4 and the DistiLLM2 field on GPU 5. Once both
