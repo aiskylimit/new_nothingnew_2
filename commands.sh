@@ -1,4 +1,4 @@
-#1 +30
+#2
 #ssft
 #v1
 
@@ -47,6 +47,6 @@ export NCCL_DEBUG=WARN
 # cd ./grit
 # bash ./project_commands.sh
 
-cd rebuttal
-bash ./project_commands.sh prepare
-GPUS=0,1,2,3 bash ./project_commands.sh preflight
+# cd rebuttal
+# bash ./project_commands.sh prepare
+# GPUS=0,1,2,3 bash ./project_commands.sh preflight
