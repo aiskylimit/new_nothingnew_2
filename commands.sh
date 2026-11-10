@@ -1,5 +1,5 @@
-#i rebuttal_eval.txt
-#gpu-check
+#1 +120
+#cot
 #v1
 
 nvidia-smi
@@ -51,6 +51,10 @@ export NCCL_DEBUG=WARN
 # cd ./grit
 # bash ./project_commands.sh
 
-# cd rebuttal
-# bash ./project_commands.sh prepare
-# GPUS=0,1,2,3 bash ./project_commands.sh preflight
+cd rebuttal_cored
+bash rebuttal/project_commands.sh prepare && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh smoke --settings C && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh train --settings A C && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh eval --settings A C && \
+bash rebuttal/project_commands.sh report --allow-partial
