@@ -68,6 +68,16 @@ under `logs/student_sft/`. If the processed Dolly data is missing, the launcher
 prepares it from the sibling `contra-kd/data/raw/dolly` download. Set
 `DOLLY_DATA_DIR` if you provisioned the raw data elsewhere.
 
+To run just student SFT on GPUs 4 and 5, use the training-only mode.
+
+```bash
+CUDA_VISIBLE_DEVICES=4,5 bash project_commands.sh --sft-only
+```
+
+For a single student, pass the project directory and family, such as
+`bash project_commands.sh --sft-only . gpt2`. The training-only mode uses the
+two pretrained student bases and Dolly data.
+
 Pass a project directory to run evaluations against existing checkpoints, or
 add `--train-sft` before the directory to train the selected students first.
 

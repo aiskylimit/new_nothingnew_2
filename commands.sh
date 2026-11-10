@@ -1,34 +1,4 @@
-#d
-#datasets
---hf-dataset Elriggs/openwebtext-100k /mnt/local/@PROJECT@/contra-kd/data/raw/openwebtext-100k
---hf-dataset MiniLLM/dolly /mnt/local/@PROJECT@/contra-kd/data/raw/dolly
---hf-dataset MiniLLM/self-inst /mnt/local/@PROJECT@/contra-kd/data/raw/self-inst
---hf-dataset MiniLLM/Vicuna /mnt/local/@PROJECT@/contra-kd/data/raw/vicuna
---hf-dataset MiniLLM/sinst /mnt/local/@PROJECT@/contra-kd/data/raw/sinst
-#models
---hf openai-community/gpt2 /mnt/local/@PROJECT@/contra-kd-math-code/checkpoints/gpt2-base
---hf openai-community/gpt2-xl /mnt/local/@PROJECT@/contra-kd-math-code/checkpoints/gpt2-xlarge
---hf bachthetrollface/gpt2-1.5B-teacher-dolly /mnt/local/@PROJECT@/contra-kd-math-code/results/gpt2/train/sft/gpt2-xlarge
---hf bachthetrollface/gpt2-120M-distillm-dolly /mnt/local/@PROJECT@/contra-kd-math-code/results/gpt2/train/distillm/0.1B_1.5B
---hf bachthetrollface/gpt2-120M-fdd-dolly /mnt/local/@PROJECT@/contra-kd-math-code/results/gpt2/train/fdd/base
---hf bachthetrollface/gpt2-120M-distillm2-dolly /mnt/local/@PROJECT@/contra-kd-math-code/results/gpt2/train/distillm2/v2_base
---hf bachthetrollface/gpt2-120M-csd-dolly /mnt/local/@PROJECT@/contra-kd-math-code/results/gpt2/train/csd/0.1B_1.5B
---hf bachthetrollface/gpt2-120M-contra-distillm-dolly /mnt/local/@PROJECT@/contra-kd-math-code/results/gpt2/train/contra_sampled/distillm/0.1B_1.5B
---hf bachthetrollface/gpt2-120M-contra-fdd-dolly /mnt/local/@PROJECT@/contra-kd-math-code/results/gpt2/train/contra_sampled/fdd/base
---hf bachthetrollface/gpt2-120M-contra-distillm2-dolly /mnt/local/@PROJECT@/contra-kd-math-code/results/gpt2/train/contra_sampled/distillm2/0.1B_1.5B
---hf bachthetrollface/gpt2-120M-contra-csd-dolly /mnt/local/@PROJECT@/contra-kd-math-code/results/gpt2/train/contra_sampled/csd/0.1B_1.5B
---hf openlm-research/open_llama_7b_v2 /mnt/local/@PROJECT@/contra-kd-math-code/checkpoints/openllama2-7B
---hf openlm-research/open_llama_3b_v2 /mnt/local/@PROJECT@/contra-kd-math-code/checkpoints/openllama2-3B
---hf bachthetrollface/openllama2-7B-teacher-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/sft/openllama2-7B
---hf bachthetrollface/openllama2-3B-distillm-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/distillm/3B_7B
---hf bachthetrollface/openllama2-3B-fdd-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/fdd/3B_7B
---hf bachthetrollface/openllama2-3B-distillm2-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/distillm2/3B_7B
---hf bachthetrollface/openllama2-3B-csd-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/csd/3B_7B
---hf bachthetrollface/openllama2-3B-contra-distillm-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/contra/distillm/3B_7B
---hf bachthetrollface/openllama2-3B-contra-fdd-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/contra/fdd/3B_7B
---hf bachthetrollface/openllama2-3B-contra-distillm2-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/contra/distillm2/3B_7B
---hf bachthetrollface/openllama2-3B-contra-csd-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/contra/csd/3B_7B
-
+#1 +300
 #contra-math-code
 #v1
 
@@ -55,7 +25,7 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 cd ./contra-kd-math-code
-bash ./project_commands.sh
+CUDA_VISIBLE_DEVICES=4,5 bash ./project_commands.sh --sft-only
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar

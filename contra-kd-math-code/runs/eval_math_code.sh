@@ -2,12 +2,15 @@
 set -euo pipefail
 
 # Usage: bash runs/eval_math_code.sh [--list|--train-sft] [BASE_PATH] [FAMILY] [METHOD] [VARIANT]
+#        bash runs/eval_math_code.sh --sft-only [BASE_PATH] [FAMILY]
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LIST_ONLY=0
 TRAIN_SFT=0
+SFT_ONLY=0
 case "${1:-}" in
     --list) LIST_ONLY=1; shift ;;
     --train-sft) TRAIN_SFT=1; shift ;;
+    --sft-only) TRAIN_SFT=1; SFT_ONLY=1; shift ;;
 esac
 
 BASE_PATH="$(cd "${1:-${PROJECT_ROOT}}" && pwd)"
@@ -43,10 +46,18 @@ has_adapter() {
         [[ -f "${path}/adapter_model.safetensors" || -f "${path}/adapter_model.bin" ]]
 }
 
+if [[ ${SFT_ONLY} == 1 ]]; then
+    (( $# <= 2 )) || fail "Usage: bash project_commands.sh --sft-only [BASE_PATH] [FAMILY]"
+    METHOD=sft
+    OPENLLAMA2_MERGED_ROOT=
+fi
+
 case "${FAMILY}" in all|gpt2|openllama2) ;; *) fail "Unknown family: ${FAMILY}" ;; esac
 case "${METHOD}" in all|distillm|distillm2|csd|fdd|sft|pretrained) ;; *) fail "Unknown method: ${METHOD}" ;; esac
 case "${VARIANT}" in all|baseline|contra) ;; *) fail "Unknown variant: ${VARIANT}" ;; esac
-case "${EVAL_BACKEND}" in vllm|hf) ;; *) fail "Unknown evaluation backend: ${EVAL_BACKEND}" ;; esac
+if [[ ${SFT_ONLY} == 0 ]]; then
+    case "${EVAL_BACKEND}" in vllm|hf) ;; *) fail "Unknown evaluation backend: ${EVAL_BACKEND}" ;; esac
+fi
 
 CHECKPOINTS=()
 FAMILIES=()
@@ -128,13 +139,15 @@ ENV_DIR=${ENV_DIR:-/mnt/local/uvenvs/contra}
 if [[ -f "${ENV_DIR}/bin/activate" && ${VIRTUAL_ENV:-} != "${ENV_DIR}" ]]; then
     source "${ENV_DIR}/bin/activate"
 fi
-command -v lm-eval >/dev/null || fail "Provision ../contra.txt and activate the contra environment."
+if [[ ${SFT_ONLY} == 0 ]]; then
+    command -v lm-eval >/dev/null || fail "Provision ../contra.txt and activate the contra environment."
+    export HF_ALLOW_CODE_EVAL=1
+fi
 
 export HF_HOME=${HF_HOME:-"${BASE_PATH}/.cache/huggingface"}
 export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
 export HF_DATASETS_OFFLINE=${HF_DATASETS_OFFLINE:-1}
 export HF_HUB_DISABLE_TELEMETRY=1
-export HF_ALLOW_CODE_EVAL=1
 export TOKENIZERS_PARALLELISM=false
 
 EVAL_ARGS=(--tasks "${TASKS}" --batch_size "${BATCH_SIZE:-auto}" --log_samples
@@ -303,4 +316,6 @@ run_on_gpus() {
 if (( ${#SFT_INDICES[@]} > 0 )); then
     run_on_gpus train_on_gpu "${#SFT_INDICES[@]}"
 fi
-run_on_gpus evaluate_on_gpu "${#CHECKPOINTS[@]}"
+if [[ ${SFT_ONLY} == 0 ]]; then
+    run_on_gpus evaluate_on_gpu "${#CHECKPOINTS[@]}"
+fi
