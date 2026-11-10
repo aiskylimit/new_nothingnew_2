@@ -2,6 +2,9 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if (( $# == 0 )); then
+    set -- --train-sft
+fi
 if [[ ${1:-} != train ]]; then
     exec bash "${PROJECT_ROOT}/runs/eval_math_code.sh" "$@"
 fi

@@ -6,19 +6,22 @@ LM Evaluation Harness 0.4.11 with vLLM 0.11.0. Run the commands below from the
 
 ## Checkpoints
 
-List the 16 destination directories before downloading the checkpoints.
+List the 22 checkpoint paths for the suite.
 
 ```bash
 bash project_commands.sh --list
 ```
 
-GPT-2 entries are full model directories. OpenLLaMA2 entries are LoRA adapter
-directories with `adapter_config.json` and `adapter_model.safetensors` or
-`adapter_model.bin`. Put the shared `openlm-research/open_llama_3b_v2` base model,
-including its tokenizer, in `checkpoints/openllama2-3B`. Set
-`OPENLLAMA2_BASE_MODEL` to use a different local directory. Include any tokenizer
-files saved with each adapter. The launcher uses them when present and otherwise
-uses the base tokenizer.
+`download.txt` provisions the 16 distillation checkpoints and four pretrained
+models under `checkpoints/` (`gpt2-base`, `gpt2-xlarge`, `openllama2-3B`, and
+`openllama2-7B`). The GPT-2 student SFT script exports a full model to
+`results/gpt2/train/sft/gpt2-base`. The OpenLLaMA2 student SFT script exports a
+LoRA adapter to `results/openllama2/train/sft/openllama2-3B`.
+
+All OpenLLaMA2 adapters use the shared `checkpoints/openllama2-3B` base.
+Set `OPENLLAMA2_BASE_MODEL` to use another local directory for that base.
+The launcher uses the adapter's tokenizer when present and otherwise uses the
+base tokenizer.
 
 GPT-2 +Contra defaults to the sampled-time launcher's `contra_sampled/` layout.
 Set `GPT2_CONTRA_DIR=contra` for checkpoints saved to the lower-level training
@@ -51,16 +54,33 @@ CUDA_VISIBLE_DEVICES=4 LIMIT=5 TASKS=gsm8k_cot,hendrycks_math500,humaneval,mbpp 
     bash project_commands.sh . gpt2 distillm baseline
 ```
 
-Run the full suite over all 16 checkpoints on GPUs 4, 5, 6, and 7.
+Run student SFT and then the full benchmark suite.
 
 ```bash
 bash project_commands.sh
 ```
 
+The launcher trains GPT-2 and OpenLLaMA2 on the first two configured GPUs
+(4 and 5 by default) and waits for both checkpoints before evaluating all 22
+models on GPUs 4, 5, 6, and 7. With one GPU configured, the SFT jobs run
+sequentially. Completed student checkpoints are reused. Training logs are
+under `logs/student_sft/`. If the processed Dolly data is missing, the launcher
+prepares it from the sibling `contra-kd/data/raw/dolly` download. Set
+`DOLLY_DATA_DIR` if you provisioned the raw data elsewhere.
+
+Pass a project directory to run evaluations against existing checkpoints, or
+add `--train-sft` before the directory to train the selected students first.
+
+```bash
+bash project_commands.sh .
+bash project_commands.sh --train-sft . openllama2 sft
+```
+
 The positional selectors after the project directory are family
 (`gpt2`, `openllama2`, or `all`), method (`distillm`, `distillm2`, `csd`,
-`fdd`, or `all`), and variant (`baseline`, `contra`, or `all`). Each defaults
-to `all`. Each GPU evaluates one checkpoint at a time. Set
+`fdd`, `sft`, `pretrained`, or `all`), and variant (`baseline`, `contra`,
+or `all`). Each defaults to `all`. Use `baseline` for SFT and pretrained
+checkpoints. Each GPU evaluates one checkpoint at a time. Set
 `CUDA_VISIBLE_DEVICES` to use a different GPU list.
 
 The full suite uses GSM8K CoT, all seven subjects of MATH, HumanEval, and the

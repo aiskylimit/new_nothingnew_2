@@ -54,7 +54,7 @@ OPTS+=" --warmup-iters 0"
 OPTS+=" --lr-decay-style cosine"
 OPTS+=" --weight-decay 1e-2"
 OPTS+=" --clip-grad 1.0"
-OPTS+=" --epochs 15"
+OPTS+=" --epochs 10"
 # length
 OPTS+=" --max-length ${MAX_LENGTH}"
 OPTS+=" --max-prompt-length 256"
@@ -67,7 +67,6 @@ OPTS+=" --eval-interval -1"
 OPTS+=" --log-interval 10"
 OPTS+=" --mid-log-num -1"
 OPTS+=" --save ${SAVE_PATH}"
-OPTS+=" --only-save-last"
 # lora
 OPTS+=" --peft lora"
 # seed
