@@ -140,7 +140,10 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--assets', required=True, type=Path)
     p.add_argument('--out', required=True, type=Path)
-    p.add_argument('--skip-statistics', action='store_true', help='Fixture/data-only checks; server preflight still requires statistics')
+    statistics = p.add_mutually_exclusive_group()
+    statistics.add_argument('--teacher-statistics', action='store_true',
+                            help='Optionally calculate teacher token lengths and answer correctness')
+    statistics.add_argument('--skip-statistics', action='store_true', help=argparse.SUPPRESS)
     args = p.parse_args()
     from rebuttal.provision import BENCHMARKS, URLS, verify_snapshot
     source = args.assets / 'datasets/s1K-1.1'
@@ -161,7 +164,7 @@ def main():
           'counts': {k: len(v) for k, v in paired.items()}, 'question_ids': [r['id'] for r in paired['original']],
           'files': {v: sha(args.out / v / 'canonical.jsonl') for v in paired}})
     prepare_benchmarks(args.assets / 'benchmarks', args.out / 'benchmarks')
-    if not args.skip_statistics:
+    if args.teacher_statistics:
         from transformers import AutoTokenizer
         from rebuttal.common import MODELS
         from rebuttal.evaluate import grade_math

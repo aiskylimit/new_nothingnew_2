@@ -28,10 +28,6 @@ def validate(assets, data, runs, environments=False, gpus='0,1,2,3', formal_2h10
         if sha(data / variant / 'canonical.jsonl') != manifest['files'][variant]:
             raise ValueError('Prepared teacher source changed')
     checks['checks'].append('1000 matched questions, explicit teacher fields, canonical hashes')
-    for variant, size in [('original', '7b'), ('gemini', '7b'), ('original', '1.5b')]:
-        statistics = json.loads((data / 'statistics' / f'{variant}_{size}.json').read_text())
-        if statistics['data_sha256'] != sha(data / variant / 'canonical.jsonl'):
-            raise ValueError('Teacher statistics do not match canonical training data')
     checks['model_snapshot_verification'] = {}
     for size, model in {c['model']['size']: c['model'] for c in matrix()}.items():
         folder = assets / 'models' / model['repo'].split('/')[-1]

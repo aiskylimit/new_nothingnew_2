@@ -11,7 +11,8 @@ from rebuttal.common import MODELS, jsonl, rows, sha, write
 from rebuttal import data, preflight, provision
 
 
-def test_download_prepare_and_preflight_accept_assets_without_snapshot_json(tmp_path, monkeypatch):
+@pytest.mark.parametrize('teacher_stats', [False, True])
+def test_download_prepare_and_preflight_accept_assets_without_snapshot_json(tmp_path, monkeypatch, teacher_stats):
     assets, prepared, runs = (tmp_path / name for name in ('assets', 'prepared', 'runs'))
     runs.mkdir()
 
@@ -52,15 +53,31 @@ def test_download_prepare_and_preflight_accept_assets_without_snapshot_json(tmp_
     original_files = {str(p.relative_to(assets)): sha(p) for p in assets.rglob('*') if p.is_file()}
     monkeypatch.setattr(sys, 'argv', ['provision', '--assets', str(assets)])
     provision.main()
-    monkeypatch.setattr(sys, 'argv', ['prepare', '--assets', str(assets), '--out', str(prepared), '--skip-statistics'])
+    statistics_calls, tokenizer_calls = [], []
+
+    def statistics(values, tokenizer, grade):
+        assert teacher_stats, 'Default prepare must not grade teacher answers'
+        statistics_calls.append(len(values))
+        return {'samples': len(values)}
+
+    def tokenizer(*args, **kwargs):
+        assert teacher_stats, 'Default prepare must not load teacher-statistics tokenizers'
+        tokenizer_calls.append(args[0])
+        return object()
+
+    monkeypatch.setattr(data, 'teacher_statistics', statistics)
+    monkeypatch.setitem(sys.modules, 'transformers', SimpleNamespace(
+        AutoTokenizer=SimpleNamespace(from_pretrained=tokenizer)))
+    monkeypatch.setattr(sys, 'argv', ['prepare', '--assets', str(assets), '--out', str(prepared),
+                                    *(['--teacher-statistics'] if teacher_stats else [])])
     data.main()
     manifest = json.loads((prepared / 'manifest.json').read_text())
     assert manifest['counts'] == {'original': 1000, 'gemini': 1000}
     assert len(rows(prepared / 'original/canonical.jsonl')) == 1000
     assert len(json.loads((prepared / 'benchmarks/manifest.json').read_text())) == 6
-    # Statistics generation needs real model tokenizers; isolate only that part here.
-    for variant, size in [('original', '7b'), ('gemini', '7b'), ('original', '1.5b')]:
-        write(prepared / 'statistics' / f'{variant}_{size}.json', {'data_sha256': manifest['files'][variant]})
+    assert statistics_calls == ([1000, 1000, 1000] if teacher_stats else [])
+    assert len(tokenizer_calls) == (3 if teacher_stats else 0)
+    assert len(list((prepared / 'statistics').glob('*.json'))) == (3 if teacher_stats else 0)
     result = preflight.validate(assets, prepared, runs)
     assert result['model_snapshot_verification'] == {'7b': 'not_provided', '1.5b': 'not_provided'}
     assert original_files == {str(p.relative_to(assets)): sha(p) for p in assets.rglob('*') if p.is_file()}
