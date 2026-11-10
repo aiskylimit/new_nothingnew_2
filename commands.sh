@@ -1,4 +1,4 @@
-#i palign.txt
+#i sgl.txt
 #gpu-check
 #v1
 
