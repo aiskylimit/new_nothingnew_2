@@ -9,6 +9,11 @@ Chạy từ root repo. Trên server không có Internet, bỏ hai lệnh `setup`
 `download`: môi trường do quản lý server cài từ các file `.txt`, model/data
 được tải theo `rebuttal/download.txt`.
 
+Data P-ALIGN cũ trong `palign/data/` không kèm trong code. Các dòng URL P-ALIGN
+trong `rebuttal/download.txt` tải lại đúng bản cũ vào
+`/mnt/local/@PROJECT@/rebuttal_cored/palign/data/` nếu cần chạy riêng P-ALIGN;
+luồng rebuttal dưới đây tự chuẩn bị dữ liệu và không dùng các file cũ này.
+
 Các file môi trường và đường dẫn mặc định:
 
 | File thư viện | Venv | Công việc |
