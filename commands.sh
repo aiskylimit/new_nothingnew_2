@@ -1,4 +1,4 @@
-#1 +60
+#1 +300
 #contra-math-code
 #v1
 
@@ -24,11 +24,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-2
 # bash ./project_commands.sh
 
-# cd ./contra-kd-math-code
-# bash ./project_commands.sh .
-kill 89205
-sleep 30
-nvidia-smi
+cd ./contra-kd-math-code
+bash ./project_commands.sh .
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
