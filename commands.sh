@@ -1,4 +1,4 @@
-#1 +120
+#2 -0-3
 #cred
 #v2
 
@@ -40,8 +40,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh
 
-cd ./cred
-bash ./project_commands.sh
+# cd ./cred
+# bash ./project_commands.sh
 
 # cd ./opsd
 # bash ./project_commands.sh
