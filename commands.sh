@@ -1,5 +1,5 @@
-#1 +300
-#contra-coarse
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/results/eval_math_code_export/ +a
+#contra-math-code
 #v2
 
 nvidia-smi
@@ -22,8 +22,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh direct-mlp-distillm-eval
 
-cd ./contra-kd-2
-bash ./project_commands.sh
+# cd ./contra-kd-2
+# bash ./project_commands.sh
 
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
