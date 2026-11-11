@@ -1,4 +1,4 @@
-#1 +30
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/results/eval_math_code_export/ +a
 #contra-math-code-export
 #v1
 
