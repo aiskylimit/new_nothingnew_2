@@ -1,4 +1,4 @@
-#2 -2
+#2 -0-10
 #contra-math-code
 #v2
 
