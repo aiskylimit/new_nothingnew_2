@@ -1,5 +1,5 @@
-#1 +300
-#contra-one-step
+#1 +30
+#contra3-export
 #v1
 
 nvidia-smi
@@ -22,7 +22,7 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh direct-mlp-fdd
 
 cd ./contra-kd-2
-bash ./project_commands.sh one-step-dolly
+bash ./project_commands.sh export
 
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh --sft-only/.
