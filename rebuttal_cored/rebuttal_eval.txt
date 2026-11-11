@@ -1,8 +1,6 @@
 # manager: uv
 # python: 3.11
-# Linux x86_64 / B200: matching CUDA 13.0 wheels from default PyPI.
-# vLLM 0.26 requires Torch 2.11 and Transformers >=5.5.3; keep this set together.
-# Shared evaluation only; separate from native training environments.
+# fresh: true
 torch==2.11.0
 torchvision==0.26.0
 torchaudio==2.11.0

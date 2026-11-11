@@ -1,10 +1,10 @@
 # manager: uv
 # python: 3.11
-# Shared evaluation only; use the server's package index to select CUDA wheels.
-torch==2.13.0
-torchvision==0.28.0
+# fresh: true
+torch==2.11.0
+torchvision==0.26.0
 torchaudio==2.11.0
-vllm==0.27.1
+vllm==0.26.0
 transformers==5.5.4
 peft==0.18.1
 math-verify==0.9.0

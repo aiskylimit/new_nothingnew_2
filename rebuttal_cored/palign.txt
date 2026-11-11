@@ -1,7 +1,6 @@
 # manager: uv
 # python: 3.11
-# Linux x86_64 / B200: matching CUDA 13.0 wheels from default PyPI.
-# vLLM 0.26 requires Torch 2.11 and Transformers >=5.5.3; keep this set together.
+# fresh: true
 accelerate==1.11.0
 datasets==4.0.0
 jsonlines

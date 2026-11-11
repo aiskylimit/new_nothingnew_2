@@ -1,4 +1,4 @@
-#1 +10
+#i cored.txt palign.txt rebuttal_eval.txt rebuttal.txt SegmentSelectiveSFT.txt sft.txt sgl.txt
 #contra3-export
 #v1
 
