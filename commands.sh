@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/loss_ramp_runs/20261110T064759Z-58366/eval/fdd/ +a
-#contra-loss-ramp
+#1 +75
+#contra-direct-mlp-fdd
 #v1
 
 nvidia-smi
@@ -18,8 +18,8 @@ export NCCL_DEBUG=WARN
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-# cd ./contra-kd-datdvt
-# bash ./project_commands.sh
+cd ./contra-kd-datdvt
+bash ./project_commands.sh
 
 # cd ./contra-kd-2
 # bash ./project_commands.sh one-step-dolly/export
