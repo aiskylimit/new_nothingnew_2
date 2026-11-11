@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 # Shared paths for already provisioned environments; sourcing this installs nothing.
+# download.txt keeps the shared model/data directory at the repository root,
+# outside the rebuttal_cored code folder. Explicit overrides still take priority.
+export REBUTTAL_ASSETS="${REBUTTAL_ASSETS:-$(cd "$PWD/.." && pwd)/rebuttal/assets}"
 ENV_ROOT="${REBUTTAL_ENV_ROOT:-/mnt/local/uvenvs}"
 export REBUTTAL_VENV="${REBUTTAL_VENV:-$ENV_ROOT/rebuttal}"
 export REBUTTAL_PYTHON="${REBUTTAL_PYTHON:-$REBUTTAL_VENV/bin/python}"

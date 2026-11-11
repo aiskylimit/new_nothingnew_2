@@ -145,6 +145,37 @@ def test_managed_download_attestation_option_is_forwarded(tmp_path):
     assert events(tmp_path)[0]['args'][-1]=='--attest-managed'
 
 
+@pytest.mark.parametrize('script,action', [
+    *[('project_commands.sh', action) for action in
+      ('download', 'prepare', 'preflight', 'smoke', 'train', 'eval', 'check-eval')],
+    ('formal_B_2h100.sh', 'prepare'), ('smoke_2x3090.sh', 'all')])
+def test_default_assets_match_managed_downloads_after_code_is_nested(tmp_path, script, action):
+    env = launcher_environment(tmp_path, installed=True)
+    env.pop('REBUTTAL_ASSETS')
+    env['REBUTTAL_2GPU_RUNS'] = str(tmp_path/'dev-runs')
+    result = subprocess.run(['bash', str(ROOT/'rebuttal'/script), action], cwd=tmp_path,
+                            env=env, capture_output=True, text=True, timeout=15)
+    assert result.returncode == 0, result.stderr + result.stdout
+    args = events(tmp_path)[0]['args']
+    assets = Path(args[args.index('--assets')+1])
+    project = ROOT.parent
+    assert assets == project/'rebuttal/assets'
+    managed = [line.split()[-1].replace('/mnt/local/@PROJECT@', str(project))
+               for line in (ROOT/'rebuttal/download.txt').read_text().splitlines()
+               if line.startswith(('--hf ', '--hf-dataset ', '--url '))
+               and '/rebuttal/assets/' in line]
+    assert len(managed) == 9
+    assert all(Path(destination).is_relative_to(assets) for destination in managed)
+
+
+def test_explicit_asset_location_is_kept(tmp_path):
+    env = launcher_environment(tmp_path, installed=True)
+    result = invoke(tmp_path, ['prepare'], env)
+    assert result.returncode == 0, result.stderr
+    args = events(tmp_path)[0]['args']
+    assert args[args.index('--assets')+1] == env['REBUTTAL_ASSETS']
+
+
 def test_unknown_mode_fails_before_any_external_action(tmp_path):
     env = launcher_environment(tmp_path, installed=False)
     result = invoke(tmp_path, ['endtoend','--unknown'], env)

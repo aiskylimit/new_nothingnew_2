@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 source "$PWD/rebuttal/runtime_env.sh"
-ASSETS="${REBUTTAL_ASSETS:-$PWD/rebuttal/assets}"
+ASSETS="$REBUTTAL_ASSETS"
 DATA="${REBUTTAL_DATA:-$PWD/rebuttal/prepared}"
 RUNS="${REBUTTAL_H100_RUNS:-$PWD/rebuttal/runs-B-2h100}"
 REPORTS="${REBUTTAL_H100_REPORTS:-$PWD/rebuttal/reports-B-2h100}"

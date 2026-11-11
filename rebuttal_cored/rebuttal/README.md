@@ -5,9 +5,15 @@ effective batch size 32.
 
 ## Chạy lần lượt từng bước, chỉ setting A và C
 
-Chạy từ root repo. Trên server không có Internet, bỏ hai lệnh `setup` và
+Chạy từ folder `rebuttal_cored` (nếu đang ở root repo thì `cd rebuttal_cored`).
+Trên server không có Internet, bỏ hai lệnh `setup` và
 `download`: môi trường do quản lý server cài từ các file `.txt`, model/data
 được tải theo `rebuttal/download.txt`.
+
+Model/data dùng chung vẫn ở `/mnt/local/@PROJECT@/rebuttal/assets/`, bên ngoài
+folder code `rebuttal_cored/`. Các script tự dùng đúng đường dẫn này; đặt
+`REBUTTAL_ASSETS` nếu quản lý server đã tải vào vị trí khác. Dữ liệu prepared,
+checkpoint và kết quả chạy nằm trong `rebuttal_cored/rebuttal/` như trước.
 
 Data P-ALIGN cũ trong `palign/data/` không kèm trong code. Các dòng URL P-ALIGN
 trong `rebuttal/download.txt` tải lại đúng bản cũ vào
