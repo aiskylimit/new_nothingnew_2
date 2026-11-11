@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/results/ +a
+#i cored.txt palign.txt rebuttal_eval.txt rebuttal.txt sft.txt
 #contra3-export
 #v1
 
