@@ -1,7 +1,4 @@
-#d
-#models
---hf bachthetrollface/openllama2-3B-csd-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/csd/3B_7B
---hf bachthetrollface/openllama2-3B-contra-csd-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/contra/csd/3B_7B
+#1 +300
 #contra-math-code
 #v1
 
