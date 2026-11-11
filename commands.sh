@@ -1,9 +1,7 @@
 #1 +70
-#gpu-check
+#contra-direct-mlp-fdd
 #v1
 
-kill -9 203076 203079
-sleep 30
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/results/ +a
@@ -20,8 +18,8 @@ export NCCL_DEBUG=WARN
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-# cd ./contra-kd-datdvt
-# bash ./project_commands.sh
+cd ./contra-kd-datdvt
+bash ./project_commands.sh direct-mlp-fdd
 
 # cd ./contra-kd-2
 # bash ./project_commands.sh one-step-dolly/export
