@@ -1,5 +1,6 @@
 # manager: uv
 # python: 3.11
+# fresh: true
 accelerate==1.11.0
 datasets==4.0.0
 jsonlines
@@ -10,7 +11,6 @@ peft==0.18.1
 pyyaml==6.0.3
 sentencepiece
 torch==2.13.0
-torchaudio==2.11.0
 torchvision==0.28.0
 tqdm
 transformers==5.5.4

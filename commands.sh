@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/loss_ramp_runs/20261110T064759Z-58366/eval/ +a
+#i sft.txt
 #contra-loss-ramp
 #v1
 
