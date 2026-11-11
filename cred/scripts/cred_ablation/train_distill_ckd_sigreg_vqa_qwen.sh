@@ -4,7 +4,7 @@
 NUM_GPUS_PER_NODE=1
 
 # Đường dẫn tới file script training của bạn
-TRAIN_SCRIPT="train_ddp_time.py"
+TRAIN_SCRIPT="train_ddp.py"
 
 export TORCH_DISTRIBUTED_DEBUG=DETAIL
 
@@ -27,7 +27,7 @@ torchrun --standalone \
     --dataset_split "original" \
     --image_dir "vlm2vec_train/MMEB-train" \
     --percent_data 1.0 \
-    --output_dir "training/B3-Qwen2-2B_FastVLM-1.5B_ckd_sigreg_vqa_tqwen" \
+    --output_dir "training/B3-Qwen2-2B_FastVLM-1.5B_ckd_sigreg_cls_tqwen3_8b" \
     --per_device_train_batch_size 16 \
     --gradient_accumulation_steps 1 \
     --learning_rate 1e-4 \
@@ -61,8 +61,8 @@ EVAL_SUBSETS=(
 
 
 python eval_mmeb.py \
-  --model_name "training/B3-Qwen2-2B_FastVLM-1.5B_ckd_sigreg_vqa_tqwen/checkpoint-epoch-0" \
-  --encode_output_path "./MMEB-eval_outputs_v5/B3-Qwen2-2B_FastVLM-1.5B_ckd_sigreg_vqa_tqwen" \
+  --model_name "training/B3-Qwen2-2B_FastVLM-1.5B_ckd_sigreg_cls_tqwen3_8b/checkpoint-epoch-0" \
+  --encode_output_path "./MMEB-eval_outputs_v5/B3-Qwen2-2B_FastVLM-1.5B_ckd_sigreg_cls_tqwen3_8b" \
   --lora True \
   --lora_r 64 \
   --lora_alpha 64 \
