@@ -1,8 +1,10 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/loss_ramp_runs/20261110T064759Z-58366/eval/distillm +a
-#contra-loss-ramp
+#1 +75
+#gpu-check
 #v1
 
 nvidia-smi
+
+ls -lah /mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/loss_ramp_runs/20261110T064759Z-58366/eval/
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/results/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/results/ +a
