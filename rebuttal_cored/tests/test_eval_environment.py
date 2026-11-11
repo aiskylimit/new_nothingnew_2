@@ -113,6 +113,32 @@ def test_eval_manifest_uses_package_pins_without_direct_urls_or_training_framewo
     text = (ROOT/'rebuttal_eval.txt').read_text()
     requirements = [Requirement(line) for line in text.splitlines() if line and not line.startswith('#')]
     assert all(requirement.url is None for requirement in requirements)
-    for package, version in [('torch','2.13.0'),('torchvision','0.28.0'),('torchaudio','2.11.0'),('vllm','0.27.1')]:
+    for package, version in [('torch','2.11.0'),('torchvision','0.26.0'),
+                             ('torchaudio','2.11.0'),('vllm','0.26.0')]:
         assert f'{package}=={version}' in text.splitlines()
     assert 'llamafactory' not in text and 'unsloth' not in text
+
+
+@pytest.mark.parametrize('name', ['rebuttal', 'sft', 'palign', 'sgl',
+                                  'SegmentSelectiveSFT', 'cored', 'rebuttal_eval'])
+def test_environment_manifests_use_plain_pypi_pins_with_matching_gpu_packages(name):
+    from packaging.requirements import Requirement
+    from packaging.version import Version
+    text = (ROOT/f'{name}.txt').read_text()
+    requirements = [Requirement(line) for line in text.splitlines()
+                    if line and not line.startswith('#')]
+    assert all(requirement.url is None for requirement in requirements)
+    for requirement in requirements:
+        assert all(Version(pin.version).local is None for pin in requirement.specifier)
+    # These exact families match the default Linux PyPI wheels and vLLM metadata;
+    # a source override or a lone Torch upgrade would reintroduce the server failure.
+    pins = {r.name: str(r.specifier) for r in requirements}
+    if name in {'sgl', 'SegmentSelectiveSFT'}:
+        assert pins['torch'] == '==2.9.0' and pins['torchvision'] == '==0.24.0'
+        assert 'vllm' not in pins
+    else:
+        assert pins['torch'] == '==2.11.0' and pins['torchvision'] == '==0.26.0'
+        assert pins['torchaudio'] == '==2.11.0' and pins['vllm'] == '==0.26.0'
+        assert Version(pins['transformers'].removeprefix('==')) >= Version('5.5.3')
+    if name == 'SegmentSelectiveSFT':
+        assert pins['xformers'] == '==0.0.33.post1' and pins['torchao'] == '==0.14.1'

@@ -11,7 +11,7 @@ if [[ "$ACTION" != setup && "$ACTION" != setup-eval && "$ACTION" != endtoend ]];
 fi
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1 TRANSFORMERS_OFFLINE=1 WANDB_MODE=disabled
 export TOKENIZERS_PARALLELISM=false
-ASSETS="${REBUTTAL_ASSETS:-$PWD/rebuttal/assets}"
+ASSETS="$REBUTTAL_ASSETS"
 DATA="${REBUTTAL_DATA:-$PWD/rebuttal/prepared}"
 RUNS="${REBUTTAL_RUNS:-$PWD/rebuttal/runs}"
 REPORTS="${REBUTTAL_REPORTS:-$PWD/rebuttal/reports}"

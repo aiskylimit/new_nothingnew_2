@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 source "$PWD/rebuttal/runtime_env.sh"
-ASSETS="${REBUTTAL_ASSETS:-$PWD/rebuttal/assets}"
+ASSETS="$REBUTTAL_ASSETS"
 RUNS="${REBUTTAL_2GPU_RUNS:-$PWD/rebuttal/smoke-2x3090}"
 ACTION="${1:-all}"
 if [[ $# -gt 0 ]]; then shift; fi
