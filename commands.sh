@@ -1,4 +1,4 @@
-#i cored.txt
+#2 -5
 #contra3-export
 #v1
 
