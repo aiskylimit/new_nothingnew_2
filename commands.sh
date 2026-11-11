@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/fdd_seed_study/logs/ +a
-#contra3
+#1 +300
+#contra-one-step
 #v1
 
 nvidia-smi
@@ -21,8 +21,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh direct-mlp-fdd
 
-# cd ./contra-kd-2
-# bash ./project_commands.sh one-step-dolly/export
+cd ./contra-kd-2
+bash ./project_commands.sh one-step-dolly
 
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh --sft-only/.
