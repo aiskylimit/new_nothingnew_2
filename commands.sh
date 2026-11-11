@@ -1,5 +1,5 @@
-#1 +75
-#log
+#2 -2
+#contra-math-code
 #v2
 
 nvidia-smi
