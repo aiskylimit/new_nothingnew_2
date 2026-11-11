@@ -1,7 +1,4 @@
-#d
-#datasets
---hf-dataset VoCuc/vlm-teacher-embedding /mnt/local/@PROJECT@/cred/datasets
-
+#1 +10
 #cred
 #v1
 
