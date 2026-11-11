@@ -1,4 +1,4 @@
-#2 -0-3
+#i cored.txt
 #cred
 #v2
 
