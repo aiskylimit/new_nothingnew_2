@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/eval_main/direct_mlp_t0_distillm_0.1B_1.5B/ +a
-#contra-direct-mlp
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/fdd_seed_study/logs/ +a
+#contra3
 #v1
 
 nvidia-smi
