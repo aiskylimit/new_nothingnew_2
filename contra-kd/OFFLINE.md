@@ -35,8 +35,7 @@ bash project_commands.sh
 
 The launcher copies `results/gpt2/eval_main/` into its `results/` subdirectory.
 The copy preserves relative paths and skips `preds.txt` and `answers.jsonl`.
-The script prints the export size. Move an existing export before running
-another export.
+Each run replaces the previous export with a fresh copy and prints its size.
 
 ## t=0 training workflow
 
