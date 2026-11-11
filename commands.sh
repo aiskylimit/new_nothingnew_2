@@ -1,5 +1,5 @@
-#1 +10
-#cot
+#i cored.txt palign.txt rebuttal_eval.txt rebuttal.txt sft.txt
+#contra3-export
 #v1
 
 nvidia-smi
@@ -54,7 +54,7 @@ export NCCL_DEBUG=WARN
 # mkdir -p /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal
 # mv /mnt/local/aiskylimit_new_nothingnew_2/rebuttal/assets \
 #    /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal/
-cd /mnt/local/uvenvs/ && rm -rf cored palign rebuttal_eval rebuttal sft
+
 # cd rebuttal_cored
 # bash rebuttal/project_commands.sh prepare && \
 # GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \
