@@ -1,5 +1,7 @@
 # manager: uv
 # python: 3.11
+# Linux x86_64 / B200: matching CUDA 12.8 wheels from default PyPI.
+# Keep Transformers 5.4 for the native SGL Trainer; no vLLM in this env.
 # SGL train + spectral masks. Shared vLLM eval uses rebuttal_eval.txt in another env.
 accelerate==1.13.0
 datasets==4.8.4
@@ -11,7 +13,8 @@ pyyaml==6.0.3
 sentencepiece
 setuptools>=69
 wheel
-torch==2.13.0
+torch==2.9.0
+torchvision==0.24.0
 transformers==5.4.0
 tqdm
 pytest

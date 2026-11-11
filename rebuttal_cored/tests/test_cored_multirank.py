@@ -21,22 +21,31 @@ sys.path.insert(0, str(ROOT / "cored"))
 
 def tiny_assets(root):
     from tokenizers import Tokenizer
-    from tokenizers.models import WordLevel
-    from tokenizers.pre_tokenizers import WhitespaceSplit
+    from tokenizers.decoders import ByteLevel as ByteLevelDecoder
+    from tokenizers.models import BPE
+    from tokenizers.pre_tokenizers import ByteLevel
+    from tokenizers.trainers import BpeTrainer
     from transformers import PreTrainedTokenizerFast, Qwen2Config, Qwen2ForCausalLM
     from core.data_utils import StepDataset
     from train.sft_engine import build_segments
 
     torch.manual_seed(123)
     model = root / "tiny"
-    vocab = {token: i for i, token in enumerate(
-        ["[UNK]", "[PAD]", "[EOS]", "<think>", "</think>", "Q", "A", "first", "second", "third", "assistant"])}
-    raw = Tokenizer(WordLevel(vocab, unk_token="[UNK]"))
-    raw.pre_tokenizer = WhitespaceSplit()
+    # AutoTokenizer reloads Qwen2's BPE backend in Transformers 5.16. A WordLevel
+    # fixture changes token/step spans on reload, unlike the real Qwen tokenizer.
+    raw = Tokenizer(BPE(unk_token="[UNK]"))
+    raw.pre_tokenizer = ByteLevel(add_prefix_space=False)
+    raw.decoder = ByteLevelDecoder()
+    raw.train_from_iterator(
+        ["Q A first second third assistant <think> </think>",
+         "Q\\nassistant\n<think>\nfirst\n\nsecond\n</think>\n\nA"],
+        BpeTrainer(vocab_size=300, initial_alphabet=ByteLevel.alphabet(),
+                   special_tokens=["[UNK]", "[PAD]", "[EOS]", "<think>", "</think>"]),
+    )
     tok = PreTrainedTokenizerFast(tokenizer_object=raw, unk_token="[UNK]", pad_token="[PAD]", eos_token="[EOS]")
     tok.chat_template = "{% for message in messages %}{{ message['content'] + '\\n' }}{% endfor %}{% if add_generation_prompt %}assistant\n{% endif %}"
     tok.save_pretrained(model)
-    cfg = Qwen2Config(vocab_size=len(vocab), hidden_size=16, intermediate_size=32,
+    cfg = Qwen2Config(vocab_size=len(tok), hidden_size=16, intermediate_size=32,
                       num_hidden_layers=1, num_attention_heads=2, num_key_value_heads=1,
                       max_position_embeddings=256, attention_dropout=0.0,
                       pad_token_id=1, eos_token_id=2, bos_token_id=2)
