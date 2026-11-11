@@ -67,6 +67,13 @@ bash rebuttal/project_commands.sh download
 Trên server đã có môi trường và model/data, chạy chuỗi sau. Bất kỳ bước nào
 lỗi, kể cả smoke, đều dừng trước các bước còn lại. Train đủ 10 run A+C rồi mới eval.
 
+Trong lúc train vẫn lưu checkpoint để resume. Với Long-CoT, P-ALIGN, SGL và
+SSFT, sau khi run train hoàn tất và model cuối đã được ghi/kiểm tra, chỉ giữ
+model cuối dùng cho eval và dọn checkpoint epoch/step trung gian. Log, số liệu
+chi phí và dữ liệu trung gian vẫn được giữ. Nếu train lỗi hoặc dừng giữa chừng
+thì chưa dọn. Riêng CoReD không dọn: giữ nguyên các expert, teacher đã merge,
+student và checkpoint resume theo cơ chế lưu hiện tại.
+
 ```bash
 bash rebuttal/project_commands.sh prepare && \
 GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \

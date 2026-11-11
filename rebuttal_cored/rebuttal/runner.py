@@ -14,6 +14,7 @@ from pathlib import Path
 from rebuttal.common import ROOT, matrix, rows, sha, signature, write
 from rebuttal.cost import aggregate
 from rebuttal.environments import environment_for, python_for
+from rebuttal.checkpoints import keep_final_model
 
 
 def checkpoint_manifest(path, config, base):
@@ -329,6 +330,7 @@ class Job:
                 args=args, multi=True, unsloth=True), self.gpus)], world)
             final = run / 'checkpoint/checkpoint-final'
         checkpoint_manifest(final, config, self.model)
+        keep_final_model(run, method, final)
         write(run / 'training_budget.json', {'canonical_input_samples': config['data']['expected_samples'],
             'method': method, 'teacher': config['data'], 'precision': train['precision'], 'batch': train,
             'sampler_note': 'Native distributed samplers may pad/repeat the final batch; common telemetry records actual forward token exposures.',
@@ -417,6 +419,7 @@ def main():
                         provenance = json.loads((checkpoint / 'checkpoint_manifest.json').read_text())
                         if any(sha(checkpoint / file) != checksum for file, checksum in provenance['files_sha256'].items()):
                             raise ValueError('Completed checkpoint was modified')
+                        keep_final_model(job.root, config['method'], checkpoint)
                         print(f'[{config["run_id"]}] reuse completed training; no extra training cost charged', flush=True)
                     else:
                         try:
