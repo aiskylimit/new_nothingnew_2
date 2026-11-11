@@ -1,4 +1,4 @@
-#1 +60
+#1 +10
 #cot
 #v1
 
@@ -54,11 +54,11 @@ export NCCL_DEBUG=WARN
 # mkdir -p /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal
 # mv /mnt/local/aiskylimit_new_nothingnew_2/rebuttal/assets \
 #    /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal/
-
-cd rebuttal_cored
-bash rebuttal/project_commands.sh prepare && \
-GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \
-GPUS=0,1,2,3 bash rebuttal/project_commands.sh smoke --settings C && \
-GPUS=0,1,2,3 bash rebuttal/project_commands.sh train --settings A C && \
-GPUS=0,1,2,3 bash rebuttal/project_commands.sh eval --settings A C && \
-bash rebuttal/project_commands.sh report --allow-partial
+cd /mnt/local/uvenvs/ && rm -rf cored palign rebuttal_eval rebuttal sft
+# cd rebuttal_cored
+# bash rebuttal/project_commands.sh prepare && \
+# GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \
+# GPUS=0,1,2,3 bash rebuttal/project_commands.sh smoke --settings C && \
+# GPUS=0,1,2,3 bash rebuttal/project_commands.sh train --settings A C && \
+# GPUS=0,1,2,3 bash rebuttal/project_commands.sh eval --settings A C && \
+# bash rebuttal/project_commands.sh report --allow-partial
