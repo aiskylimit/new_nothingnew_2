@@ -30,7 +30,7 @@ downloads resources or installs packages on the offline machine.
 ## Export saved evaluation results
 
 ```bash
-bash project_commands.sh
+bash project_commands.sh export
 ```
 
 The launcher copies `results/gpt2/eval_main/` into its `results/` subdirectory.
@@ -69,6 +69,41 @@ scores, predictions, per-transition MSE, job logs, and `summary.json`. Rerunning
 the study reuses completed preprocessing, training and evaluation stages.
 Incomplete training restarts from the initial student checkpoint. Use a fresh
 output directory if you change the study inputs.
+
+## Coarse feature dynamics
+
+```bash
+bash project_commands.sh
+```
+
+The default command evaluates the existing FDD and FDD + Contra checkpoints at
+seeds `1024 2048 4096` on GPUs 4 and 5. It uses Dolly validation sequences,
+holding out 256 prompts for evaluation and reserving 128 different prompts to
+fit the adapters. It uses the same split for every seed and samples up to four
+response tokens per evaluation sequence. The checkpoints come
+from `results/gpt2/train/fdd_seed_study/` relative to the code directory. Set
+`FDD_STUDY_TRAIN_ROOT` if the study artifacts live elsewhere.
+
+Each seed writes `coarse_dynamics.json` under
+`results/gpt2/eval_main/fdd_seed_study/coarse_dynamics/<seed>/` and a log under
+`coarse_dynamics/logs/`. The report includes:
+
+- Raw linear CKA for all layer pairs and all four-block update pairs, plus
+  comparisons with pooled activations, skipped blocks, and the original FDD
+  training anchors. All evaluation scores use the same sampled response tokens.
+- Projected update cosine and normalized squared error. Each student gets the
+  same ridge calibration protocol. The checkpoint-matched Contra projector
+  adds a separate diagnostic when its weights and seed metadata are present.
+- Block replacement with a frozen teacher suffix. The matched student block,
+  its neighbor, and both skip controls start from the same teacher state.
+  The report gives normalized error and teacher-to-candidate next-token KL with
+  paired 95% sequence-bootstrap intervals per block and averaged across blocks.
+  Negative paired differences favor the first named candidate.
+
+`COARSE_DYNAMICS_GPUS`, `COARSE_DYNAMICS_SEEDS`, `COARSE_DYNAMICS_BATCH_SIZE`,
+`COARSE_DYNAMICS_CALIBRATION`, and `COARSE_DYNAMICS_EVAL` override the defaults.
+Set `COARSE_DYNAMICS_DATA_PATH` or `COARSE_DYNAMICS_OUTPUT` to change the
+validation file or output directory.
 
 ## Dolly one-step evaluation
 

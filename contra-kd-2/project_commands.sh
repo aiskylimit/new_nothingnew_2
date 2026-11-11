@@ -3,10 +3,11 @@ set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-case "${1:-export}" in
+case "${1:-coarse-dynamics}" in
+    coarse-dynamics) exec bash "${PROJECT_ROOT}/runs/gpt2/eval_coarse_dynamics.sh" "${PROJECT_ROOT}" ;;
     export) exec python3 "${PROJECT_ROOT}/tools/export_eval_results.py" "${PROJECT_ROOT}/results/gpt2/eval_main" ;;
     one-step-dolly) exec bash "${PROJECT_ROOT}/runs/gpt2/eval_one_step_dolly.sh" "${PROJECT_ROOT}" ;;
-    *) echo "Usage: bash project_commands.sh [export|one-step-dolly]" >&2; exit 2 ;;
+    *) echo "Usage: bash project_commands.sh [coarse-dynamics|export|one-step-dolly]" >&2; exit 2 ;;
 esac
 
 # Previous experiment launcher
