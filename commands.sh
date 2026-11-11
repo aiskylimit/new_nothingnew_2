@@ -1,4 +1,4 @@
-#1 +10
+#2 -2
 #contra-math-code-eval
 #v1
 
@@ -24,8 +24,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-2
 # bash ./project_commands.sh export
 
-# cd ./contra-kd-math-code
-# bash ./project_commands.sh .
+cd ./contra-kd-math-code
+bash ./project_commands.sh .
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
