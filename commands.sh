@@ -1,7 +1,9 @@
-#1 +30
+#1 +70
 #gpu-check
-#v2
+#v1
 
+kill -9 203076 203079
+sleep 30
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/results/ +a
