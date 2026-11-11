@@ -2,6 +2,13 @@
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [[ ${1:-} == export ]]; then
+    shift
+    if (( $# == 0 )); then
+        set -- "${EVAL_OUTPUT_DIR:-${PROJECT_ROOT}/results/eval_math_code}"
+    fi
+    exec python3 "${PROJECT_ROOT}/tools/export_eval_results.py" "$@"
+fi
 if (( $# == 0 )); then
     set -- --train-sft
 fi
