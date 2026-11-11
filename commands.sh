@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/fdd_seed_study/logs/ +a
-#contrakd2
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_direct_mlp_ablation/ +a
+#contra-direct-mlp
 #v1
 
 nvidia-smi
@@ -51,14 +51,14 @@ export NCCL_DEBUG=WARN
 # cd ./grit
 # bash ./project_commands.sh
 
-mkdir -p /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal
-mv /mnt/local/aiskylimit_new_nothingnew_2/rebuttal/assets \
-   /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal/
+# mkdir -p /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal
+# mv /mnt/local/aiskylimit_new_nothingnew_2/rebuttal/assets \
+#    /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal/
 
-cd rebuttal_cored
-bash rebuttal/project_commands.sh prepare && \
-GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \
-GPUS=0,1,2,3 bash rebuttal/project_commands.sh smoke --settings C && \
-GPUS=0,1,2,3 bash rebuttal/project_commands.sh train --settings A C && \
-GPUS=0,1,2,3 bash rebuttal/project_commands.sh eval --settings A C && \
-bash rebuttal/project_commands.sh report --allow-partial
+# cd rebuttal_cored
+# bash rebuttal/project_commands.sh prepare && \
+# GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \
+# GPUS=0,1,2,3 bash rebuttal/project_commands.sh smoke --settings C && \
+# GPUS=0,1,2,3 bash rebuttal/project_commands.sh train --settings A C && \
+# GPUS=0,1,2,3 bash rebuttal/project_commands.sh eval --settings A C && \
+# bash rebuttal/project_commands.sh report --allow-partial
