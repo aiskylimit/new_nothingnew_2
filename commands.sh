@@ -1,4 +1,4 @@
-#2 -0-5
+#1 +10
 #contra-math-code-eval
 #v1
 
