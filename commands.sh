@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/logs/ +a
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/fdd_seed_study/logs/ +a
 #contra3
 #v1
 
