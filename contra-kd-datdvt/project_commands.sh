@@ -47,8 +47,16 @@ case "${1:-cka}" in
             "${PROJECT_ROOT}" "$(( ${BASE_PORT:-20120} + 11 ))" fdd \
             > "${rerun_log}" 2>&1
         ;;
+    direct-mlp-distillm-eval)
+        eval_log_dir="${PROJECT_ROOT}/logs/gpt2_direct_mlp_ablation"
+        mkdir -p "${eval_log_dir}"
+        eval_log="${eval_log_dir}/distillm_eval_$(date -u +%Y%m%dT%H%M%SZ)-$$.log"
+        echo "Evaluating trained direct-MLP DistiLLM on GPU 6; log: ${eval_log}"
+        exec bash "${PROJECT_ROOT}/runs/gpt2/eval_direct_mlp_distillm.sh" "${PROJECT_ROOT}" \
+            > "${eval_log}" 2>&1
+        ;;
     *)
-        echo "Usage: bash project_commands.sh [cka|cka-only|loss-ramp|direct-mlp-fdd]" >&2
+        echo "Usage: bash project_commands.sh [cka|cka-only|loss-ramp|direct-mlp-fdd|direct-mlp-distillm-eval]" >&2
         exit 2
         ;;
 esac

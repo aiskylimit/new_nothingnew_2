@@ -1,5 +1,5 @@
-#2 -0-10
-#contra-math-code
+#1 +75
+#contra-direct-mlp-distillm
 #v2
 
 nvidia-smi
@@ -20,8 +20,7 @@ export NCCL_DEBUG=WARN
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
 cd ./contra-kd-datdvt
-ls /mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/eval_main/
-# bash ./project_commands.sh 
+bash ./project_commands.sh direct-mlp-distillm-eval
 
 # cd ./contra-kd-2
 # bash ./project_commands.sh export
