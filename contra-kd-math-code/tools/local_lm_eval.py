@@ -48,11 +48,7 @@ def install_local_loaders(data_root):
 
     def load_local_metric(path, *args, **kwargs):
         if path == "code_eval":
-            metric_dir = data_root / "code_eval"
-            for filename in ("code_eval.py", "execute.py"):
-                if not (metric_dir / filename).is_file():
-                    raise FileNotFoundError(f"Missing code evaluator file at {metric_dir / filename}")
-            path = str(metric_dir / "code_eval.py")
+            path = str(Path(__file__).resolve().parent / "code_eval" / "code_eval.py")
         return load_metric(path, *args, **kwargs)
 
     datasets.load_dataset = load_local_dataset

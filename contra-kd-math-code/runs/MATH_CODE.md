@@ -30,11 +30,14 @@ scripts' `contra/` layout.
 ## Offline benchmark data
 
 Run the downloader with `download.txt` to provision GSM8K, the seven MATH
-subjects, MATH-500, HumanEval, MBPP, and the `code_eval` scorer. The downloader
-places them under `/mnt/local/@PROJECT@/contra-kd-math-code/data/eval/`. The
-launcher uses `data/eval/` under the selected project directory by default.
+subjects, MATH-500, HumanEval, and MBPP. The downloader places them under
+`/mnt/local/@PROJECT@/contra-kd-math-code/data/eval/`. The launcher uses
+`data/eval/` under the selected project directory by default.
 Set `EVAL_DATA_DIR` to the downloaded directory if the code is elsewhere.
 `HF_HOME` controls the cache for processed data.
+
+The project includes the [Hugging Face Evaluate v0.4.6 scorer](https://github.com/huggingface/evaluate/tree/v0.4.6/metrics/code_eval)
+and its `execute.py` helper under `tools/code_eval/`.
 
 The launcher checks that the selected tasks load from the downloaded files
 before starting GPU jobs. You can also run this check directly with the
