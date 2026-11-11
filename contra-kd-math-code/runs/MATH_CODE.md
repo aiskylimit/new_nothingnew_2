@@ -29,20 +29,19 @@ scripts' `contra/` layout.
 
 ## Offline benchmark data
 
-On a connected machine, populate the cache using the same provisioned environment.
-The task loader caches the datasets and the Hugging Face `code_eval` metric.
-Copy the resulting cache to the offline machine and use the same `HF_HOME` there.
-Keep HumanEval and MBPP runs in an isolated environment because their scorers
-execute generated Python.
+Run the downloader with `download.txt` to provision GSM8K, the seven MATH
+subjects, MATH-500, HumanEval, MBPP, and the `code_eval` scorer. The downloader
+places them under `/mnt/local/@PROJECT@/contra-kd-math-code/data/eval/`. The
+launcher uses `data/eval/` under the selected project directory by default.
+Set `EVAL_DATA_DIR` to the downloaded directory if the code is elsewhere.
+`HF_HOME` controls the cache for processed data.
+
+The launcher checks that the selected tasks load from the downloaded files
+before starting GPU jobs. You can also run this check directly with the
+`contra` environment active.
 
 ```bash
-source /mnt/local/uvenvs/contra/bin/activate
-export HF_HOME="$PWD/.cache/huggingface"
-HF_HUB_OFFLINE=0 HF_DATASETS_OFFLINE=0 HF_ALLOW_CODE_EVAL=1 python - <<'PY'
-from lm_eval.tasks import get_task_dict
-
-get_task_dict(["gsm8k_cot", "hendrycks_math", "hendrycks_math500", "humaneval", "mbpp"])
-PY
+python3 tools/local_lm_eval.py check --tasks gsm8k_cot,hendrycks_math,hendrycks_math500,humaneval,mbpp
 ```
 
 ## Run evaluations

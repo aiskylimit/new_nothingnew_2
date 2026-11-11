@@ -1,4 +1,12 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_cka_pairing/ +a
+#d
+#datasets
+--hf-dataset openai/gsm8k /mnt/local/@PROJECT@/contra-kd-math-code/data/eval/gsm8k
+--hf-dataset EleutherAI/hendrycks_math /mnt/local/@PROJECT@/contra-kd-math-code/data/eval/hendrycks_math
+--hf-dataset HuggingFaceH4/MATH-500 /mnt/local/@PROJECT@/contra-kd-math-code/data/eval/MATH-500
+--hf-dataset openai/openai_humaneval /mnt/local/@PROJECT@/contra-kd-math-code/data/eval/humaneval
+--hf-dataset google-research-datasets/mbpp /mnt/local/@PROJECT@/contra-kd-math-code/data/eval/mbpp
+--url https://raw.githubusercontent.com/huggingface/evaluate/v0.4.6/metrics/code_eval/code_eval.py /mnt/local/@PROJECT@/contra-kd-math-code/data/eval/code_eval/
+--url https://raw.githubusercontent.com/huggingface/evaluate/v0.4.6/metrics/code_eval/execute.py /mnt/local/@PROJECT@/contra-kd-math-code/data/eval/code_eval/
 #contra-math-code-eval
 #v1
 

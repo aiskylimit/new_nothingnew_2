@@ -139,14 +139,11 @@ ENV_DIR=${ENV_DIR:-/mnt/local/uvenvs/contra}
 if [[ -f "${ENV_DIR}/bin/activate" && ${VIRTUAL_ENV:-} != "${ENV_DIR}" ]]; then
     source "${ENV_DIR}/bin/activate"
 fi
-if [[ ${SFT_ONLY} == 0 ]]; then
-    command -v lm-eval >/dev/null || fail "Provision ../contra.txt and activate the contra environment."
-    export HF_ALLOW_CODE_EVAL=1
-fi
-
 export HF_HOME=${HF_HOME:-"${BASE_PATH}/.cache/huggingface"}
 export HF_HUB_OFFLINE=${HF_HUB_OFFLINE:-1}
 export HF_DATASETS_OFFLINE=${HF_DATASETS_OFFLINE:-1}
+export HF_EVALUATE_OFFLINE=${HF_EVALUATE_OFFLINE:-1}
+export EVAL_DATA_DIR=${EVAL_DATA_DIR:-"${BASE_PATH}/data/eval"}
 export HF_HUB_DISABLE_TELEMETRY=1
 export TOKENIZERS_PARALLELISM=false
 
@@ -184,7 +181,7 @@ evaluate_checkpoint() {
 
     mkdir -p "${output_dir}" || return
     echo "[GPU ${CUDA_VISIBLE_DEVICES}] Evaluating ${model_path}. Log at ${output_dir}/eval.log"
-    if lm-eval run --model "${EVAL_BACKEND}" --model_args "${model_args}" \
+    if python3 "${PROJECT_ROOT}/tools/local_lm_eval.py" run --model "${EVAL_BACKEND}" --model_args "${model_args}" \
         "${EVAL_ARGS[@]}" --output_path "${output_dir}" > "${output_dir}/eval.log" 2>&1; then
         echo "[GPU ${CUDA_VISIBLE_DEVICES}] Completed ${model_path}"
     else
@@ -314,6 +311,9 @@ run_on_gpus() {
     return "${status}"
 }
 
+if [[ ${SFT_ONLY} == 0 ]]; then
+    python3 "${PROJECT_ROOT}/tools/local_lm_eval.py" check --tasks "${TASKS}"
+fi
 if (( ${#SFT_INDICES[@]} > 0 )); then
     run_on_gpus train_on_gpu "${#SFT_INDICES[@]}"
 fi
