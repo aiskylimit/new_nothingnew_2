@@ -1,5 +1,5 @@
-#i sft.txt
-#contra-loss-ramp
+#1 +30
+#gpu-check
 #v2
 
 nvidia-smi
