@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_direct_mlp_ablation/ +a
-#contra-direct-mlp
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_loss_ramp_ablation/ +a
+#contra-loss-ramp
 #v1
 
 nvidia-smi
