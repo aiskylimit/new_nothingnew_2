@@ -1,4 +1,5 @@
 from typing import Dict
+import json
 import numpy as np
 import os
 import time
@@ -230,8 +231,21 @@ def save_parallel(model, save_dir):
     print(f"Rank {get_rank()}: {checkpoint_name} saved.")
 
 
-def get_distillation_schedule(num_teacher_layers: int, num_student_layers: int, num_distill_layers: int):
+def get_distillation_schedule(num_teacher_layers: int, num_student_layers: int, num_distill_layers: int,
+                              pairing_file=None):
     """Create a uniform mapping of layers between teacher and student."""
+    if pairing_file is not None:
+        with open(pairing_file, encoding="utf-8") as stream:
+            pairing = json.load(stream)
+        if pairing.get("num_teacher_layers") != num_teacher_layers or pairing.get("num_student_layers") != num_student_layers:
+            raise ValueError("Layer-pairing file model depths do not match this run")
+        teacher, student = pairing.get("teacher"), pairing.get("student")
+        for name, indices, limit in [("teacher", teacher, num_teacher_layers), ("student", student, num_student_layers)]:
+            if not isinstance(indices, list) or len(indices) != num_distill_layers or any(type(x) is not int for x in indices):
+                raise ValueError(f"Invalid {name} layer indices in {pairing_file}")
+            if any(x < 1 or x >= limit for x in indices) or any(a >= b for a, b in zip(indices, indices[1:])):
+                raise ValueError(f"{name} layers must be strictly increasing interior indices")
+        return np.asarray(teacher, dtype=int), np.asarray(student, dtype=int)
     teacher_layers = np.linspace(
         0, 
         num_teacher_layers, 

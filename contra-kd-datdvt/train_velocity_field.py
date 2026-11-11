@@ -308,7 +308,8 @@ def train(
     teacher_schedule, student_schedule = get_distillation_schedule(
         args.num_teacher_layers,
         args.num_student_layers,
-        args.num_distill_layers
+        args.num_distill_layers,
+        args.layer_pairing_file
     )
 
     step, global_step = 1, 1

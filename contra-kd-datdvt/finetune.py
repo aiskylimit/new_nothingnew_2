@@ -513,7 +513,8 @@ def finetune(
         teacher_schedule, student_schedule = get_distillation_schedule(
             args.num_teacher_layers,
             args.num_student_layers,
-            args.num_distill_layers
+            args.num_distill_layers,
+            args.layer_pairing_file
         )
         output_hidden_states = True
     
@@ -1082,6 +1083,7 @@ def main():
             velocity_data_end = args.velocity_data_end
             representation_model = args.representation_model
             velocity_train_time = args.velocity_train_time
+            layer_pairing_file = args.layer_pairing_file
             
         configs = UpdateVelocityFieldConfig()
         args.velocity_num_data = int(args.train_iters_per_epoch * args.velocity_data_frac)

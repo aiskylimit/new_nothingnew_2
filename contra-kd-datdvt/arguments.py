@@ -269,6 +269,8 @@ def add_contrakd_args(parser: argparse.ArgumentParser):
                       help="Ramp the velocity target (original) or ramp only the Contra loss weight")
     group.add_argument("--velocity-train-time", choices=["uniform", "zero"], default="uniform",
                       help="Sample t uniformly as in submission-neurips, or train only at t=0")
+    group.add_argument("--layer-pairing-file", type=str, default=None,
+                      help="JSON with ordered teacher/student hidden-state indices; default is uniform pairing")
     group.add_argument("--velocity-head-dim", type=int, default=512,
                       help="Hidden dimension for MTL velocity field specialist heads")
     group.add_argument("--otcfm-ratio", type=float, default=1.0,

@@ -25,9 +25,15 @@ export PROCESSED_DATA_ROOT="${PROCESSED_DATA_ROOT:-${BASE_DIR}/processed_data}"
 export RAW_DATA_ROOT="${RAW_DATA_ROOT:-${BASE_DIR}/data/raw}"
 
 cd "${PROJECT_ROOT}"
-case "${1:-loss-ramp}" in
+case "${1:-cka}" in
     loss-ramp)
         exec bash "${PROJECT_ROOT}/runs/gpt2/run_loss_ramp_ablation.sh" "${PROJECT_ROOT}"
+        ;;
+    cka|pairing)
+        exec bash "${PROJECT_ROOT}/runs/gpt2/run_cka_end_to_end.sh" "${PROJECT_ROOT}"
+        ;;
+    cka-only)
+        exec bash "${PROJECT_ROOT}/runs/gpt2/run_cka_only.sh" "${PROJECT_ROOT}"
         ;;
     direct-mlp-fdd)
         rerun_log_dir="${PROJECT_ROOT}/logs/gpt2_direct_mlp_ablation"
@@ -42,7 +48,7 @@ case "${1:-loss-ramp}" in
             > "${rerun_log}" 2>&1
         ;;
     *)
-        echo "Usage: bash project_commands.sh [loss-ramp|direct-mlp-fdd]" >&2
+        echo "Usage: bash project_commands.sh [cka|cka-only|loss-ramp|direct-mlp-fdd]" >&2
         exit 2
         ;;
 esac
