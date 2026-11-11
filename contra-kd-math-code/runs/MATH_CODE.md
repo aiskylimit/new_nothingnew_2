@@ -104,6 +104,19 @@ under `results/eval_math_code/`. Limited runs go under its `smoke/` subdirectory
 A failed checkpoint is reported with its log path. The other evaluations finish
 and the launcher returns a nonzero status.
 
+## Export results
+
+```bash
+bash project_commands.sh export
+```
+
+The export copies `results_*.json` and `eval.log` files, including logs from
+failed runs, to `results/eval_math_code_export/` with the original relative
+paths. Running it again replaces the previous export. If the evaluations used a
+custom `EVAL_OUTPUT_DIR`, set it for the export as well or pass the directory as
+`bash project_commands.sh export /path/to/evaluations`. The export then goes to
+the sibling directory with `_export` appended to the source directory's name.
+
 ## OpenLLaMA2 LoRA
 
 The default vLLM backend uses the shared base model plus each adapter through

@@ -1,12 +1,12 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/results/eval_math_code/vllm/ +a
-#contra3-export
+#1 +30
+#contra-math-code-export
 #v1
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/results/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/results/ +a
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/results/eval_math_code/ +a
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/results/eval_math_code_export/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_direct_mlp_ablation/ +a
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_loss_ramp_ablation/ +a
 
@@ -25,8 +25,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-2
 # bash ./project_commands.sh export
 
-# cd ./contra-kd-math-code
-# bash ./project_commands.sh --sft-only/.
+cd ./contra-kd-math-code
+bash ./project_commands.sh export
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
