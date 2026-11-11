@@ -1,5 +1,5 @@
-#2 -0-3
-#cred
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/eval_main/direct_mlp_t0_fdd_base/ +a
+#contra-mlp-direct-fdd
 #v2
 
 nvidia-smi
