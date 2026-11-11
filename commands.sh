@@ -1,5 +1,8 @@
-#i cred.txt
-#contra3-export
+#d
+#datasets
+--hf-dataset VoCuc/vlm-teacher-embedding /mnt/local/@PROJECT@/cred/datasets
+
+#cred
 #v1
 
 nvidia-smi
@@ -25,8 +28,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-2
 # bash ./project_commands.sh export
 
-cd ./contra-kd-math-code
-bash ./project_commands.sh .
+# cd ./contra-kd-math-code
+# bash ./project_commands.sh .
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
@@ -40,8 +43,8 @@ bash ./project_commands.sh .
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh
 
-# cd ./cred
-# bash ./project_commands.sh
+cd ./cred
+bash ./project_commands.sh
 
 # cd ./opsd
 # bash ./project_commands.sh
