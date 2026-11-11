@@ -25,4 +25,24 @@ export PROCESSED_DATA_ROOT="${PROCESSED_DATA_ROOT:-${BASE_DIR}/processed_data}"
 export RAW_DATA_ROOT="${RAW_DATA_ROOT:-${BASE_DIR}/data/raw}"
 
 cd "${PROJECT_ROOT}"
-exec bash "${PROJECT_ROOT}/runs/gpt2/run_loss_ramp_ablation.sh" "${PROJECT_ROOT}"
+case "${1:-loss-ramp}" in
+    loss-ramp)
+        exec bash "${PROJECT_ROOT}/runs/gpt2/run_loss_ramp_ablation.sh" "${PROJECT_ROOT}"
+        ;;
+    direct-mlp-fdd)
+        rerun_log_dir="${PROJECT_ROOT}/logs/gpt2_direct_mlp_ablation"
+        mkdir -p "${rerun_log_dir}"
+        rerun_log="${rerun_log_dir}/fdd_rerun_$(date -u +%Y%m%dT%H%M%SZ)-$$.log"
+        echo "Rerunning direct MLP FDD on GPU 7; log: ${rerun_log}"
+        export CUDA_VISIBLE_DEVICES=7
+        export PET_STANDALONE=1
+        export EVAL_PORT="${EVAL_PORT:-$(( ${BASE_PORT:-20120} + 21 ))}"
+        exec bash "${PROJECT_ROOT}/runs/gpt2/direct_mlp.sh" \
+            "${PROJECT_ROOT}" "$(( ${BASE_PORT:-20120} + 11 ))" fdd \
+            > "${rerun_log}" 2>&1
+        ;;
+    *)
+        echo "Usage: bash project_commands.sh [loss-ramp|direct-mlp-fdd]" >&2
+        exit 2
+        ;;
+esac
