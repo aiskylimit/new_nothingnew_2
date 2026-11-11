@@ -87,6 +87,36 @@ Với `train`/`eval`, đổi `--settings A C` thành `--settings A` hoặc `--se
 nếu chỉ chạy một setting; bỏ tùy chọn này để chạy cả ba. Báo cáo dùng `--allow-partial` vì bỏ B
 nên chưa đủ ma trận 15 run. Training log vẫn được lưu tự động như trước.
 
+## Cách khác: train xong setting nào thì eval và xuất report ngay
+
+Dùng chuỗi này thay cho chuỗi A+C ở trên. Mỗi setting chạy đủ 5 phương pháp,
+sau đó eval và ghi report trước khi chuyển sang setting tiếp theo:
+**train A → eval A → report → train C → eval C → report**.
+Prepare, preflight và smoke chỉ chạy một lần ở đầu. Nếu một lệnh lỗi thì các
+lệnh phía sau không chạy.
+
+```bash
+bash rebuttal/project_commands.sh prepare && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh smoke --settings C && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh train --settings A && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh eval --settings A && \
+REBUTTAL_REPORTS="$PWD/rebuttal/reports-after-A" bash rebuttal/project_commands.sh report --allow-partial && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh train --settings C && \
+GPUS=0,1,2,3 bash rebuttal/project_commands.sh eval --settings C && \
+REBUTTAL_REPORTS="$PWD/rebuttal/reports-after-C" bash rebuttal/project_commands.sh report --allow-partial
+```
+
+Các run vẫn dùng chung `rebuttal/runs/`, nên không phải train lại chỉ vì đổi
+thứ tự chạy. Report lấy các kết quả đã hoàn tất trong thư mục runs: với một
+đợt chạy mới, `rebuttal/reports-after-A/` chứa kết quả A; sau khi C hoàn tất,
+`rebuttal/reports-after-C/` chứa kết quả A+C và so sánh giữa hai setting.
+Report sau C không ghi đè report sau A. Mỗi thư mục report có `results.md`,
+`metrics.json`, `paired_comparisons.md`, `costs.json` và các file chi phí theo
+setting. Không chạy setting B nên vẫn dùng `--allow-partial`.
+
+## Phạm vi smoke training
+
 Smoke mặc định chạy 5 phương pháp của setting C với backbone 1.5B, dùng các venv
 của run chính; không lặp lại setting A/7B. Smoke chọn 8 mẫu s1K thật ngắn có ít
 nhất hai đoạn. Mỗi baseline chạy 4 optimizer
