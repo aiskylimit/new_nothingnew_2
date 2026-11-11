@@ -1,5 +1,5 @@
-#i cored.txt palign.txt rebuttal_eval.txt rebuttal.txt sft.txt
-#contra3-export
+#1 +300
+#contra-math-code-eval
 #v1
 
 nvidia-smi
@@ -24,8 +24,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-2
 # bash ./project_commands.sh export
 
-# cd ./contra-kd-math-code
-# bash ./project_commands.sh --sft-only/.
+cd ./contra-kd-math-code
+bash ./project_commands.sh .
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
