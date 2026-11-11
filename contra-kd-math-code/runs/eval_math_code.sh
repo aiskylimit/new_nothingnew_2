@@ -194,7 +194,7 @@ evaluate_checkpoint() {
     fi
 }
 
-GPU_LIST=${CUDA_VISIBLE_DEVICES:-4,5,6,7}
+GPU_LIST=${CUDA_VISIBLE_DEVICES:-4,5}
 case "${GPU_LIST}" in
     ,*|*,|*,,*|*[[:space:]]*) fail "Expected comma-separated GPU IDs in CUDA_VISIBLE_DEVICES." ;;
 esac

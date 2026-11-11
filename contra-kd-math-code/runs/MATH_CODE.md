@@ -62,7 +62,7 @@ bash project_commands.sh
 
 The launcher trains GPT-2 and OpenLLaMA2 on the first two configured GPUs
 (4 and 5 by default) and waits for both checkpoints before evaluating all 22
-models on GPUs 4, 5, 6, and 7. With one GPU configured, the SFT jobs run
+models on GPUs 4 and 5. With one GPU configured, the SFT jobs run
 sequentially. Completed student checkpoints are reused. Training logs are
 under `logs/student_sft/`. If the processed Dolly data is missing, the launcher
 prepares it from the sibling `contra-kd/data/raw/dolly` download. Set

@@ -1,4 +1,6 @@
 import argparse
+import os
+from fcntl import LOCK_EX, flock
 from pathlib import Path
 from shutil import copytree
 from tempfile import TemporaryDirectory
@@ -13,8 +15,6 @@ def main():
         parser.error(f"Evaluation directory does not exist: {source}")
 
     destination = source / "results"
-    if destination.exists() or destination.is_symlink():
-        parser.error(f"Export already exists: {destination}. Move it before exporting again.")
 
     def ignore(directory, names):
         excluded = {"preds.txt", "answers.jsonl"}
@@ -26,7 +26,22 @@ def main():
         staged = Path(temporary) / destination.name
         copytree(source, staged, symlinks=True, ignore=ignore)
         size = sum(path.stat().st_size for path in staged.rglob("*") if not path.is_symlink() and path.is_file())
-        staged.rename(destination)
+        previous = Path(temporary) / "previous"
+        directory_fd = os.open(source, os.O_RDONLY)
+        try:
+            flock(directory_fd, LOCK_EX)
+            if destination.is_symlink() or (destination.exists() and not destination.is_dir()):
+                parser.error(f"Export path must be a directory: {destination}")
+            try:
+                if destination.exists():
+                    destination.rename(previous)
+                staged.rename(destination)
+            except BaseException:
+                if previous.exists() and not destination.exists():
+                    previous.rename(destination)
+                raise
+        finally:
+            os.close(directory_fd)
 
     print(f"Exported {size / 1_000_000:.2f} MB ({size:,} bytes) to {destination}")
 
