@@ -53,7 +53,7 @@ if [[ ${SFT_ONLY} == 1 ]]; then
 fi
 
 case "${FAMILY}" in all|gpt2|openllama2) ;; *) fail "Unknown family: ${FAMILY}" ;; esac
-case "${METHOD}" in all|distillm|distillm2|csd|fdd|sft|pretrained) ;; *) fail "Unknown method: ${METHOD}" ;; esac
+case "${METHOD}" in all|distillm|distillm2|csd|fdd|sft|sft-teacher|pretrained) ;; *) fail "Unknown method: ${METHOD}" ;; esac
 case "${VARIANT}" in all|baseline|contra) ;; *) fail "Unknown variant: ${VARIANT}" ;; esac
 if [[ ${SFT_ONLY} == 0 ]]; then
     case "${EVAL_BACKEND}" in vllm|hf) ;; *) fail "Unknown evaluation backend: ${EVAL_BACKEND}" ;; esac
@@ -91,6 +91,8 @@ openllama2 fdd baseline fdd/3B_7B
 openllama2 fdd contra contra/fdd/3B_7B
 gpt2 sft baseline sft/gpt2-base
 openllama2 sft baseline sft/openllama2-3B
+gpt2 sft-teacher baseline sft/gpt2-xlarge
+openllama2 sft-teacher baseline sft/openllama2-7B
 gpt2 pretrained baseline pretrained/gpt2-base
 gpt2 pretrained baseline pretrained/gpt2-xlarge
 openllama2 pretrained baseline pretrained/openllama2-3B
@@ -99,14 +101,8 @@ CHECKPOINTS
 
 (( ${#CHECKPOINTS[@]} > 0 )) || fail "No checkpoints match the requested family, method, and variant."
 
-if [[ ${FAMILY} != gpt2 && -z ${OPENLLAMA2_MERGED_ROOT} ]]; then
-    echo "OpenLLaMA2 base model: ${OPENLLAMA2_BASE_MODEL}"
-    if [[ ${LIST_ONLY} == 0 ]]; then
-        require_model "${OPENLLAMA2_BASE_MODEL}"
-    fi
-fi
-
 MODEL_PATHS=()
+ADAPTER_BASE_PATHS=()
 SFT_INDICES=()
 for i in "${!CHECKPOINTS[@]}"; do
     family=${FAMILIES[$i]}
@@ -117,15 +113,28 @@ for i in "${!CHECKPOINTS[@]}"; do
         pretrained/*) model_path="${BASE_PATH}/checkpoints/${checkpoint#pretrained/}" ;;
         *) model_path="${BASE_PATH}/results/${family}/train/${checkpoint}" ;;
     esac
-    if [[ ${family} == openllama2 && ${method} != pretrained && -n ${OPENLLAMA2_MERGED_ROOT} ]]; then
-        model_path="${OPENLLAMA2_MERGED_ROOT}/${checkpoint}"
+    adapter_base=
+    if [[ ${family} == openllama2 && ${method} != pretrained ]]; then
+        if [[ -n ${OPENLLAMA2_MERGED_ROOT} ]]; then
+            model_path="${OPENLLAMA2_MERGED_ROOT}/${checkpoint}"
+        elif [[ ${method} == sft-teacher ]]; then
+            adapter_base="${BASE_PATH}/checkpoints/openllama2-7B"
+        else
+            adapter_base="${OPENLLAMA2_BASE_MODEL}"
+        fi
     fi
     MODEL_PATHS+=("${model_path}")
+    ADAPTER_BASE_PATHS+=("${adapter_base}")
     if [[ ${LIST_ONLY} == 1 ]]; then
         printf '%s\t%s\n' "${family}" "${model_path}"
-    elif [[ ${TRAIN_SFT} == 1 && ${method} == sft && ( ${family} == gpt2 || -z ${OPENLLAMA2_MERGED_ROOT} ) ]]; then
+        continue
+    fi
+    if [[ -n ${adapter_base} ]]; then
+        require_model "${adapter_base}"
+    fi
+    if [[ ${TRAIN_SFT} == 1 && ${method} == sft && ( ${family} == gpt2 || -z ${OPENLLAMA2_MERGED_ROOT} ) ]]; then
         SFT_INDICES+=("${i}")
-    elif [[ ${family} == openllama2 && ${method} != pretrained && -z ${OPENLLAMA2_MERGED_ROOT} ]]; then
+    elif [[ -n ${adapter_base} ]]; then
         has_adapter "${model_path}" || fail "Missing LoRA config or weights in ${model_path}"
     else
         require_model "${model_path}"
@@ -149,9 +158,10 @@ export TOKENIZERS_PARALLELISM=false
 
 EVAL_ARGS=(--tasks "${TASKS}" --batch_size "${BATCH_SIZE:-auto}" --log_samples
     --gen_kwargs "max_gen_toks=${MAX_GEN_TOKS:-256}" --confirm_run_unsafe_code)
+EVAL_RUN_DIR=${EVAL_OUTPUT_DIR}
 if [[ -n ${LIMIT:-} ]]; then
     EVAL_ARGS+=(--limit "${LIMIT}")
-    EVAL_OUTPUT_DIR="${EVAL_OUTPUT_DIR}/smoke"
+    EVAL_RUN_DIR="${EVAL_OUTPUT_DIR}/smoke"
 fi
 
 evaluate_checkpoint() {
@@ -159,11 +169,12 @@ evaluate_checkpoint() {
     local family=${FAMILIES[$i]}
     local method=${METHODS[$i]}
     local model_path=${MODEL_PATHS[$i]}
+    local adapter_base=${ADAPTER_BASE_PATHS[$i]}
     local model_args output_dir status
     model_args="pretrained=${model_path},dtype=float16"
-    output_dir="${EVAL_OUTPUT_DIR}/${EVAL_BACKEND}/${family}/${CHECKPOINTS[$i]}"
-    if [[ ${family} == openllama2 && ${method} != pretrained && -z ${OPENLLAMA2_MERGED_ROOT} ]]; then
-        model_args="pretrained=${OPENLLAMA2_BASE_MODEL},dtype=float16"
+    output_dir="${EVAL_RUN_DIR}/${EVAL_BACKEND}/${family}/${CHECKPOINTS[$i]}"
+    if [[ -n ${adapter_base} ]]; then
+        model_args="pretrained=${adapter_base},dtype=float16"
         if [[ -f "${model_path}/tokenizer.json" || -f "${model_path}/tokenizer.model" ]]; then
             model_args+=",tokenizer=${model_path}"
         fi
@@ -173,7 +184,7 @@ evaluate_checkpoint() {
             model_args+=",peft=${model_path}"
         fi
     elif [[ ${family} == openllama2 && ${method} != pretrained ]]; then
-        output_dir="${EVAL_OUTPUT_DIR}/${EVAL_BACKEND}/openllama2-merged/${CHECKPOINTS[$i]}"
+        output_dir="${EVAL_RUN_DIR}/${EVAL_BACKEND}/openllama2-merged/${CHECKPOINTS[$i]}"
     fi
     if [[ ${EVAL_BACKEND} == vllm ]]; then
         model_args+=",tensor_parallel_size=1"
@@ -318,5 +329,12 @@ if (( ${#SFT_INDICES[@]} > 0 )); then
     run_on_gpus train_on_gpu "${#SFT_INDICES[@]}"
 fi
 if [[ ${SFT_ONLY} == 0 ]]; then
-    run_on_gpus evaluate_on_gpu "${#CHECKPOINTS[@]}"
+    eval_status=0
+    export_status=0
+    run_on_gpus evaluate_on_gpu "${#CHECKPOINTS[@]}" || eval_status=$?
+    python3 "${PROJECT_ROOT}/tools/export_eval_results.py" "${EVAL_OUTPUT_DIR}" || export_status=$?
+    if (( eval_status != 0 )); then
+        exit "${eval_status}"
+    fi
+    exit "${export_status}"
 fi

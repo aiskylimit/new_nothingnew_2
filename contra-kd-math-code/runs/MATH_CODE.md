@@ -6,20 +6,22 @@ LM Evaluation Harness 0.4.11 with vLLM 0.11.0. Run the commands below from the
 
 ## Checkpoints
 
-List the 22 checkpoint paths for the suite.
+List the 24 checkpoint paths for the suite.
 
 ```bash
 bash project_commands.sh --list
 ```
 
-`download.txt` provisions the 16 distillation checkpoints and four pretrained
-models under `checkpoints/` (`gpt2-base`, `gpt2-xlarge`, `openllama2-3B`, and
-`openllama2-7B`). The GPT-2 student SFT script exports a full model to
+`download.txt` provisions the 16 distillation checkpoints, both Dolly SFT teachers,
+and four pretrained models. The pretrained models live under `checkpoints/`
+(`gpt2-base`, `gpt2-xlarge`, `openllama2-3B`, and `openllama2-7B`). The GPT-2
+student SFT script exports a full model to
 `results/gpt2/train/sft/gpt2-base`. The OpenLLaMA2 student SFT script exports a
 LoRA adapter to `results/openllama2/train/sft/openllama2-3B`.
 
-All OpenLLaMA2 adapters use the shared `checkpoints/openllama2-3B` base.
-Set `OPENLLAMA2_BASE_MODEL` to use another local directory for that base.
+The OpenLLaMA2 student and distillation adapters share the
+`checkpoints/openllama2-3B` base. Set `OPENLLAMA2_BASE_MODEL` to use another local
+directory for that base. The SFT teacher adapter uses `checkpoints/openllama2-7B`.
 The launcher uses the adapter's tokenizer when present and otherwise uses the
 base tokenizer.
 
@@ -63,7 +65,7 @@ bash project_commands.sh
 ```
 
 The launcher trains GPT-2 and OpenLLaMA2 on the first two configured GPUs
-(4 and 5 by default) and waits for both checkpoints before evaluating all 22
+(4 and 5 by default) and waits for both checkpoints before evaluating all 24
 models on GPUs 4 and 5. With one GPU configured, the SFT jobs run
 sequentially. Completed student checkpoints are reused. Training logs are
 under `logs/student_sft/`. If the processed Dolly data is missing, the launcher
@@ -80,8 +82,9 @@ For a single student, pass the project directory and family, such as
 `bash project_commands.sh --sft-only . gpt2`. The training-only mode uses the
 two pretrained student bases and Dolly data.
 
-Pass a project directory to run evaluations against existing checkpoints, or
-add `--train-sft` before the directory to train the selected students first.
+Pass a project directory to evaluate existing checkpoints and export the
+results. Add `--train-sft` before the directory to train the selected students
+first.
 
 ```bash
 bash project_commands.sh .
@@ -90,10 +93,10 @@ bash project_commands.sh --train-sft . openllama2 sft
 
 The positional selectors after the project directory are family
 (`gpt2`, `openllama2`, or `all`), method (`distillm`, `distillm2`, `csd`,
-`fdd`, `sft`, `pretrained`, or `all`), and variant (`baseline`, `contra`,
-or `all`). Each defaults to `all`. Use `baseline` for SFT and pretrained
-checkpoints. Each GPU evaluates one checkpoint at a time. Set
-`CUDA_VISIBLE_DEVICES` to use a different GPU list.
+`fdd`, `sft`, `sft-teacher`, `pretrained`, or `all`), and variant (`baseline`,
+`contra`, or `all`). Each defaults to `all`. Use `sft` for the student SFT
+checkpoints and `sft-teacher` for the downloaded teachers. Each GPU evaluates
+one checkpoint at a time. Set `CUDA_VISIBLE_DEVICES` to use a different GPU list.
 
 The full suite uses GSM8K CoT, all seven subjects of MATH, HumanEval, and the
 MBPP full configuration's test split. It uses task-default prompts and greedy
@@ -101,10 +104,14 @@ decoding, with a common 256-token generation cap to leave prompt room on GPT-2.
 `MAX_GEN_TOKS` overrides that cap. Use the same settings across checkpoints.
 The harness saves scores, per-example outputs, and an `eval.log` per checkpoint
 under `results/eval_math_code/`. Limited runs go under its `smoke/` subdirectory.
-A failed checkpoint is reported with its log path. The other evaluations finish
-and the launcher returns a nonzero status.
+A failed checkpoint is reported with its log path. The launcher waits for the
+other evaluations, exports the available results and logs, and returns a
+nonzero status.
 
 ## Export results
+
+The launcher automatically refreshes the export after the evaluation workers
+finish. To refresh it separately from an existing evaluation directory, run
 
 ```bash
 bash project_commands.sh export
@@ -119,7 +126,7 @@ the sibling directory with `_export` appended to the source directory's name.
 
 ## OpenLLaMA2 LoRA
 
-The default vLLM backend uses the shared base model plus each adapter through
+The default vLLM backend uses the corresponding base model plus each adapter through
 `lora_local_path`. The default maximum rank is 16, matching the training
 scripts. Set `MAX_LORA_RANK` for a higher-rank adapter. Set `EVAL_BACKEND=hf`
 to run the same benchmarks with the Transformers/PEFT backend.

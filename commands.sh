@@ -1,5 +1,8 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/results/eval_math_code_export/ +a
-#contra-math-code-export
+#d
+#models
+--hf bachthetrollface/openllama2-3B-csd-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/csd/3B_7B
+--hf bachthetrollface/openllama2-3B-contra-csd-dolly-lora /mnt/local/@PROJECT@/contra-kd-math-code/results/openllama2/train/contra/csd/3B_7B
+#contra-math-code
 #v1
 
 nvidia-smi
@@ -26,7 +29,7 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh export
 
 cd ./contra-kd-math-code
-bash ./project_commands.sh export
+bash ./project_commands.sh .
 
 # ls OPSD/results/raw/olmo3-7b-think/opsd/
 # ls OPSD/res_tar
