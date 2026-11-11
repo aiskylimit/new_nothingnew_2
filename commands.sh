@@ -1,4 +1,4 @@
-#i coredv2.txt
+#i cred.txt
 #contra3-export
 #v1
 
