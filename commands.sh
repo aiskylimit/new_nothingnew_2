@@ -1,5 +1,5 @@
-#i cored.txt
-#cred
+#1 +120
+#cred2
 #v2
 
 nvidia-smi
@@ -40,8 +40,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh
 
-# cd ./cred
-# bash ./project_commands.sh
+cd ./cred
+bash ./project_commands.sh
 
 # cd ./opsd
 # bash ./project_commands.sh
