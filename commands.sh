@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/eval_main/direct_mlp_t0_fdd_base/ +a
+#1 +30
 #contra
 #v2
 
@@ -23,8 +23,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh nonuniform
 
-# cd ./contra-kd-2
-# bash ./project_commands.sh
+cd ./contra-kd-2
+bash ./project_commands.sh export
 
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
