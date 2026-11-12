@@ -1,5 +1,5 @@
-#1 +120
-#cred4
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/eval_main/direct_mlp_t0_fdd_base/ +a
+#contra
 #v2
 
 nvidia-smi
@@ -41,8 +41,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh
 
-cd ./cred
-bash ./project_commands.sh
+# cd ./cred
+# bash ./project_commands.sh
 
 # cd ./opsd
 # bash ./project_commands.sh
