@@ -1,6 +1,6 @@
 #2 -0-10
 #contra-training-seed
-#v2
+#v1
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
