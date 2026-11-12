@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/cka_pairing_runs/20261111T054235Z-207384/eval/fdd/ +a
-#contra-pairing-fdd
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/nonuniform_pairing_runs/20261112T021436Z-723058/eval/distillm/ +a
+#contra-nonuniform
 #v2
 
 nvidia-smi
