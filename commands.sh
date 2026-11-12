@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothing/cred/MMEB-evaloutputs-json-v5/ +a
+#2 -0-10
 #contra-training-seed
 #v2
 
