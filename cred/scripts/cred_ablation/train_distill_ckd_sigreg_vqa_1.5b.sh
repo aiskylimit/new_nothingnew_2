@@ -42,9 +42,9 @@ torchrun --standalone \
     --normalize True \
     --teacher_normalize True \
     --lr_scheduler_type "cosine" \
-    --warmup_ratio 0.03 \
+    --warmup_ratio 0.05 \
     --caching_dir caching/B3_Qwen2_2B_vqa \
-    --kd_weight 1.0 \
+    --kd_weight 0.75 \
     --kd_loss_type "ckd_sigreg_kd" \
     --image_resolution "low" \
     --projector_config_path "./config/projector_config_emo.json" \

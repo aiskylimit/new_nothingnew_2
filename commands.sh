@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/cred/MMEB-evaloutputs-json-v5/ +a
+#1 +120
 #cred3
 #v2
 
@@ -41,8 +41,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh
 
-# cd ./cred
-# bash ./project_commands.sh
+cd ./cred
+bash ./project_commands.sh
 
 # cd ./opsd
 # bash ./project_commands.sh
