@@ -1,5 +1,5 @@
-#2 -0-10
-#contra-nonuniform
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/fdd_seed_study/batch_size_sweep/logs +a
+#contra-training-seed
 #v2
 
 nvidia-smi
