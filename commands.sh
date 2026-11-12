@@ -1,4 +1,4 @@
-#1 +300
+#2 -0-10
 #contra-training-seed
 #v2
 
