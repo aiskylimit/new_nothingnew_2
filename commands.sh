@@ -1,5 +1,5 @@
 #1 +120
-#cred3
+#contra-nonuniform-pair
 #v2
 
 nvidia-smi
@@ -20,8 +20,8 @@ export NCCL_DEBUG=WARN
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-# cd ./contra-kd-datdvt
-# bash ./project_commands.sh direct-mlp-distillm-eval
+cd ./contra-kd-datdvt
+bash ./project_commands.sh nonuniform
 
 # cd ./contra-kd-2
 # bash ./project_commands.sh
@@ -41,8 +41,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh
 
-cd ./cred
-bash ./project_commands.sh
+# cd ./cred
+# bash ./project_commands.sh
 
 # cd ./opsd
 # bash ./project_commands.sh

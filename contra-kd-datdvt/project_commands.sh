@@ -25,7 +25,10 @@ export PROCESSED_DATA_ROOT="${PROCESSED_DATA_ROOT:-${BASE_DIR}/processed_data}"
 export RAW_DATA_ROOT="${RAW_DATA_ROOT:-${BASE_DIR}/data/raw}"
 
 cd "${PROJECT_ROOT}"
-case "${1:-cka}" in
+case "${1:-}" in
+    nonuniform)
+        exec bash "${PROJECT_ROOT}/runs/gpt2/run_nonuniform_pairing.sh" "${PROJECT_ROOT}"
+        ;;
     loss-ramp)
         exec bash "${PROJECT_ROOT}/runs/gpt2/run_loss_ramp_ablation.sh" "${PROJECT_ROOT}"
         ;;
@@ -56,7 +59,7 @@ case "${1:-cka}" in
             > "${eval_log}" 2>&1
         ;;
     *)
-        echo "Usage: bash project_commands.sh [cka|cka-only|loss-ramp|direct-mlp-fdd|direct-mlp-distillm-eval]" >&2
+        echo "Usage: bash project_commands.sh [nonuniform|cka|cka-only|loss-ramp|direct-mlp-fdd|direct-mlp-distillm-eval]" >&2
         exit 2
         ;;
 esac
