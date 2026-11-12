@@ -36,6 +36,8 @@ bash project_commands.sh export
 The launcher copies `results/gpt2/eval_main/` into its `results/` subdirectory.
 The copy preserves relative paths and skips `preds.txt` and `answers.jsonl`.
 Each run replaces the previous export with a fresh copy and prints its size.
+Batch-size sweep outputs are copied under `results/fdd_seed_study/batch_size_sweep/`
+within `results/gpt2/eval_main/`.
 
 ## Multi-seed study
 
@@ -69,6 +71,27 @@ scores, predictions, per-transition MSE, job logs, and `summary.json`. Rerunning
 the study reuses completed preprocessing, training and evaluation stages.
 Incomplete training restarts from the initial student checkpoint. Use a fresh
 output directory if you change the study inputs.
+
+## FDD + CONTRA evaluation batch sizes
+
+```bash
+bash project_commands.sh fdd-batch-size-sweep
+```
+
+The sweep evaluates the existing FDD + CONTRA checkpoints for training seeds
+`1024 2048 4096` at batch sizes `32 16 8`. Each checkpoint uses Dolly,
+Self-Instruct, Vicuna, and SInst with generation seeds `10 20 30 40 50` at
+each batch size. This runs 180 evaluations and reuses completed outputs on
+restart. The original batch-size-64 outputs are under `fdd_seed_study/generation/`.
+
+The default GPUs are `4 5 6`, one per training seed. Set `FDD_BATCH_SWEEP_GPUS`
+to a space-separated list of one to three physical GPU indices. Set
+`FDD_STUDY_TRAIN_ROOT` if the saved checkpoints live outside the usual study
+training directory.
+
+Each batch size writes to `fdd_seed_study/batch_size_sweep/bs<size>/generation/`
+under `results/gpt2/eval_main/`. After the sweep completes, the launcher refreshes
+the standard export with the evaluation arguments, metrics, and logs.
 
 ## Coarse feature dynamics
 
