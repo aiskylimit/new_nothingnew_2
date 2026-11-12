@@ -6,6 +6,7 @@ set -m
 
 BASE_PATH=$(cd "${1:-.}" && pwd)
 cd "${BASE_PATH}"
+STUDY_MODE=${2:-original}
 TRAIN_ROOT="${BASE_PATH}/results/gpt2/train/fdd_seed_study"
 EVAL_ROOT="${BASE_PATH}/results/gpt2/eval_main/fdd_seed_study"
 LOG_DIR="${EVAL_ROOT}/logs"
@@ -32,11 +33,21 @@ for gpu in "${GPUS[@]}"; do
     fi
     seen+="${gpu} "
 done
-JOBS_PER_GPU=${FDD_STUDY_JOBS_PER_GPU:-2}
-if [[ ${JOBS_PER_GPU} != 1 && ${JOBS_PER_GPU} != 2 ]]; then
-    echo "FDD_STUDY_JOBS_PER_GPU must be 1 or 2." >&2
-    exit 2
-fi
+case "${STUDY_MODE}" in
+    additional-seeds)
+        TRAIN_SEEDS=(1444 2444 3444 4444)
+        BATCH_SIZES=(64 32 16 8)
+        ;;
+    original)
+        BATCH_SIZES=(64)
+        JOBS_PER_GPU=${FDD_STUDY_JOBS_PER_GPU:-2}
+        if [[ ${JOBS_PER_GPU} != 1 && ${JOBS_PER_GPU} != 2 ]]; then
+            echo "FDD_STUDY_JOBS_PER_GPU must be 1 or 2." >&2
+            exit 2
+        fi
+        ;;
+    *) echo "Unknown seed study mode: ${STUDY_MODE}" >&2; exit 2 ;;
+esac
 
 BENCHMARKS=(dolly self_inst vicuna sinst)
 DATA_NAMES=(dolly self_inst vicuna sinst_11_)
@@ -133,7 +144,7 @@ if [[ ! -s ${PROCESSED_DATA_ROOT}/.complete ]]; then
 fi
 
 run_student() {
-    local method=$1 seed=$2 port=$3 i eval_seed metrics train_script
+    local method=$1 seed=$2 port=$3 i eval_seed batch_size save_path result train_script
     local ckpt="fdd_seed_study/${method}/${seed}"
     local student_path="${BASE_PATH}/results/gpt2/train/${ckpt}"
     local field_path="${TRAIN_ROOT}/fields/${seed}"
@@ -164,20 +175,37 @@ run_student() {
         printf 'complete\n' > "${student_path}/.complete"
     fi
 
-    for i in "${!BENCHMARKS[@]}"; do
-        for eval_seed in "${EVAL_SEEDS[@]}"; do
-            metrics="${EVAL_ROOT}/generation/${method}/${seed}/${DATA_NAMES[$i]}-512/${eval_seed}/metrics.json"
-            if [[ ! -s ${metrics} ]]; then
-                bash "scripts/gpt2/eval/eval_main_${BENCHMARKS[$i]}.sh" "${BASE_PATH}" "$((port + 2))" 1 "${ckpt}" \
-                    --ckpt-name "${method}/${seed}" --save "${EVAL_ROOT}/generation" \
-                    --seed "${eval_seed}" --eval-batch-size 64
-                test -s "${metrics}"
-            fi
+    for batch_size in "${BATCH_SIZES[@]}"; do
+        save_path="${EVAL_ROOT}/generation"
+        if [[ ${STUDY_MODE} == additional-seeds ]]; then
+            save_path="${EVAL_ROOT}/batch_size_sweep/bs${batch_size}/generation"
+        fi
+        for i in "${!BENCHMARKS[@]}"; do
+            for eval_seed in "${EVAL_SEEDS[@]}"; do
+                result="${save_path}/${method}/${seed}/${DATA_NAMES[$i]}-512/${eval_seed}"
+                if [[ ! -s ${result}/metrics.json || ! -s ${result}/args.json ]]; then
+                    bash "scripts/gpt2/eval/eval_main_${BENCHMARKS[$i]}.sh" "${BASE_PATH}" "$((port + 2))" 1 "${ckpt}" \
+                        --ckpt-name "${method}/${seed}" --save "${save_path}" \
+                        --seed "${eval_seed}" --eval-batch-size "${batch_size}"
+                    test -s "${result}/metrics.json"
+                    test -s "${result}/args.json"
+                fi
+            done
         done
     done
 }
 
 # Each pipeline keeps its assigned GPU through field pretraining, training, and generation evaluation.
+if [[ ${STUDY_MODE} == additional-seeds ]]; then
+    for i in "${!TRAIN_SEEDS[@]}"; do
+        seed=${TRAIN_SEEDS[$i]}
+        start_job "contra_fdd_${seed}" "${GPUS[$i]}" run_student contra_fdd "${seed}" "$((BASE_PORT + 3 * i))"
+    done
+    wait_for_jobs
+    echo "Additional seed study complete. Results: ${EVAL_ROOT}/batch_size_sweep"
+    exit 0
+fi
+
 start_job contra_fdd_1024 "${GPUS[0]}" run_student contra_fdd 1024 "$((BASE_PORT + 0))"
 start_job contra_fdd_2048 "${GPUS[1]}" run_student contra_fdd 2048 "$((BASE_PORT + 3))"
 start_job contra_fdd_4096 "${GPUS[2]}" run_student contra_fdd 4096 "$((BASE_PORT + 6))"

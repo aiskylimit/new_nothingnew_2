@@ -39,10 +39,37 @@ Each run replaces the previous export with a fresh copy and prints its size.
 Batch-size sweep outputs are copied under `results/fdd_seed_study/batch_size_sweep/`
 within `results/gpt2/eval_main/`.
 
-## Multi-seed study
+## Additional FDD + CONTRA training seeds
 
-The training launcher is retained as comments in `project_commands.sh`.
-The study trains FDD and FDD + CONTRA at seeds `1024`, `2048`, and
+```bash
+bash project_commands.sh fdd-seed-study
+```
+
+The command runs four new FDD + CONTRA pipelines concurrently. Each pipeline
+pretrains its own projector and velocity field, trains a student, then evaluates
+the saved checkpoint on the same GPU. The default mapping is:
+
+| Physical GPU | Training seed |
+| --- | --- |
+| 4 | 1444 |
+| 5 | 2444 |
+| 6 | 3444 |
+| 7 | 4444 |
+
+Each checkpoint is evaluated at batch sizes `64 32 16 8` on Dolly,
+Self-Instruct, Vicuna, and SInst with generation seeds `10 20 30 40 50`.
+There are 80 generation evaluations per checkpoint. The launcher reuses the
+original study's preprocessing and resumes from completed stages. Set
+`FDD_STUDY_GPUS` to override the four physical GPU indices.
+
+Training and evaluation logs are in `fdd_seed_study/logs/contra_fdd_<seed>.log`.
+Each batch size writes to `fdd_seed_study/batch_size_sweep/bs<size>/generation/`
+under `results/gpt2/eval_main/`. The command refreshes the standard file export
+after all four pipelines complete.
+
+## Original multi-seed study
+
+The original study trains FDD and FDD + CONTRA at seeds `1024`, `2048`, and
 `4096`. The `--seed` argument controls Python, NumPy and PyTorch randomness,
 including training data order in fine-tuning, field pretraining and field
 updates. The launcher preprocesses Dolly and OpenWebText once. Each CONTRA run

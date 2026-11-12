@@ -1,5 +1,5 @@
-#2 -1-4
-#gpu-check
+#1 +300
+#contra-multiple-seeds-2
 #v2
 
 nvidia-smi
@@ -23,8 +23,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh nonuniform
 
-# cd ./contra-kd-2
-# bash ./project_commands.sh fdd-batch-size-sweep
+cd ./contra-kd-2
+bash ./project_commands.sh fdd-seed-study
 
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
