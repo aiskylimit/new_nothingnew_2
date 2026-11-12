@@ -1,5 +1,5 @@
-#2 -0-10
-#contra-math-code
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/cred/MMEB-evaloutputs-json-v5/ +a
+#cred3
 #v2
 
 nvidia-smi
