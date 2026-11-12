@@ -23,8 +23,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh nonuniform
 
-cd ./contra-kd-2
-bash ./project_commands.sh fdd-batch-size-sweep
+# cd ./contra-kd-2
+# bash ./project_commands.sh fdd-batch-size-sweep
 
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
