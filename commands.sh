@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/cred/MMEB-evaloutputs-json-v5/ +a
-#cred3
+#1 +75
+#log
 #v2
 
 nvidia-smi
@@ -20,7 +20,8 @@ export NCCL_DEBUG=WARN
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-# cd ./contra-kd-datdvt
+cd ./contra-kd-datdvt
+ls /mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/cka_pairing_runs/
 # bash ./project_commands.sh direct-mlp-distillm-eval
 
 # cd ./contra-kd-2
