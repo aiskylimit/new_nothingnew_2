@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothing/cred/MMEB-evaloutputs-json-v5/ +a
-#contra-training-seed
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_nonuniform_pairing/20261112T021436Z-723058/ +a
+#contra-nonuniform
 #v1
 
 nvidia-smi
@@ -23,8 +23,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh nonuniform
 
-cd ./contra-kd-2
-bash ./project_commands.sh fdd-batch-size-sweep
+# cd ./contra-kd-2
+# bash ./project_commands.sh fdd-batch-size-sweep
 
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
