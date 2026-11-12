@@ -1,4 +1,4 @@
-#1 +300
+#2 -0-10
 #contra-multiple-seeds-2
 #v2
 
@@ -23,8 +23,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh nonuniform
 
-cd ./contra-kd-2
-bash ./project_commands.sh fdd-seed-study
+# cd ./contra-kd-2
+# bash ./project_commands.sh fdd-seed-study
 
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
