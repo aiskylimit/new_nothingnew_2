@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/cka_pairing_runs/20261111T054235Z-207384/eval/distillm/ +a
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/cka_pairing_runs/20261111T054235Z-207384/eval/fdd/ +a
 #contra-math-code
 #v2
 
