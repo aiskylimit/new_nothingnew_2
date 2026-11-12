@@ -1,4 +1,4 @@
-#2 -0-10
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/eval_main/direct_mlp_t0_distillm_0.1B_1.5B/ +a
 #contra-math-code
 #v2
 
