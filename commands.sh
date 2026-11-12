@@ -1,5 +1,5 @@
-#1 +300
-#contra-training-seed
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/cka_pairing_runs/20261111T054235Z-207384/eval/fdd/ +a
+#contra-pairing-fdd
 #v2
 
 nvidia-smi
@@ -23,8 +23,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-datdvt
 # bash ./project_commands.sh nonuniform
 
-cd ./contra-kd-2
-bash ./project_commands.sh fdd-batch-size-sweep
+# cd ./contra-kd-2
+# bash ./project_commands.sh fdd-batch-size-sweep
 
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
