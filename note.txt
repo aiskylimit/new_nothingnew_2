@@ -1,0 +1,63 @@
+
+## Chạy end-to-end cả 3 setting
+
+```bash
+# Máy có Internet: cài thư viện, tải model/data, prepare, kiểm tra, train/eval và report.
+GPUS=3,4,5 bash rebuttal/project_commands.sh endtoend --online
+
+# Máy offline: cần provision đủ thư viện và model/data trước.
+GPUS=3,4,5 bash rebuttal/project_commands.sh endtoend --offline
+```
+
+
+
+
+# Thực nghiệm chính 15 runs trên 3 B200 (sửa GPUS theo số GPU thực tế được cấp).
+# Máy B200 OFFLINE, thư viện/model/data đã được provision: một lệnh từ prepare tới report.
+GPUS=3,4,5 bash rebuttal/project_commands.sh endtoend --offline
+
+# Nếu máy CÓ INTERNET và cần cả cài thư viện/tải assets: dùng lệnh thay thế này.
+# Cần uv trước (nếu thiếu: python3 -m pip install uv).
+# GPUS=3,4,5 bash rebuttal/project_commands.sh endtoend --online
+# --online = setup 7 venv (có rebuttal_eval riêng) -> tải assets -> prepare -> preflight -> all -> report.
+# --offline KHÔNG cài/tải online; all giữ nghĩa cũ là train + eval, cần dữ liệu đã prepare.
+# Có thể chạy riêng: bash rebuttal/project_commands.sh setup
+#                   bash rebuttal/project_commands.sh download
+# Nếu đã tải bằng công cụ download.txt nhưng chưa có snapshot.json, xác thực offline:
+# bash rebuttal/project_commands.sh download --attest-managed
+
+# Chạy thử nhỏ, lưu riêng khỏi thí nghiệm chính
+REBUTTAL_RUNS="$PWD/rebuttal/smoke-runs" \
+  bash rebuttal/project_commands.sh smoke
+
+# Smoke test in 2x3090
+# Chỉ cần khi chưa cài môi trường/tải assets; cần Internet
+bash rebuttal/smoke_2x3090.sh setup
+bash rebuttal/smoke_2x3090.sh download
+GPUS=0,1 bash rebuttal/smoke_2x3090.sh all
+# GPUS=0,1 bash rebuttal/smoke_2x3090.sh all --settings C
+
+
+# Formal Setting B tren 2 H100: du lieu Gemini THAT, 5 phuong phap, 3 epochs.
+# Batch 32 = 1 mau/GPU x 2 GPU x accumulation 16; CORED exact batch 32 theo token budget.
+# Eval du 4 math benchmarks, tong 64 responses/cau qua 5 seeds; Setting B khong OOD.
+# Tu root repo. Setup/download chi can 1 lan tren may co Internet; bo qua neu da provision.
+# Neu chua co uv: python3 -m pip install uv
+bash rebuttal/formal_B_2h100.sh setup
+bash rebuttal/formal_B_2h100.sh download
+GPUS=0,1 bash rebuttal/formal_B_2h100.sh all
+
+# all = prepare -> preflight 2 H100 -> preprocess/train/eval 5 methods -> report.
+# Resume: chay lai dung lenh all. Ket qua rieng: rebuttal/runs-B-2h100/ va reports-B-2h100/.
+# Xem run/stage loi: rebuttal/runs-B-2h100/launcher_status.json va <run_id>/logs/.
+# Chi chay/resume 1 method:
+# GPUS=0,1 bash rebuttal/formal_B_2h100.sh all --run-id B_cored_7b_seed42
+# Tao lai report khi da du 5 methods:
+# bash rebuttal/formal_B_2h100.sh report
+
+# setup ở trên tự cài cả venv eval chung rebuttal_eval từ rebuttal_eval.txt.
+# all tự kiểm tra evaluator trên từng GPU trước khi train; có thể check riêng:
+# GPUS=0,1 bash rebuttal/smoke_2x3090.sh check-eval --sizes 1.5b
+# Venv train/preprocess vẫn cần CUDA build hợp driver; eval chung không tự sửa cored.
+
+

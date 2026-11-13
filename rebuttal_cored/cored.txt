@@ -1,0 +1,19 @@
+# manager: uv
+# python: 3.11
+# fresh: true
+torch==2.11.0
+torchvision==0.26.0
+torchaudio==2.11.0
+transformers==5.16.1
+peft==0.20.0
+vllm==0.26.0
+datasets==5.0.1
+accelerate==1.13.0
+math-verify==0.9.0
+safetensors
+setproctitle
+pyyaml==6.0.3
+numpy==2.2.6
+pyarrow
+sentencepiece
+tqdm

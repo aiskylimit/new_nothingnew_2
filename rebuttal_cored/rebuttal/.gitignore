@@ -1,0 +1,7 @@
+assets/
+prepared/
+runs/
+reports/
+smoke-runs/
+smoke-4gpu/
+__pycache__/
