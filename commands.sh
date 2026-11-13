@@ -1,10 +1,5 @@
-#d
-#datasets
---url https://huggingface.co/datasets/nlphuji/flickr30k/resolve/main/flickr30k-images.zip /mnt/local/@PROJECT@/VLM_Embed_Gvendi/vlm2vec_external/flickr30k
---url https://huggingface.co/datasets/nlphuji/flickr30k/resolve/main/flickr_annotations_30k.csv /mnt/local/@PROJECT@/VLM_Embed_Gvendi/vlm2vec_external/flickr30k
-
-
-#pga
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/results/ +a
+#contra-multiple-seed-2
 #v1
 
 
