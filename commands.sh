@@ -1,6 +1,13 @@
 #d
 #datasets
---hf-dataset minhhotboy9x/VLM_embed_cache /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
+--url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/B3_Qwen2_2B_cls.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
+--url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/B3_Qwen2_2B_vqa.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
+--url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/B3_Qwen2_2B_grounding.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
+--url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/B3_Qwen2_7B_cls.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
+--url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/Qwen3VL_8B_cls.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
+--url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/Qwen3VL_8B_vqa.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
+--url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/Qwen3VL_8B_grounding.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
+
 
 #gpu-check
 #v1
