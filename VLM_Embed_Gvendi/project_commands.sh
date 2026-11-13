@@ -4,8 +4,8 @@ set -e
 source /mnt/local/uvenvs/cred/bin/activate
 
 
-# bash set_base_model_path.sh
-# # python -c "import zipfile; zipfile.ZipFile('en_core_web_sm.zip/en_core_web_sm.zip').extractall('.')"
+bash set_base_model_path.sh
+# python -c "import zipfile; zipfile.ZipFile('en_core_web_sm.zip/en_core_web_sm.zip').extractall('.')"
 # python fix_lib.py
 
 # # #
@@ -28,22 +28,21 @@ source /mnt/local/uvenvs/cred/bin/activate
 # unzip ./datasets/MSCOCO.zip -d ./vlm2vec_train/MMEB-train/images/
 # unzip ./vlm2vec_external/flickr30k/flickr30k-images.zip -d ./vlm2vec_external/flickr30k/
 
-# # #
-# # # 4. Unzip the cache
-# # #
-# tar -xzf ./datasets/B3_Qwen2_2B_cls.tar.gz -C .
-# tar -xzf ./datasets/B3_Qwen2_2B_vqa.tar.gz -C .
-# tar -xzf ./datasets/B3_Qwen2_2B_grounding.tar.gz -C .
-# tar -xzf ./datasets/B3_Qwen2_7B_cls.tar.gz -C .
+# #
+# # 4. Unzip the cache
+# #
+tar -xzf ./datasets/B3_Qwen2_2B_cls.tar.gz -C .
+tar -xzf ./datasets/B3_Qwen2_2B_vqa.tar.gz -C .
+tar -xzf ./datasets/B3_Qwen2_2B_grounding.tar.gz -C .
+tar -xzf ./datasets/B3_Qwen2_7B_cls.tar.gz -C .
+tar -xzf ./datasets/Qwen3VL_8B_cls.tar.gz -C .
+tar -xzf ./datasets/Qwen3VL_8B_vqa.tar.gz -C .
+tar -xzf ./datasets/Qwen3VL_8B_grounding.tar.gz -C .
 
-# tar -xzf ./datasets/Qwen3VL_8B_cls.tar.gz -C .
-# tar -xzf ./datasets/Qwen3VL_8B_vqa.tar.gz -C .
-# tar -xzf ./datasets/Qwen3VL_8B_grounding.tar.gz -C .
-
-CUDA_VISIBLE_DEVICES=0 bash ./scripts/pga2/train_distill_pga2_B3-Qwen2-2B_Llava-OV-0.5B_grounding.sh
-CUDA_VISIBLE_DEVICES=1 bash ./scripts/pga2/train_distill_pga2_B3-Qwen2-2B_Llava-OV-0.5B_vqa.sh
-CUDA_VISIBLE_DEVICES=2 bash ./scripts/pga2/train_distill_pga2_Qwen3-VL-8B-Instruct_Llava-OV-0.5B_vqa.sh
-CUDA_VISIBLE_DEVICES=3 bash ./scripts/pga2/train_distill_pga2_Qwen3-VL-8B-Instruct_Llava-OV-0.5B_grounding.sh
+CUDA_VISIBLE_DEVICES=0 bash ./scripts/pga2/train_distill_pga2_B3-Qwen2-2B_Llava-OV-0.5B_grounding.sh &
+CUDA_VISIBLE_DEVICES=1 bash ./scripts/pga2/train_distill_pga2_B3-Qwen2-2B_Llava-OV-0.5B_vqa.sh &
+CUDA_VISIBLE_DEVICES=2 bash ./scripts/pga2/train_distill_pga2_Qwen3-VL-8B-Instruct_Llava-OV-0.5B_vqa.sh &
+CUDA_VISIBLE_DEVICES=3 bash ./scripts/pga2/train_distill_pga2_Qwen3-VL-8B-Instruct_Llava-OV-0.5B_grounding.sh &
 
 
 #!/bin/bash
@@ -67,27 +66,6 @@ CUDA_VISIBLE_DEVICES=3 bash ./scripts/pga2/train_distill_pga2_Qwen3-VL-8B-Instru
 #         echo "[GPU $gpu] done  ${cfg}_${task}"
 #     done
 # }
-
-# run_queue 0 cls &
-# run_queue 1 grounding &
-# run_queue 3 vqa &
-# wait
-
-# bash run_time_mem.sh &
-# CUDA_VISIBLE_DEVICES=6 bash ./baseline_scripts/train_distill_span_attn_vqa.sh
-# CUDA_VISIBLE_DEVICES=6 bash baseline_scripts/train_distill_ckd_sigreg_cls.sh &
-
-# CUDA_VISIBLE_DEVICES=4 bash ./script_full/train_distill_sigreg_cls_pr.sh &
-# CUDA_VISIBLE_DEVICES=5 bash ./script_full/train_distill_sigreg_cls_abl.sh &
-# CUDA_VISIBLE_DEVICES=6 bash ./script_full/train_distill_sigreg_llava_ov_cls_bz16_2.sh 1 1 1 1 1.0 2.0 256 0.02 &
-
-# wait
-
-# CUDA_VISIBLE_DEVICES=7 bash script_full/infer_erank_analyze_cls.sh 1 1 1 0 1.0 1.0 256 0.07 &
-# CUDA_VISIBLE_DEVICES=2 bash script_full/infer_erank_analyze_cls.sh 1 1 1 1 1.0 0.5 5 0.02 &
-# CUDA_VISIBLE_DEVICES=7 bash script_full/infer_erank_analyze_cls_ov.sh 1 1 1 1 1.0 1.0 256 0.02 &
-# CUDA_VISIBLE_DEVICES=6 bash script_full/infer_erank_analyze_cls_ov.sh 1 1 1 1 1.0 2.0 256 0.02 &
-# CUDA_VISIBLE_DEVICES=7 bash ./script_full/infer_erank_analyze_cls_2.sh
 
 # =========================
 # 9. Copy JSON eval outputs

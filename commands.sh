@@ -2,7 +2,6 @@
 #log
 #v2
 
-cp -R cred/vlm2vec_eval cred/vlm2vec_train VLM_Embed_Gvendi/
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
@@ -31,11 +30,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
 
-# ls OPSD/results/raw/olmo3-7b-think/opsd/
-# ls OPSD/res_tar
-# mkdir -p ./res_tar
-# cd OPSD
-# tar -czf - ./results/raw/ | split -b 24M - ./res_tar/opsd_2.tar.gz.part-
+cd ./VLM_Embed_Gvendi
+bash ./project_commands.sh
 
 # cd ./learn2follow
 # bash ./project_commands.sh
@@ -55,14 +51,3 @@ export NCCL_DEBUG=WARN
 # cd ./grit
 # bash ./project_commands.sh
 
-# mkdir -p /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal
-# mv /mnt/local/aiskylimit_new_nothingnew_2/rebuttal/assets \
-#    /mnt/local/aiskylimit_new_nothingnew_2/rebuttal_cored/rebuttal/
-
-# cd rebuttal_cored
-# bash rebuttal/project_commands.sh prepare && \
-# GPUS=0,1,2,3 bash rebuttal/project_commands.sh preflight && \
-# GPUS=0,1,2,3 bash rebuttal/project_commands.sh smoke --settings C && \
-# GPUS=0,1,2,3 bash rebuttal/project_commands.sh train --settings A C && \
-# GPUS=0,1,2,3 bash rebuttal/project_commands.sh eval --settings A C && \
-# bash rebuttal/project_commands.sh report --allow-partial
