@@ -1,6 +1,8 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/results/gpt2/train/cka_pairing_runs/20261111T054235Z-207384/ +a
-#contra-multiple-seeds-2
+#1 +10
+#log
 #v2
+
+cp -R cred/vlm2vec_eval cred/vlm2vec_train VLM_Embed_Gvendi/
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
