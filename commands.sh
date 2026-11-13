@@ -1,5 +1,5 @@
 #1 +30
-#pga
+#pga-unzip
 #v1
 
 
@@ -30,9 +30,9 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
 
-cp -R cred/eval_images VLM_Embed_Gvendi/
 cd ./VLM_Embed_Gvendi
-bash ./project_commands.sh
+unzip ./vlm2vec_external/flickr30k/flickr30k-images.zip -d ./vlm2vec_external/flickr30k/
+# bash ./project_commands.sh
 
 # cd ./learn2follow
 # bash ./project_commands.sh
