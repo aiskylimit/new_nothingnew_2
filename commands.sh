@@ -1,5 +1,5 @@
 #1 +10
-#log
+#gpu-check
 #v2
 
 
