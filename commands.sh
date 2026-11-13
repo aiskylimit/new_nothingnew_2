@@ -1,20 +1,8 @@
-#d
-#datasets
---hf-dataset minhhotboy9x/VLM_embed_cache /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
-#models
---hf raghavlite/B3_Qwen2_2B /mnt/local/@PROJECT@/VLM_Embed_Gvendi/models/B3_Qwen2_2B
---hf raghavlite/B3_Qwen2_7B /mnt/local/@PROJECT@/VLM_Embed_Gvendi/models/B3_Qwen2_7B
---hf apple/FastVLM-0.5B /mnt/local/@PROJECT@/VLM_Embed_Gvendi/models/FastVLM-0.5B
---hf llava-hf/llava-onevision-qwen2-0.5b-ov-hf /mnt/local/@PROJECT@/VLM_Embed_Gvendi/models/llava-onevision-qwen2-0.5b-ov-hf
---hf Qwen/Qwen2-VL-2B-Instruct /mnt/local/@PROJECT@/VLM_Embed_Gvendi/models/Qwen2-VL-2B-Instruct
---hf Qwen/Qwen2-VL-7B-Instruct /mnt/local/@PROJECT@/VLM_Embed_Gvendi/models/Qwen2-VL-7B-Instruct
---hf Qwen/Qwen2.5-VL-3B-Instruct /mnt/local/@PROJECT@/VLM_Embed_Gvendi/models/Qwen2.5-VL-3B-Instruct
---hf Qwen/Qwen3-VL-Embedding-8B /mnt/local/@PROJECT@/VLM_Embed_Gvendi/models/Qwen3-VL-Embedding-8B
---hf OpenGVLab/InternVL-14B-Flickr30K-FT-364px /mnt/local/@PROJECT@/VLM_Embed_Gvendi/models/InternVL-14B-Flickr30K-FT-364px
-
+#1 +10
 #log
 #v2
 
+cp -R cred/vlm2vec_eval cred/vlm2vec_train VLM_Embed_Gvendi/
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
