@@ -1,17 +1,8 @@
-#d
-#datasets
---url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/B3_Qwen2_2B_cls.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
---url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/B3_Qwen2_2B_vqa.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
---url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/B3_Qwen2_2B_grounding.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
---url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/B3_Qwen2_7B_cls.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
---url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/Qwen3VL_8B_cls.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
---url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/Qwen3VL_8B_vqa.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
---url https://huggingface.co/minhhotboy9x/VLM_embed_cache/resolve/main/Qwen3VL_8B_grounding.tar.gz /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
-
-
+#1 +10
 #gpu-check
 #v1
 
+tree ./VLM_Embed_Gvendi/datasets
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
