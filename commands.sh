@@ -3,7 +3,7 @@
 --hf-dataset minhhotboy9x/VLM_embed_cache /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
 
 #log
-#v2
+#v1
 
 
 nvidia-smi
