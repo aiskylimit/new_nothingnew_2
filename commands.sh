@@ -1,8 +1,5 @@
-#d
-#datasets
---hf-dataset minhhotboy9x/VLM_embed_cache /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
-
-#log
+#1 +30
+#gpu-check
 #v1
 
 
@@ -33,8 +30,8 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
 
-cd ./VLM_Embed_Gvendi
-bash ./project_commands.sh
+# cd ./VLM_Embed_Gvendi
+# bash ./project_commands.sh
 
 # cd ./learn2follow
 # bash ./project_commands.sh
