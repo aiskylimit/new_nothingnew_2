@@ -1,4 +1,7 @@
-#1 +30
+#d
+#datasets
+--hf-dataset minhhotboy9x/VLM_embed_cache /mnt/local/@PROJECT@/VLM_Embed_Gvendi/datasets
+
 #gpu-check
 #v1
 
