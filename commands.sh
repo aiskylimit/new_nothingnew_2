@@ -1,8 +1,12 @@
-#1 +10
-#gpu-check
+#d
+#datasets
+--url https://huggingface.co/datasets/nlphuji/flickr30k/resolve/main/flickr30k-images.zip /mnt/local/@PROJECT@/VLM_Embed_Gvendi/vlm2vec_external/flickr30k
+--url https://huggingface.co/datasets/nlphuji/flickr30k/resolve/main/flickr_annotations_30k.csv /mnt/local/@PROJECT@/VLM_Embed_Gvendi/vlm2vec_external/flickr30k
+
+
+#pga
 #v1
 
-tree ./VLM_Embed_Gvendi/datasets
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
@@ -31,8 +35,9 @@ export NCCL_DEBUG=WARN
 # cd ./contra-kd-math-code
 # bash ./project_commands.sh .
 
-# cd ./VLM_Embed_Gvendi
-# bash ./project_commands.sh
+cp -R cred/eval_images VLM_Embed_Gvendi/
+cd ./VLM_Embed_Gvendi
+bash ./project_commands.sh
 
 # cd ./learn2follow
 # bash ./project_commands.sh

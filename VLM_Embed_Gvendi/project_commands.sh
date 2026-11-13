@@ -11,22 +11,22 @@ bash set_base_model_path.sh
 # # #
 # # 3. Unzip the dataset
 # #
-mkdir -p vlm2vec_train/MMEB-train/images
-mkdir -p eval_images
-unzip ./datasets/ImageNet_1K.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/HatefulMemes.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/VOC2007.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/N24News.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/SUN397.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/images.zip -d ./eval_images/
-unzip ./datasets/OK-VQA.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/A-OKVQA.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/DocVQA.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/InfographicsVQA.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/ChartQA.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/Visual7W.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./datasets/MSCOCO.zip -d ./vlm2vec_train/MMEB-train/images/
-unzip ./vlm2vec_external/flickr30k/flickr30k-images.zip -d ./vlm2vec_external/flickr30k/
+# mkdir -p vlm2vec_train/MMEB-train/images
+# mkdir -p eval_images
+# unzip ./datasets/ImageNet_1K.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/HatefulMemes.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/VOC2007.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/N24News.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/SUN397.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/images.zip -d ./eval_images/
+# unzip ./datasets/OK-VQA.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/A-OKVQA.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/DocVQA.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/InfographicsVQA.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/ChartQA.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/Visual7W.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./datasets/MSCOCO.zip -d ./vlm2vec_train/MMEB-train/images/
+# unzip ./vlm2vec_external/flickr30k/flickr30k-images.zip -d ./vlm2vec_external/flickr30k/
 
 # # #
 # # # 4. Unzip the cache
