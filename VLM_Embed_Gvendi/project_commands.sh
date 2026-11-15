@@ -40,10 +40,10 @@ tar -xzf ./datasets/Qwen3VL_8B_cls.tar.gz -C .
 tar -xzf ./datasets/Qwen3VL_8B_vqa.tar.gz -C .
 tar -xzf ./datasets/Qwen3VL_8B_grounding.tar.gz -C .
 
-CUDA_VISIBLE_DEVICES=0 bash ./scripts/pga2/train_distill_pga2_B3-Qwen2-2B_Llava-OV-0.5B_grounding.sh
-CUDA_VISIBLE_DEVICES=1 bash ./scripts/pga2/train_distill_pga2_B3-Qwen2-2B_Llava-OV-0.5B_vqa.sh
-CUDA_VISIBLE_DEVICES=2 bash ./scripts/pga2/train_distill_pga2_Qwen3-VL-8B-Instruct_Llava-OV-0.5B_vqa.sh
-CUDA_VISIBLE_DEVICES=3 bash ./scripts/pga2/train_distill_pga2_Qwen3-VL-8B-Instruct_Llava-OV-0.5B_grounding.sh
+CUDA_VISIBLE_DEVICES=0 bash ./scripts/pga2/train_distill_pga2_B3-Qwen2-2B_Llava-OV-0.5B_grounding.sh &
+CUDA_VISIBLE_DEVICES=1 bash ./scripts/pga2/train_distill_pga2_B3-Qwen2-2B_Llava-OV-0.5B_vqa.sh &
+CUDA_VISIBLE_DEVICES=2 bash ./scripts/pga2/train_distill_pga2_Qwen3-VL-8B-Instruct_Llava-OV-0.5B_vqa.sh &
+CUDA_VISIBLE_DEVICES=3 bash ./scripts/pga2/train_distill_pga2_Qwen3-VL-8B-Instruct_Llava-OV-0.5B_grounding.sh &
 
 
 #!/bin/bash
