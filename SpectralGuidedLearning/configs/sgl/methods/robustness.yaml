@@ -1,0 +1,21 @@
+# W4 robustness runs (sgl.robustness): the published ALG recipe (tau 1, lambda 0.5, c 2) trained on the
+# weights of one probe x segmentation variant, or uniform weights with the same logging. The driver
+# (project_commands_w4.sh) sets run_name, train_variant and train_seed per run; the training file
+# data/<track>/train-<train_variant>.jsonl comes from sgl.robustness.signals.
+results_dir: results/w4/runs
+run_name: r1q1.5b__alg__P0__S0__tau1_lam0.5_c2__seed42
+train_variant: w4-P0-S0
+checkpoint: results/w4/runs/${run_name}/checkpoints/epoch3
+pipeline: [train, eval]
+run:
+  log_dir: results/w4/meta/logs
+stages:
+  train:
+    args:
+      run-log-dir: results/w4/runs/${run_name}/train
+      logging-steps: 1
+      epoch-nll: true
+      epoch-checkpoints-dir: results/w4/runs/${run_name}/checkpoints
+      param-check-step: 64
+      # optimizer state: only the latest is kept for a resume, the driver deletes it when the run is done
+      save-total-limit: 1

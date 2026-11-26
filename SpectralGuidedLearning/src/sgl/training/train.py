@@ -23,7 +23,7 @@ from transformers import (
     TrainingArguments,
 )
 
-from sgl.positional.runlog import StepLogger, data_check, write_run_config
+from sgl.positional.runlog import EpochEnd, ParamChangeCheck, StepLogger, data_check, write_run_config
 from sgl.training.baselines import AnchoredMixin, VCoreMixin
 from sgl.training.collator import MaskedSFTCollator
 from sgl.training.dataset import MaskedSFTDataset
@@ -63,6 +63,7 @@ class MaskedSFTTrainer(Trainer):
         labels = inputs.pop("labels")
         token_weights = inputs.pop("loss_weights", None)
         token_source = inputs.pop("token_source", None)
+        token_tags = inputs.pop("token_tags", None)  # logging only (sgl.robustness.signals)
         token_objective = None
         if self.source_objectives and token_source is None:
             raise ValueError(
@@ -76,7 +77,7 @@ class MaskedSFTTrainer(Trainer):
             inputs.pop(key, None)
         outputs = model(**inputs)
         if self.step_logger is not None:
-            self.step_logger.add(outputs.logits, labels, token_weights, token_source, num_items_in_batch)
+            self.step_logger.add(outputs.logits, labels, token_weights, token_source, num_items_in_batch, token_tags)
         loss = masked_cross_entropy(
             outputs.logits, labels, denominator=num_items_in_batch, token_weights=token_weights,
             token_objective=token_objective,
@@ -229,6 +230,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="write config.json, data_check.json, a per-optimizer-step train_log.jsonl and "
         "train_summary.json there (sgl.positional.runlog; forces logging every step)",
     )
+    parser.add_argument(
+        "--epoch-nll", action="store_true",
+        help="with --run-log-dir: unweighted NLL of the whole training set at the end of every epoch, "
+        "split by token_tags region (epoch_log.jsonl)",
+    )
+    parser.add_argument(
+        "--epoch-checkpoints-dir",
+        help="with --run-log-dir: bf16 weights-only checkpoint <dir>/epoch<e> at the end of every epoch but the last",
+    )
+    parser.add_argument(
+        "--param-check-step", type=int,
+        help="with --run-log-dir: share of parameters changed from the base model at this optimizer step",
+    )
     # Next-step representation prediction (L_trans). Only --trans-lambda switches it on.
     parser.add_argument(
         "--trans-lambda", type=float,
@@ -303,6 +317,9 @@ def main(argv: list[str] | None = None) -> None:
         "vcore_temperature": args.vcore_temperature,
         "vcore_probe_batches": args.vcore_probe_batches,
         "run_log_dir": args.run_log_dir,
+        "epoch_nll": args.epoch_nll or None,
+        "epoch_checkpoints_dir": args.epoch_checkpoints_dir,
+        "param_check_step": args.param_check_step,
         "trans_lambda": args.trans_lambda,
         "trans_layer": args.trans_layer,
         "trans_hidden": args.trans_hidden,
@@ -447,6 +464,14 @@ def main(argv: list[str] | None = None) -> None:
         config["logging_steps"] = 1
         data_check(dataset, MaskedSFTCollator(pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id),
                    tokenizer, Path(config["run_log_dir"]))
+        if config.get("param_check_step"):
+            callbacks.append(ParamChangeCheck(config["run_log_dir"], config["param_check_step"]))
+        if config.get("epoch_nll") or config.get("epoch_checkpoints_dir"):
+            callbacks.append(EpochEnd(config["run_log_dir"], dataset, tokenizer, step_logger,
+                                      config.get("epoch_checkpoints_dir"), bool(config.get("epoch_nll")),
+                                      int(config["epochs"])))
+    elif any(config.get(k) for k in ("epoch_nll", "epoch_checkpoints_dir", "param_check_step")):
+        parser.error("--epoch-nll, --epoch-checkpoints-dir and --param-check-step need --run-log-dir")
 
     trainer = trainer_cls(
         model=model,

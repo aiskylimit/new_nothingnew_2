@@ -4,6 +4,7 @@ span mapping every method shares.
     sentence   SGL: sentence-ending punctuation (or a closing brace/bracket) + whitespace + capital
     paragraph  Segment-Selective SFT fork default: every "\\n\\n" starts a segment
     cue        Segment-Selective SFT paper: "\\n\\n" followed by a backtracking cue ("Wait", ...)
+    math_sentence  sentence, but never inside $..$ / \\[..\\] / \\(..\\) or after a list number (W4 S3)
 
 P-ALIGN's sentence splitter is lossy and only used to build prefixes: see rules.palign_sentences.
 """
@@ -12,6 +13,7 @@ from sgl.segment.sentence import (
     encode_with_offsets,
     record_step_spans,
     split_into_step_texts,
+    split_math_aware,
     step_token_spans,
 )
 
@@ -19,6 +21,7 @@ SEGMENTERS = {
     "sentence": split_into_step_texts,
     "paragraph": paragraph_segments,
     "cue": cue_segments,
+    "math_sentence": split_math_aware,
 }
 
 

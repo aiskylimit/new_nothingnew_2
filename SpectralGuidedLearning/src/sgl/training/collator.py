@@ -57,20 +57,23 @@ class MaskedSFTCollator:
         }
         if has_loss_weights:
             batch["loss_weights"] = torch.tensor(loss_weights, dtype=torch.float32)
-        if any("token_source" in example for example in examples):
-            # provenance of each token (sgl.transforms.provenance): 0 = unsupervised/prompt,
-            # 1 = teacher prefix, 2 = continuation; padding is 0.
-            if not all("token_source" in example for example in examples):
-                raise ValueError("a batch must either provide token_source for every example or for none")
+        # token_source: provenance of each token (sgl.transforms.provenance): 0 = unsupervised/prompt,
+        # 1 = teacher prefix, 2 = continuation. token_tags: bit flags the step logger splits the NLL by
+        # (sgl.robustness.signals), never read by the loss. Padding is 0 for both.
+        for field in ("token_source", "token_tags"):
+            if not any(field in example for example in examples):
+                continue
+            if not all(field in example for example in examples):
+                raise ValueError(f"a batch must either provide {field} for every example or for none")
             rows = []
             for example in examples:
-                source = list(example["token_source"])
-                if len(source) != len(example["input_ids"]):
+                values = list(example[field])
+                if len(values) != len(example["input_ids"]):
                     raise ValueError(
-                        f"token_source length {len(source)} != input_ids length {len(example['input_ids'])}"
+                        f"{field} length {len(values)} != input_ids length {len(example['input_ids'])}"
                     )
-                rows.append(source + [0] * (max_length - len(source)))
-            batch["token_source"] = torch.tensor(rows, dtype=torch.long)
+                rows.append(values + [0] * (max_length - len(values)))
+            batch[field] = torch.tensor(rows, dtype=torch.long)
         if any("step_id" in example for example in examples):
             batch.update(self._transition_fields(examples, max_length))
         return batch
