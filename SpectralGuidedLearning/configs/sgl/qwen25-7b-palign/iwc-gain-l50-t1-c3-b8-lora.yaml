@@ -1,0 +1,5 @@
+defaults: [../tracks/qwen25-7b-palign.yaml, ../methods/iwc-gain.yaml]
+name: iwc-gain-l50-t1-c3-b8-lora
+train_variant: ${name}
+iwc: {interpolation: 0.5, temperature: 1.0, clip: 3.0}
+stages: {train: {effective_batch: 8}}

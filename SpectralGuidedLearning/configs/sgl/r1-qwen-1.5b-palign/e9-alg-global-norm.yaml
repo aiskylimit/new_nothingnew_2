@@ -1,0 +1,7 @@
+# E9: answer-gain allocation with one token-mass normalization constant over all traces.
+# This differs from E7 only in the normalization scope.
+defaults: [../tracks/r1-qwen-1.5b-palign.yaml, ../methods/ablation-alg.yaml]
+name: e9-alg-global-norm
+iwc:
+  variant: iwc-stable-global
+  temperature: 1.0

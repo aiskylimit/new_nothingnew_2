@@ -1,0 +1,7 @@
+# E10: answer-gain allocation with no token-mass normalization.
+# Within-trace z-scoring, clipping, lambda shrinkage, and EOS weight stay identical to E7.
+defaults: [../tracks/r1-qwen-1.5b-palign.yaml, ../methods/ablation-alg.yaml]
+name: e10-alg-no-norm
+iwc:
+  variant: iwc-stable-none
+  temperature: 1.0

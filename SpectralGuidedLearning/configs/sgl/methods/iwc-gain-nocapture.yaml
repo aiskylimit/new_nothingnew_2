@@ -1,0 +1,25 @@
+# IWC-Stable allocation by ANSWER-INFORMATION GAIN with no gradient capture at all (arm iwc-gain-nocap-l05).
+# Same weights as iwc-gain at p=1.0 (no spectral gate), but the gain parquet is built without strengths
+# (filled with ones), so the capture stage (analytic gradients + per-sample SVD) is skipped. Differs from the
+# published iwc-gain dataset only where a floating-point tie would have gated a last near-zero step. Own dataset
+# name, so it never reuses the capture-based one. Not usable with a gate (iwc.energy_threshold_p < 1.0).
+defaults: [_iwc.yaml]
+signal_parquet: ${data_dir}/signals/signal-answer-gain-nocap.parquet
+train_variant: iwc-stable-gain-nocap-l05
+pipeline: [prepare, answer_gain, gain_signal, weights, train, eval]
+stages:
+  answer_gain:
+    module: sgl.signals.answer_gain
+    creates: ${data_dir}/signals/step_answer_gain.json
+    args:
+      data-path: ${data_dir}/train-segmented.jsonl
+      model: ${model.name}
+      output: ${data_dir}/signals/step_answer_gain.json
+      gpu-memory-utilization: 0.4
+  gain_signal:
+    module: sgl.signals.gain_parquet
+    creates: ${signal_parquet}
+    args:
+      data-path: ${data_dir}/train-segmented.jsonl
+      gains: ${data_dir}/signals/step_answer_gain.json
+      output: ${signal_parquet}
