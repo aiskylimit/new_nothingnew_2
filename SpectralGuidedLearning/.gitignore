@@ -31,3 +31,6 @@ logs-data-prep.txt
 *.bin
 *.zip
 !/paper/paper_overleaf.zip
+
+# model weights of the positional-bias runs (their logs and metrics stay trackable)
+/results/positional/runs/*/checkpoint/

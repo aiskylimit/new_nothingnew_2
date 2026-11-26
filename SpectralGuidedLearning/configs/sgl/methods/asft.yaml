@@ -1,0 +1,9 @@
+# ASFT (arXiv 2509.23753): sg(p) * NLL + lambda * KL(pretrained || student) on every response token.
+# lambda 0.05 is the paper's setting; its README suggests 0.03 under bf16.
+defaults: [sft.yaml]
+asft_kl_lambda: 0.05
+stages:
+  train:
+    args:
+      baseline: asft
+      asft-kl-lambda: ${asft_kl_lambda}

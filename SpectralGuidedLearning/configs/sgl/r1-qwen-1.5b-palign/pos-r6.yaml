@@ -1,0 +1,3 @@
+defaults: [../tracks/r1-qwen-1.5b-palign.yaml, ../methods/positional.yaml]
+name: pos-r6
+run_name: r6

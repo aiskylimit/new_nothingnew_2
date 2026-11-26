@@ -23,6 +23,8 @@ from transformers import (
     TrainingArguments,
 )
 
+from sgl.positional.runlog import StepLogger, data_check, write_run_config
+from sgl.training.baselines import AnchoredMixin, VCoreMixin
 from sgl.training.collator import MaskedSFTCollator
 from sgl.training.dataset import MaskedSFTDataset
 from sgl.training.losses import OBJECTIVE_NLL, OBJECTIVES, masked_cross_entropy
@@ -53,6 +55,7 @@ class MaskedSFTTrainer(Trainer):
             for source, name in ((1, prefix_objective), (2, cont_objective), (3, junction_objective))
             if name is not None
         }
+        self.step_logger = None  # sgl.positional.runlog.StepLogger (--run-log-dir)
         self.model_accepts_loss_kwargs = True
         self._loss_shifts_labels = True  # our loss shifts labels, so count over labels[..., 1:]
 
@@ -72,6 +75,8 @@ class MaskedSFTTrainer(Trainer):
         for key in TRANS_INPUT_KEYS:  # step structure of a *-trans.jsonl is inert without --trans-lambda
             inputs.pop(key, None)
         outputs = model(**inputs)
+        if self.step_logger is not None:
+            self.step_logger.add(outputs.logits, labels, token_weights, token_source, num_items_in_batch)
         loss = masked_cross_entropy(
             outputs.logits, labels, denominator=num_items_in_batch, token_weights=token_weights,
             token_objective=token_objective,
@@ -92,6 +97,14 @@ class TransitionSFTTrainer(TransitionLossMixin, MaskedSFTTrainer):
     """MaskedSFTTrainer + lambda * L_trans (SFT + L_trans, or SGL + L_trans with a spectral mask)."""
 
 
+class AnchoredSFTTrainer(AnchoredMixin, MaskedSFTTrainer):
+    """ASFT: DFT plus a KL anchor to the pretrained student (sgl.training.baselines)."""
+
+
+class VCoreSFTTrainer(VCoreMixin, MaskedSFTTrainer):
+    """VCORE: per-token weights from a one-step probe (sgl.training.baselines)."""
+
+
 def build_training_arguments(config: dict) -> TrainingArguments:
     on_gpu = torch.cuda.is_available()  # CPU falls back to fp32 for local smoke runs
     return TrainingArguments(
@@ -106,7 +119,8 @@ def build_training_arguments(config: dict) -> TrainingArguments:
         # (AttributeError: 'DeepSpeedZeroOptimizer' object has no attribute 'defaults').
         lr_scheduler_kwargs={"min_lr_rate": config["min_learning_rate"] / config["learning_rate"]},
         warmup_ratio=config["warmup_ratio"],  # deprecated in transformers>=5 (still functions correctly)
-        bf16=on_gpu,
+        # VCORE autocasts by itself: its scoring forwards must stay fp32
+        bf16=on_gpu and config.get("baseline") != "vcore",
         use_cpu=not on_gpu,
         gradient_checkpointing=on_gpu,
         # Reentrant checkpointing trips DDP's "mark variable ready only once" assertion with
@@ -201,6 +215,20 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--lora-alpha", type=int)
     parser.add_argument("--lora-dropout", type=float)
     parser.add_argument("--lora-target-modules", help="comma-separated module names")
+    # Published token-reweighting baselines (sgl.training.baselines); unset = masked SFT as above.
+    parser.add_argument("--baseline", choices=("asft", "vcore"))
+    parser.add_argument("--asft-kl-lambda", type=float, help="ASFT KL anchor weight (default 0.05)")
+    parser.add_argument("--vcore-epsilon", type=float, help="VCORE probe step size (default 1e-4)")
+    parser.add_argument("--vcore-temperature", type=float, help="VCORE temperature (default 5000)")
+    parser.add_argument(
+        "--vcore-probe-batches", type=int,
+        help="samples in VCORE's random batch B' (default: the gradient accumulation steps)",
+    )
+    parser.add_argument(
+        "--run-log-dir",
+        help="write config.json, data_check.json, a per-optimizer-step train_log.jsonl and "
+        "train_summary.json there (sgl.positional.runlog; forces logging every step)",
+    )
     # Next-step representation prediction (L_trans). Only --trans-lambda switches it on.
     parser.add_argument(
         "--trans-lambda", type=float,
@@ -269,6 +297,12 @@ def main(argv: list[str] | None = None) -> None:
         "lora_alpha": args.lora_alpha,
         "lora_dropout": args.lora_dropout,
         "lora_target_modules": args.lora_target_modules,
+        "baseline": args.baseline,
+        "asft_kl_lambda": args.asft_kl_lambda,
+        "vcore_epsilon": args.vcore_epsilon,
+        "vcore_temperature": args.vcore_temperature,
+        "vcore_probe_batches": args.vcore_probe_batches,
+        "run_log_dir": args.run_log_dir,
         "trans_lambda": args.trans_lambda,
         "trans_layer": args.trans_layer,
         "trans_hidden": args.trans_hidden,
@@ -279,6 +313,19 @@ def main(argv: list[str] | None = None) -> None:
     }
     config.update({key: value for key, value in overrides.items() if value is not None})
     use_trans = bool(config.get("trans_lambda"))
+
+    baseline = config.get("baseline")
+    if baseline:
+        clashes = [
+            key for key in ("trans_lambda", "prefix_objective", "cont_objective", "junction_objective")
+            if config.get(key)
+        ]
+        if config.get("objective") not in (None, "nll"):
+            clashes.append("objective")
+        if baseline == "asft" and config.get("use_lora"):
+            clashes.append("use_lora")  # the reference would need adapters disabled instead of a copy
+        if clashes:
+            parser.error(f"--baseline {baseline} defines its own loss and cannot be combined with {clashes}")
 
     missing = [key for key in ("model_name", "data_path", "output_dir") if key not in config]
     if missing:
@@ -372,7 +419,34 @@ def main(argv: list[str] | None = None) -> None:
             )
         }
 
+    if baseline == "asft":
+        reference = AutoModelForCausalLM.from_pretrained(
+            config["model_name"], dtype=next(model.parameters()).dtype,
+            attn_implementation=config.get("attn_implementation", "sdpa"),
+        )
+        reference.config.use_cache = False
+        trainer_cls = AnchoredSFTTrainer
+        trainer_kwargs |= {"reference_model": reference, "kl_lambda": config.get("asft_kl_lambda", 0.05)}
+        print(f"ASFT: kl_lambda={trainer_kwargs['kl_lambda']}, reference = frozen pretrained model")
+    elif baseline == "vcore":
+        trainer_cls = VCoreSFTTrainer
+        trainer_kwargs |= {
+            "probe_epsilon": config.get("vcore_epsilon", 1e-4),
+            "temperature": config.get("vcore_temperature", 5000.0),
+            "probe_batches": config.get("vcore_probe_batches"),
+        }
+        print(f"VCORE: epsilon={trainer_kwargs['probe_epsilon']} temperature={trainer_kwargs['temperature']}")
+
     callbacks = []
+    step_logger = None
+    if config.get("run_log_dir"):
+        if int(os.environ.get("WORLD_SIZE", 1)) > 1 or baseline or use_trans:
+            parser.error("--run-log-dir covers single-GPU masked SFT only")
+        step_logger = StepLogger(config["run_log_dir"])
+        callbacks.append(step_logger)
+        config["logging_steps"] = 1
+        data_check(dataset, MaskedSFTCollator(pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id),
+                   tokenizer, Path(config["run_log_dir"]))
 
     trainer = trainer_cls(
         model=model,
@@ -385,6 +459,10 @@ def main(argv: list[str] | None = None) -> None:
         callbacks=callbacks,
         **trainer_kwargs,
     )
+
+    if step_logger is not None:
+        trainer.step_logger = step_logger
+        write_run_config(Path(config["run_log_dir"]), config, trainer.args, model)
 
     # --resume: pick up the last checkpoint in output_dir if one is present (a re-run after a crash),
     # otherwise start fresh. Guarded so a first run with an empty/absent output_dir doesn't error.
@@ -453,6 +531,9 @@ def main(argv: list[str] | None = None) -> None:
         # Not needed at inference (sgl.eval.evaluate/vLLM read only the adapter); kept for continued training.
         trainer.save_predictor(config["output_dir"])
 
+    if step_logger is not None:
+        step_logger.write_summary(config["output_dir"], gpus=trainer.args.world_size)
+
     # evidence for the paper's "fewer supervised tokens" claim, recorded next to the checkpoint
     (Path(config["output_dir"]) / "run-summary.json").write_text(
         json.dumps(
@@ -466,6 +547,7 @@ def main(argv: list[str] | None = None) -> None:
                 "final_train_loss": result.metrics.get("train_loss"),
                 "trans_lambda": config.get("trans_lambda"),
                 "trans_pairs": sum(len(r["pair_src"]) for r in dataset.records) if use_trans else None,
+                **({"method": trainer.method_summary()} if baseline else {}),
             },
             indent=2,
         )

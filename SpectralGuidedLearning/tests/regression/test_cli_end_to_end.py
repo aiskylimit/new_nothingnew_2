@@ -52,6 +52,21 @@ def test_config_trains_end_to_end(tmp_path, tiny_model, family, config):
 
 
 @pytest.mark.regression
+@pytest.mark.parametrize("config", ["sft-asft", "sft-vcore"])
+def test_baseline_config_trains_end_to_end(tmp_path, tiny_model, config):
+    config = f"r1-qwen-1.5b-palign/{config}"
+    overrides = [f"model.name={tiny_model}", f"dataset={ASSETS / 'palign_sample.jsonl'}", "track=e2e",
+                 f"run.efficiency_dir={tmp_path / 'efficiency'}", *CPU_OVERRIDES]
+    if config.endswith("vcore"):  # plain python launcher: accumulation is set directly
+        overrides = [o for o in overrides if "effective_batch" not in o]
+        overrides.append("stages.train.args.gradient-accumulation-steps=4")
+    assert cli.main(["run", config, "--cwd", str(tmp_path), "--stages", "prepare,vanilla,train", *overrides]) == 0
+    run_name = cli.load_family_config(config, "sgl", overrides)["run_name"]
+    summary = json.loads((tmp_path / "checkpoints" / run_name / "run-summary.json").read_text())
+    assert summary["method"]["baseline"] == config.rsplit("-", 1)[1]
+
+
+@pytest.mark.regression
 def test_ssft_config_attributes_selects_builds_and_trains(tmp_path, tiny_model):
     """ssft run: IG with the tiny model as attribution model -> select -> build -> train."""
     import shutil

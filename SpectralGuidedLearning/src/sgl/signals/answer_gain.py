@@ -27,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.4)
     parser.add_argument("--max-model-len", type=int, default=16384)
     parser.add_argument("--limit", type=int, default=None)
+    parser.add_argument("--logp-output", help="also save log p(answer) before step 1 and after every step")
     return parser
 
 
@@ -74,7 +75,7 @@ def main(argv: list[str] | None = None) -> None:
             total += out.prompt_logprobs[position][ids[position]].logprob
         logp[(rid, k)] = total
 
-    gains = {}
+    gains, logps = {}, {}
     for record in records:
         rid, n_steps = record["id"], len(record["steps"])
         if (rid, 0) not in logp:
@@ -84,9 +85,13 @@ def main(argv: list[str] | None = None) -> None:
         for k in range(1, len(values)):
             if values[k] is None:
                 values[k] = values[k - 1]
+        logps[rid] = values
         gains[rid] = [values[k] - values[k - 1] for k in range(1, n_steps + 1)]
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     Path(args.output).write_text(json.dumps(gains))
+    if args.logp_output:
+        Path(args.logp_output).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.logp_output).write_text(json.dumps(logps))
     print(f"wrote gains for {len(gains)} samples -> {args.output}")
 
 
