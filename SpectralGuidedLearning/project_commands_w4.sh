@@ -76,6 +76,7 @@ run_queue() {
   claims="$(mktemp -d)"
   worker() {
     local gpu="$1" i
+    set +e   # a failed job is recorded below, it must not end the worker
     for i in "${!jobs[@]}"; do
       mkdir "${claims}/${i}" 2>/dev/null || continue
       ( set -e; "${fn}" "${gpu}" ${jobs[$i]} ) 2>&1 | sed -u "s/^/[gpu${gpu}] /"
@@ -189,6 +190,8 @@ train_eval() {  # <gpu> <method> <probe> <seg> <seed>
   if [[ "${method}" == uniform ]]; then variant=w4-uniform; signals_dir=""
   else variant="w4-${probe}-${seg}"; signals_dir="$(signal_dir "${probe}" "${seg}")"; fi
   if [[ -f "${dir}/run_check.json" ]]; then say "${id}: done already"; return 0; fi
+  # every step ends with "|| return 1": bash ignores set -e when a caller uses "||", and a failed run
+  # must not get a run_check.json (it would count as done on the next launch)
   overrides=("run_name=${id}" "train_variant=${variant}" "train_seed=${seed}" "eval_seed=${EVAL_SEED}"
              "run.gpus=[${gpu}]" "model.name=${MODEL_PATH}")
   say "gpu${gpu}: ${id}"
@@ -197,20 +200,20 @@ train_eval() {  # <gpu> <method> <probe> <seg> <seed>
     run python -m sgl.cli show "${CONFIG}" "${overrides[@]}"
     python -m sgl.cli run "${CONFIG}" --stages train,eval "${overrides[@]}" --dry-run
   else
-    python -m sgl.cli show "${CONFIG}" "${overrides[@]}" > "${dir}/config.yaml"
+    python -m sgl.cli show "${CONFIG}" "${overrides[@]}" > "${dir}/config.yaml" || return 1
     t0=$(date +%s)
     python -m sgl.cli run "${CONFIG}" --stages train "${overrides[@]}" \
-      > >(tee -a "${dir}/train/stdout.log") 2> >(tee -a "${dir}/train/stderr.log" >&2)
+      > >(tee -a "${dir}/train/stdout.log") 2> >(tee -a "${dir}/train/stderr.log" >&2) || return 1
     t1=$(date +%s)
     rm -rf "${dir}"/checkpoints/epoch3/checkpoint-*   # optimizer state, only needed to resume
-    python -m sgl.cli run "${CONFIG}" --stages eval "${overrides[@]}" > >(tee -a "${dir}/eval.log") 2>&1
+    python -m sgl.cli run "${CONFIG}" --stages eval "${overrides[@]}" > >(tee -a "${dir}/eval.log") 2>&1 || return 1
     t2=$(date +%s)
     printf '{"train_seconds": %d, "eval_seconds": %d, "finished_at": "%s"}\n' $((t1 - t0)) $((t2 - t1)) \
       "$(date -Iseconds)" > "${dir}/timing.json"
   fi
-  run python -m sgl.robustness.runs eval --run-dir "${dir}" --config "${CONFIG}" --eval-seed "${EVAL_SEED}"
+  run python -m sgl.robustness.runs eval --run-dir "${dir}" --config "${CONFIG}" --eval-seed "${EVAL_SEED}" || return 1
   run python -m sgl.robustness.runs finalize --run-dir "${dir}" --hashes "${HASHES}" --eval-seed "${EVAL_SEED}" \
-    ${signals_dir:+--signals-dir "${signals_dir}"}
+    ${signals_dir:+--signals-dir "${signals_dir}"} || return 1
   [[ "${KEEP_EPOCH_CKPT}" == 1 ]] || run rm -rf "${dir}/checkpoints/epoch1" "${dir}/checkpoints/epoch2"
 }
 

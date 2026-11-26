@@ -23,6 +23,7 @@ from transformers import (
     TrainingArguments,
 )
 
+from sgl.hardsel import runlog as selection_log
 from sgl.positional.runlog import EpochEnd, ParamChangeCheck, StepLogger, data_check, write_run_config
 from sgl.training.baselines import AnchoredMixin, VCoreMixin
 from sgl.training.collator import MaskedSFTCollator
@@ -77,7 +78,10 @@ class MaskedSFTTrainer(Trainer):
             inputs.pop(key, None)
         outputs = model(**inputs)
         if self.step_logger is not None:
-            self.step_logger.add(outputs.logits, labels, token_weights, token_source, num_items_in_batch, token_tags)
+            self.step_logger.add(
+                outputs.logits, labels, token_weights, token_source, num_items_in_batch, token_tags,
+                input_ids=inputs["input_ids"],
+            )
         loss = masked_cross_entropy(
             outputs.logits, labels, denominator=num_items_in_batch, token_weights=token_weights,
             token_objective=token_objective,
@@ -243,6 +247,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--param-check-step", type=int,
         help="with --run-log-dir: share of parameters changed from the base model at this optimizer step",
     )
+    parser.add_argument(
+        "--selection-log", action="store_true",
+        help="with --run-log-dir: the ALG-hard logs (sgl.hardsel.runlog): NLL of kept / dropped tokens, "
+        "per-epoch NLL over every response token, also before training",
+    )
     # Next-step representation prediction (L_trans). Only --trans-lambda switches it on.
     parser.add_argument(
         "--trans-lambda", type=float,
@@ -320,6 +329,7 @@ def main(argv: list[str] | None = None) -> None:
         "epoch_nll": args.epoch_nll or None,
         "epoch_checkpoints_dir": args.epoch_checkpoints_dir,
         "param_check_step": args.param_check_step,
+        "selection_log": args.selection_log or None,
         "trans_lambda": args.trans_lambda,
         "trans_layer": args.trans_layer,
         "trans_hidden": args.trans_hidden,
@@ -459,19 +469,25 @@ def main(argv: list[str] | None = None) -> None:
     if config.get("run_log_dir"):
         if int(os.environ.get("WORLD_SIZE", 1)) > 1 or baseline or use_trans:
             parser.error("--run-log-dir covers single-GPU masked SFT only")
-        step_logger = StepLogger(config["run_log_dir"])
+        collator = MaskedSFTCollator(pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id)
+        selection = bool(config.get("selection_log"))
+        step_logger = (selection_log.SelectionStepLogger(config["run_log_dir"], dataset) if selection
+                       else StepLogger(config["run_log_dir"]))
         callbacks.append(step_logger)
         config["logging_steps"] = 1
-        data_check(dataset, MaskedSFTCollator(pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id),
-                   tokenizer, Path(config["run_log_dir"]))
+        if selection:
+            selection_log.data_check(dataset, collator, Path(config["run_log_dir"]))
+        else:
+            data_check(dataset, collator, tokenizer, Path(config["run_log_dir"]))
         if config.get("param_check_step"):
             callbacks.append(ParamChangeCheck(config["run_log_dir"], config["param_check_step"]))
         if config.get("epoch_nll") or config.get("epoch_checkpoints_dir"):
-            callbacks.append(EpochEnd(config["run_log_dir"], dataset, tokenizer, step_logger,
+            epoch_end = selection_log.SelectionEpochEnd if selection else EpochEnd
+            callbacks.append(epoch_end(config["run_log_dir"], dataset, tokenizer, step_logger,
                                       config.get("epoch_checkpoints_dir"), bool(config.get("epoch_nll")),
                                       int(config["epochs"])))
-    elif any(config.get(k) for k in ("epoch_nll", "epoch_checkpoints_dir", "param_check_step")):
-        parser.error("--epoch-nll, --epoch-checkpoints-dir and --param-check-step need --run-log-dir")
+    elif any(config.get(k) for k in ("epoch_nll", "epoch_checkpoints_dir", "param_check_step", "selection_log")):
+        parser.error("--epoch-nll, --epoch-checkpoints-dir, --param-check-step and --selection-log need --run-log-dir")
 
     trainer = trainer_cls(
         model=model,

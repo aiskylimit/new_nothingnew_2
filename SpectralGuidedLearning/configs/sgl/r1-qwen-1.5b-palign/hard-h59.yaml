@@ -1,0 +1,4 @@
+# ALG-hard arm: keep the highest-gain steps up to 59% of the tokens (or the SGL gate's budget).
+defaults: [../tracks/r1-qwen-1.5b-palign.yaml, ../methods/hardsel.yaml]
+name: hard-h59
+arm: h59

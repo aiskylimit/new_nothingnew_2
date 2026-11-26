@@ -43,7 +43,12 @@ def sha256(path) -> str:
 
 
 def git_commit() -> str:
-    run = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True).stdout.strip()  # noqa: E731
+    def run(*a):
+        try:
+            return subprocess.run(["git", *a], capture_output=True, text=True).stdout.strip()
+        except OSError:  # no git binary on this machine
+            return ""
+
     head = run("rev-parse", "HEAD") or "unknown"
     return f"{head}-dirty" if run("status", "--porcelain") else head
 

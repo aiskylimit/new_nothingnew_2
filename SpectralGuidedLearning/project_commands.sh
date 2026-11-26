@@ -13,16 +13,18 @@
 #                 asks), 1.5B on the 966 traces
 #   w4            probe / segmentation robustness: scoring, rank stability,   project_commands_w4.sh
 #                 12 runs (groups A, B, C), 1.5B on the 966 traces
-# Outputs: rebuttal/ (first three), results/positional/ and results/w4/. Details: RUNS_REPORT.md.
+#   hard          ALG-hard: hard keep/drop by answer gain vs ALG's soft weights, 1.5B on     project_commands_hard.sh
+#                 the 966 traces (runs after w4: needs its seeds and, if answer_gain.json is gone, its gains)
+# Outputs: rebuttal/ (first three), results/positional/, results/w4/ and results/hard/. Details: RUNS_REPORT.md.
 set -uo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 
-GROUPS_ALL=(rebuttal answer_steps vcore_asft positional w4)
+GROUPS_ALL=(rebuttal answer_steps vcore_asft positional w4 hard)
 selected=() flags=()
 for arg in "$@"; do
   case "${arg}" in
-    rebuttal|answer_steps|vcore_asft|positional|w4) selected+=("${arg}") ;;
+    rebuttal|answer_steps|vcore_asft|positional|w4|hard) selected+=("${arg}") ;;
     --dry-run) flags+=(--dry-run) ;;
     *) echo "unknown argument: ${arg} (groups: ${GROUPS_ALL[*]}, flag: --dry-run)" >&2; exit 2 ;;
   esac

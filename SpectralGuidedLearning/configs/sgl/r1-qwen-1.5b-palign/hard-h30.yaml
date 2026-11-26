@@ -1,0 +1,4 @@
+# ALG-hard arm: keep the highest-gain steps up to 30% of the tokens.
+defaults: [../tracks/r1-qwen-1.5b-palign.yaml, ../methods/hardsel.yaml]
+name: hard-h30
+arm: h30
