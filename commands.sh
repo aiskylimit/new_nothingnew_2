@@ -1,4 +1,4 @@
-#i opened.txt
+#i spectral_guided_learning.txt
 #pga-unzip
 #v1
 
