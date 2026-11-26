@@ -11,16 +11,18 @@
 #   vcore_asft    ASFT and VCORE, 1.5B on the 966 traces                     project_commands_vcore_asft.sh
 #   positional    positional-bias analyses A1-A4 + R6 (R7/R8 if the rule     project_commands_positional.sh
 #                 asks), 1.5B on the 966 traces
-# Outputs: rebuttal/ (first three) and results/positional/.
+#   w4            probe / segmentation robustness: scoring, rank stability,   project_commands_w4.sh
+#                 12 runs (groups A, B, C), 1.5B on the 966 traces
+# Outputs: rebuttal/ (first three), results/positional/ and results/w4/. Details: RUNS_REPORT.md.
 set -uo pipefail
 BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "${BASE}"
 
-GROUPS_ALL=(rebuttal answer_steps vcore_asft positional)
+GROUPS_ALL=(rebuttal answer_steps vcore_asft positional w4)
 selected=() flags=()
 for arg in "$@"; do
   case "${arg}" in
-    rebuttal|answer_steps|vcore_asft|positional) selected+=("${arg}") ;;
+    rebuttal|answer_steps|vcore_asft|positional|w4) selected+=("${arg}") ;;
     --dry-run) flags+=(--dry-run) ;;
     *) echo "unknown argument: ${arg} (groups: ${GROUPS_ALL[*]}, flag: --dry-run)" >&2; exit 2 ;;
   esac

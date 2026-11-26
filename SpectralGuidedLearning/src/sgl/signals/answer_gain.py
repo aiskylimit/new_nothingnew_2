@@ -12,6 +12,7 @@ Output: {id: [gain per step]} JSON, aligned with train-segmented.jsonl steps.
 
 import argparse
 import json
+import time
 from pathlib import Path
 
 from sgl.eval.graders.answer_scoring import extract_boxed
@@ -28,6 +29,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-model-len", type=int, default=16384)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--logp-output", help="also save log p(answer) before step 1 and after every step")
+    parser.add_argument("--probe", default=PROBE, help="text appended before the gold answer (default: P0)")
+    parser.add_argument(
+        "--meta-output",
+        help="also save the probe, its token ids, per-trace probe context lengths and skipped steps, timing",
+    )
     return parser
 
 
@@ -41,7 +47,9 @@ def main(argv: list[str] | None = None) -> None:
 
     tokenizer = AutoTokenizer.from_pretrained(args.model)
     records = [json.loads(line) for line in open(args.data_path)][: args.limit]
-    probe_ids = tokenizer(PROBE, add_special_tokens=False)["input_ids"]
+    started = time.time()
+    probe_ids = tokenizer(args.probe, add_special_tokens=False)["input_ids"]
+    longest, too_long = {}, {}  # per trace: longest probe context, steps whose probe did not fit
 
     prompts, index = [], []  # index[i] = (record id, step k (0 = before any step), n answer tokens)
     skipped = 0
@@ -55,7 +63,9 @@ def main(argv: list[str] | None = None) -> None:
         cuts = [start] + [step["token_end"] for step in record["steps"]]
         for k, cut in enumerate(cuts):
             ids = record["input_ids"][:cut] + probe_ids + answer_ids
+            longest[record["id"]] = max(longest.get(record["id"], 0), len(ids))
             if len(ids) >= args.max_model_len:
+                too_long.setdefault(record["id"], []).append(k)
                 continue
             prompts.append(TokensPrompt(prompt_token_ids=ids))
             index.append((record["id"], k, len(answer_ids)))
@@ -92,6 +102,17 @@ def main(argv: list[str] | None = None) -> None:
     if args.logp_output:
         Path(args.logp_output).parent.mkdir(parents=True, exist_ok=True)
         Path(args.logp_output).write_text(json.dumps(logps))
+    if args.meta_output:
+        Path(args.meta_output).parent.mkdir(parents=True, exist_ok=True)
+        Path(args.meta_output).write_text(json.dumps({
+            "probe": args.probe, "probe_token_ids": probe_ids,
+            "probe_tokens": tokenizer.convert_ids_to_tokens(probe_ids),
+            "model": args.model, "data_path": args.data_path, "max_model_len": args.max_model_len,
+            "n_probes": len(prompts), "n_samples_scored": len(gains), "n_samples_without_boxed": skipped,
+            "max_probe_context_len": {str(k): v for k, v in longest.items()},
+            "steps_exceeding_context": {str(k): v for k, v in too_long.items()},
+            "seconds": time.time() - started,
+        }, indent=1))
     print(f"wrote gains for {len(gains)} samples -> {args.output}")
 
 

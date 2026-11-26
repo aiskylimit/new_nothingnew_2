@@ -33,6 +33,46 @@ def split_into_step_texts(response: str) -> list[str]:
     return pieces
 
 
+# Math regions a math-aware split never cuts inside: $$..$$, \[..\], \(..\) and inline $..$ (an inline
+# region stops at a blank line, so one stray "$" cannot swallow the rest of the trace).
+_MATH_REGION = re.compile(
+    r"\$\$.+?\$\$|\\\[.+?\\\]|\\\(.+?\\\)|(?<!\\)\$(?:[^$\n]|\n(?!\n))+?(?<!\\)\$", re.DOTALL
+)
+# "1. Compute" / "- 2. Then" / "**3.** So": the period closes a list number at a line start, not a sentence.
+_LIST_MARKER = re.compile(r"\n[ \t]*(?:[-*][ \t]+)?(?:\*\*)?\d{1,3}\.$")
+
+
+def split_math_aware(response: str) -> list[str]:
+    """The sentence rule (split_into_step_texts) minus every boundary whose punctuation sits inside a
+    math region or closes a numbered-list marker. Lossless like the sentence rule."""
+    if not response:
+        return []
+    regions = [match.span() for match in _MATH_REGION.finditer(response)]
+    starts = [start for start, _ in regions]
+
+    def in_math(position: int) -> bool:
+        index = bisect.bisect_right(starts, position) - 1
+        # the closing delimiter itself ("]" of "\]") may still end a sentence
+        return index >= 0 and regions[index][0] < position < regions[index][1] - 1
+
+    def list_marker(position: int) -> bool:
+        first = max(0, position - 15)
+        tail = ("\n" if first == 0 else "") + response[first : position + 1]
+        return _LIST_MARKER.search(tail) is not None
+
+    pieces, cursor = [], 0
+    for match in _STEP_BOUNDARY.finditer(response):
+        punctuation = match.start(1)
+        if in_math(punctuation) or list_marker(punctuation):
+            continue
+        boundary = match.start(3)
+        pieces.append(response[cursor:boundary])
+        cursor = boundary
+    if cursor < len(response):
+        pieces.append(response[cursor:])
+    return pieces
+
+
 def record_step_spans(record: dict) -> list[tuple[int, int]]:
     """Absolute (start, end) token spans of a sgl.data.prepare record's steps."""
     return [(step["token_start"], step["token_end"]) for step in record["steps"]]
