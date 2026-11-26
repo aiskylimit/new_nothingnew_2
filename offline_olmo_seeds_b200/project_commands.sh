@@ -5,10 +5,12 @@
 # Settings = paper Table 10, unchanged from the paper runs: effective batch 32 rollouts/step, LoRA r64/a128,
 # lr 5e-6, train rollouts temperature 1.0 / top_p 1.0 / top_k -1 (<=1024 tokens), eval avg@12 with
 # temperature 1.0 / top_p 0.95 up to 38912 tokens on aime25/aime26/hmmt25.
-#   TROPIC: alpha 0.25, epsilon 0.1, beta 0.1, top-64; trained 40 steps, evaluated at 10/15/20/25/40.
+#   TROPIC: alpha 0.25, epsilon 0.1, beta 0.1, top-64; trained 100 steps (as seed 0), evaluated at 10/15/20/25/40.
 #   OPSD:   frozen teacher, beta 0 (forward KL), jsd_token_clip 0.06; trained 100 steps, evaluated at 25/50/75/100.
-# (Same checkpoint grid as Table 2. Training stops at the last evaluated step only: the learning rate is constant
-#  and the data order is a fixed prefix, so steps 1-40 are identical to those of a 100-step run.)
+# Same evaluated checkpoints as the paper (Table 2). TROPIC is still trained the full 100 steps like seed 0, so its
+# training log gives the Figure 1b rollout-length curve up to step 100 (no extra evals).
+# Training logs carry the token counters of the Qwen3-8B token-efficiency scripts (rollout tokens, rollouts,
+# truncation, teacher forwards, grad norm, per-step KL drift) for Figure 1 and the cost analysis.
 #
 # Scheduling - keeps both GPUs busy all the time:
 #   Two workers share GPUs 2 and 3 and pull jobs from ONE ordered list (dry runs, 4 trainings, 18 evals);
@@ -20,10 +22,14 @@
 #   A failed job is retried once (e.g. two vLLM servers starting at the same moment); finished jobs are
 #   skipped, so the script can simply be re-submitted after a crash.
 #
-# Results: results_olmo7b_{tropic,opsd}_seed{1,2}/ (same folder names as rebuttal/hercules_seeds.sh, so they
-# can be copied into offline_olmo7b_b200/ on hercules and imported with `hercules_seeds.sh import`), one log
-# per job next to them, final_results.json (all avg@12/pass@12), and olmo_seeds_results.tgz (everything
-# except the LoRA checkpoints - the file to download).
+# At the end, still on this server: every generation is re-graded and reduced to per-sample records
+# (rebuttal/import_legacy.py -> runs/olmo3-7b-think/<method>/seed<k>/, a few MB instead of ~1 GB of text),
+# rebuttal/analyze.py writes the seed tables (analysis/report.md, appendix_seeds_table.tex, CSVs) and
+# rebuttal/plots.py the figures when matplotlib is installed. Everything needed later - runs/, analysis/,
+# final_results.json, the tails of all logs - goes into ONE small file, olmo_seeds_results.tgz (split into
+# 24 MB parts olmo_seeds_results.tgz.part-* if it is larger). Generations and LoRA checkpoints stay on the server.
+# Locally: tar xzf olmo_seeds_results.tgz (or: cat olmo_seeds_results.tgz.part-* | tar xzf -), copy runs/ next to
+# the seed-0 imports and re-run rebuttal/analyze.py + plots.py for the tables and figures over seeds 0-2.
 set -uo pipefail
 cd "$(dirname "$0")"
 ROOT="$(pwd)"
@@ -53,10 +59,14 @@ STATE="$ROOT/.queue_state"
 
 cfg() {  # method -> script, tag, training steps, evaluated steps
   case $1 in
-    tropic) SCRIPT=run_tropic_g_topk64_olmo7b.py; TAG=tropic_g_topk64_olmo; TRAIN_STEPS=40;  STEPS="10 15 20 25 40" ;;
-    opsd)   SCRIPT=run_opsd_experiment_olmo7b.py; TAG=opsd_olmo;            TRAIN_STEPS=100; STEPS="25 50 75 100" ;;
+    tropic) SCRIPT=run_tropic_g_topk64_olmo7b.py; TAG=tropic_g_topk64_olmo; TRAIN_STEPS=100
+            CORE_STEPS="10 15 20 25 40"; LATE_STEPS="" ;;
+    opsd)   SCRIPT=run_opsd_experiment_olmo7b.py; TAG=opsd_olmo;            TRAIN_STEPS=100
+            CORE_STEPS="25 50 75 100";   LATE_STEPS="" ;;
   esac
+  STEPS="$CORE_STEPS $LATE_STEPS"
 }
+MODEL_KEY=olmo3-7b-think
 out_dir() { echo "results_olmo7b_$1_seed$2"; }
 
 has_eval() {  # has_eval <dir> <tag> <step>   (no pipeline: pipefail would turn a missing glob into "no")
@@ -67,12 +77,15 @@ has_eval() {  # has_eval <dir> <tag> <step>   (no pipeline: pipefail would turn 
   return 1
 }
 
-# ---- job list, in priority order: seed-1 results first ----
+# ---- job list, in priority order: Table 2 checkpoints (seed 1 first), then the Figure 1-only checkpoints ----
 JOBS=()
 if [ "$DRY_RUN" = "1" ]; then JOBS+=(dry:tropic dry:opsd); fi
 for s in $SEEDS; do JOBS+=(train:tropic:$s train:opsd:$s); done
 for s in $SEEDS; do
-  for m in tropic opsd; do cfg $m; for k in $STEPS; do JOBS+=(eval:$m:$s:$k); done; done
+  for m in tropic opsd; do cfg $m; for k in $CORE_STEPS; do JOBS+=(eval:$m:$s:$k); done; done
+done
+for s in $SEEDS; do
+  for m in tropic opsd; do cfg $m; for k in $LATE_STEPS; do JOBS+=(eval:$m:$s:$k); done; done
 done
 
 job_done() {
@@ -181,7 +194,37 @@ for r in sorted(rows, key=lambda r: (r["method"], r["seed"], r["step"], r["bench
 print(f"\n{len(rows)} rows written to final_results.json")
 PYEOF
 
-# ---- bundle everything except the LoRA checkpoints for download ----
-tar czf olmo_seeds_results.tgz final_results.json results_olmo7b_*_seed*_*.log \
-    $(ls results_olmo7b_*_seed*/*.json 2>/dev/null) 2>/dev/null
-echo "ALL DONE - final_results.json and olmo_seeds_results.tgz ($(du -h olmo_seeds_results.tgz | cut -f1))"
+# ---- re-grade every generation into compact per-sample records (runs/), then the seed analysis ----
+for m in tropic opsd; do
+  cfg $m
+  for s in $SEEDS; do
+    out=$(out_dir $m $s)
+    [ -d "$out" ] || continue
+    echo "=== import $m seed $s ==="
+    python rebuttal/import_legacy.py --src "$out" --tag "$TAG" --model "$MODEL_KEY" --method "$m" --seed "$s" \
+        --steps $STEPS --tokenizer "$MODEL_OLMO" --workers 16 --overwrite \
+      || echo "!!! import failed for $out (its generations are still in $out/)"
+  done
+done
+python rebuttal/analyze.py --runs-root runs --out analysis || echo "!!! analyze failed"
+if python -c "import matplotlib" 2>/dev/null; then
+  python rebuttal/plots.py --analysis analysis || echo "!!! plots failed"
+else
+  echo "(matplotlib not installed - figures will be made locally from runs/)"
+fi
+
+# ---- ONE small bundle: compact results + analysis + log tails (no generations, no checkpoints) ----
+mkdir -p log_tails
+for f in results_olmo7b_*_*.log; do [ -e "$f" ] && tail -n 300 "$f" > "log_tails/$f"; done
+for s in $SEEDS; do for m in tropic opsd; do cfg $m; out=$(out_dir $m $s)
+  [ -f "$out/${TAG}_train_logs.json" ] && cp "$out/${TAG}_train_logs.json" "log_tails/${out}_train_logs.json"
+done; done
+rm -f olmo_seeds_results.tgz olmo_seeds_results.tgz.part-*
+tar czf olmo_seeds_results.tgz final_results.json runs analysis log_tails 2>/dev/null
+size=$(stat -c %s olmo_seeds_results.tgz)
+if [ "$size" -gt $((24 * 1024 * 1024)) ]; then
+  split -b 24M olmo_seeds_results.tgz olmo_seeds_results.tgz.part-
+  echo "bundle is $((size / 1024 / 1024)) MB - split into: $(ls olmo_seeds_results.tgz.part-* | tr '\n' ' ')"
+fi
+echo "ALL DONE - fetch olmo_seeds_results.tgz ($(du -h olmo_seeds_results.tgz | cut -f1)); report: analysis/report.md"
+[ -f analysis/report.md ] && head -n 80 analysis/report.md

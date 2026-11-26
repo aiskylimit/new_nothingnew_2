@@ -246,6 +246,8 @@ def train_run_opsd(model, examples, cfg, tag, use_vllm_rollout=False, vllm_gpu_i
     example_idx = 0
     logs = []
     run_start = time.time()
+    # Training-cost counters (logging only, same fields as scripts/run_opsd_8b_tokeff.py).
+    rollout_tokens_total = rollouts_total = teacher_forwards_total = 0
 
     vllm_procs, vllm_ports, vllm_scratch_dir = None, None, None
     if use_vllm_rollout:
@@ -267,6 +269,7 @@ def train_run_opsd(model, examples, cfg, tag, use_vllm_rollout=False, vllm_gpu_i
             optimizer.zero_grad()
             micro_losses = []
             last_ex = last_generated_ids = last_log_old = None
+            step_rollout_tokens = step_truncated = 0
 
             step_examples = [examples[(example_idx + i) % len(examples)] for i in range(effective_batch_size)]
             example_idx += effective_batch_size
@@ -289,6 +292,8 @@ def train_run_opsd(model, examples, cfg, tag, use_vllm_rollout=False, vllm_gpu_i
                         temperature=cfg["train"]["temperature"], top_p=cfg["train"]["top_p"],
                         top_k=cfg["train"].get("top_k"),
                     )
+                step_rollout_tokens += int(gen_len)
+                step_truncated += int(gen_len) >= cfg["train"]["max_new_tokens"]
                 log_old = policy.forward_checkpoint(ex.student_prompt_ids, generated_ids)
                 log_student = policy.forward_student(ex.student_prompt_ids, generated_ids)
                 log_teacher = policy.forward_teacher(ex.teacher_prefix_ids, generated_ids)  # frozen initial model
@@ -298,8 +303,11 @@ def train_run_opsd(model, examples, cfg, tag, use_vllm_rollout=False, vllm_gpu_i
                 micro_losses.append(loss.item())
                 last_ex, last_generated_ids, last_log_old = ex, generated_ids, log_old
 
-            torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=cfg["train"]["max_grad_norm"])
+            grad_norm = torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=cfg["train"]["max_grad_norm"]).item()
             optimizer.step()
+            rollout_tokens_total += step_rollout_tokens
+            rollouts_total += effective_batch_size
+            teacher_forwards_total += effective_batch_size
 
             if use_vllm_rollout:
                 model.save_pretrained(str(vllm_scratch_dir))
@@ -310,7 +318,13 @@ def train_run_opsd(model, examples, cfg, tag, use_vllm_rollout=False, vllm_gpu_i
                 drift = kl_categorical(policy.forward_student(last_ex.student_prompt_ids, last_generated_ids),
                                        last_log_old).mean().item()
             record = {"tag": tag, "step": step, "loss": mean_loss, "elapsed_sec": time.time() - t0,
-                      "kl_student_old_drift": drift}
+                      "kl_student_old_drift": drift, "grad_norm": grad_norm,
+                      "rollout_tokens": step_rollout_tokens,
+                      "mean_rollout_len": step_rollout_tokens / effective_batch_size,
+                      "rollout_truncated_frac": step_truncated / effective_batch_size,
+                      "rollout_tokens_total": rollout_tokens_total, "rollouts_total": rollouts_total,
+                      "teacher_forwards": effective_batch_size, "teacher_forwards_total": teacher_forwards_total,
+                      "student_updates_total": step + 1}
             logs.append(record)
 
             avg_sec = (time.time() - run_start) / (step + 1)
