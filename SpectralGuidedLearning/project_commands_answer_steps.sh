@@ -16,27 +16,11 @@ export GPUS="${GPUS:-0 1}"
 
 # Offline server: no HF Hub access, load from local mirrors (see download.txt).
 PROJECT_ENV="${PROJECT_ENV:-/mnt/local/uvenvs/spectral_guided_learning}"
-# Data: LOCAL_DATA_ROOT if set, else the first mirror that holds s1K-1.1.
-if [[ -z "${LOCAL_DATA_ROOT:-}" ]]; then
-  for root in /mnt/local/_data/aiskylimit_new_nothingnew_2 /mnt/local/_data/aiskylimit_new_nothing; do
-    LOCAL_DATA_ROOT="${root}"
-    [[ -d "${root}/s1K-1.1" ]] && break
-  done
-  [[ -d "${LOCAL_DATA_ROOT}/s1K-1.1" ]] || LOCAL_DATA_ROOT=/mnt/local/_data/aiskylimit_new_nothingnew_2
-fi
+LOCAL_DATA_ROOT="${LOCAL_DATA_ROOT:-/mnt/local/_data/aiskylimit_new_nothingnew_2}"
 DATASET_NAME="${DATASET_NAME:-${LOCAL_DATA_ROOT}/s1K-1.1}"
 export BENCH_DATA_ROOT="${BENCH_DATA_ROOT:-${LOCAL_DATA_ROOT}}"
 MODEL_DIRS=(DeepSeek-R1-Distill-Qwen-1.5B Qwen2.5-7B-Instruct Qwen3-8B)
-# Models: LOCAL_MODELS_ROOT if set, else the first of the two mirrors that holds all three.
-if [[ -z "${LOCAL_MODELS_ROOT:-}" ]]; then
-  for root in /mnt/local/_models/aiskylimit_new_nothingnew_2 /mnt/local/_models/aiskylimit_new_nothing; do
-    LOCAL_MODELS_ROOT="${root}"
-    complete=1
-    for model in "${MODEL_DIRS[@]}"; do [[ -f "${root}/${model}/config.json" ]] || complete=0; done
-    [[ "${complete}" == 1 ]] && break
-  done
-  [[ "${complete}" == 1 ]] || LOCAL_MODELS_ROOT=/mnt/local/_models/aiskylimit_new_nothingnew_2
-fi
+LOCAL_MODELS_ROOT="${LOCAL_MODELS_ROOT:-/mnt/local/_models/aiskylimit_new_nothingnew_2}"
 export HF_HUB_OFFLINE=1 TRANSFORMERS_OFFLINE=1 HF_DATASETS_OFFLINE=1 HF_HUB_DISABLE_TELEMETRY=1
 export VLLM_NO_USAGE_STATS=1 VLLM_DO_NOT_TRACK=1 DO_NOT_TRACK=1 FLASHINFER_NO_DOWNLOAD=1
 export WANDB_DISABLED=true WANDB_MODE=disabled TOKENIZERS_PARALLELISM=false
