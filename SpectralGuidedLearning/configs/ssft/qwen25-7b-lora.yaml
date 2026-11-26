@@ -19,8 +19,3 @@ stages:
   eval:
     args:
       gpu-memory-utilization: 0.5
-  train_reference:
-    args:
-      lora_r: 64
-      lora_alpha: 64
-      lora_dropout: 0.05

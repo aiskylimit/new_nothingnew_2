@@ -3,7 +3,6 @@
 # train and eval, so it is evaluated with exactly P-ALIGN's protocol.
 #   ssft run r1-qwen-1.5b
 #   ssft run r1-qwen-1.5b selective=false run_suffix=-fullsft train_variant=fullcot   # long-CoT baseline
-#   ssft run r1-qwen-1.5b --stages train_reference                                    # upstream trainer
 defaults:
   - ../common/base.yaml
   - ../common/models/r1-qwen-1.5b.yaml
@@ -20,7 +19,3 @@ stages:
     args:
       deepspeed-config: null
       model-dtype: float32
-  train_reference:
-    args:
-      deepseek: true
-      full_finetune: true

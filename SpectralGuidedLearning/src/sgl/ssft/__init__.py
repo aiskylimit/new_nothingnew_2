@@ -5,6 +5,5 @@
     select       important segments: strength top-k + coherence filter      (Attribution/get_important_segments.py)
     build        tokenized {input_ids, loss_mask} exactly as train_mask.py  (SelectiveSFT/train_mask.py)
 
-Run with `ssft run configs/ssft/<experiment>.yaml`. Training goes through sgl.training.train
-(native) or the untouched references/SegmentSelectiveSFT/SelectiveSFT/train_mask.py (reference).
+Run with `ssft run configs/ssft/<experiment>.yaml`. Training goes through sgl.training.train.
 """

@@ -15,5 +15,5 @@ Every method in this package is one path through the same pipeline:
     sgl.eval         benchmarks, vLLM generation, graders, result tables (`evaluate`, `compare`)
     sgl.diagnostics  pre-training checks of the weighting signals
 
-The original P-ALIGN and Segment-Selective SFT code is kept unmodified under references/.
+The file names of the upstream P-ALIGN and Segment-Selective SFT code are cited in the ported modules.
 """
