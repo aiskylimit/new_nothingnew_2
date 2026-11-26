@@ -1,0 +1,13 @@
+# Position-only controls of ALERD (sgl.positional): same training recipe and eval as the 1.5B track, the
+# per-step weights come from data/<track>/train-positional-<run>.jsonl (sgl.positional.tables).
+results_dir: results/positional/runs
+checkpoint: results/positional/runs/${run_name}/checkpoint
+train_variant: positional-${run_name}
+pipeline: [train, eval]
+run:
+  log_dir: results/positional/meta/logs
+stages:
+  train:
+    args:
+      run-log-dir: results/positional/runs/${run_name}
+      logging-steps: 1

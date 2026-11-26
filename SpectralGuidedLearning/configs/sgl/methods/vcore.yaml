@@ -1,0 +1,18 @@
+# VCORE (arXiv 2510.27462): token weights softmax(gain / (epsilon * temperature)), gain = CE drop after
+# a probe step on a random batch. epsilon 1e-4 and epsilon*temperature 0.5 are the paper's Qwen3-4B math
+# setting (its smallest model). One GPU, fp32 weights, no DeepSpeed (see sgl.training.baselines).
+defaults: [sft.yaml]
+vcore_epsilon: 1.0e-4
+vcore_temperature: 5000.0
+stages:
+  train:
+    # no torchrun: a DDP wrapper must not sit on weights that the probe step edits
+    launcher: python
+    effective_batch: null
+    args:
+      gradient-accumulation-steps: 32
+      baseline: vcore
+      vcore-epsilon: ${vcore_epsilon}
+      vcore-temperature: ${vcore_temperature}
+      model-dtype: float32
+      deepspeed-config: null
