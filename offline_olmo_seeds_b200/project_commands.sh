@@ -40,18 +40,6 @@ export PYTHONPATH=.
 VENV=/mnt/local/uvenvs/tropic            # built by a "#i tropic.txt" commit
 if [ -f "$VENV/bin/activate" ]; then source "$VENV/bin/activate"; else echo "!!! no venv at $VENV"; fi
 
-# ---- paths: same @PROJECT@ as offline_olmo7b_b200/ (download.txt); the newer /mnt/local/_data/ layout is
-#      also accepted, whichever actually holds the model ----
-PROJECT_NAME="aiskylimit_new_nothingnew_2"
-BASE_DIR="/mnt/local/${PROJECT_NAME}/tropic_baselines"
-for cand in "/mnt/local/${PROJECT_NAME}/tropic_baselines" "/mnt/local/_data/${PROJECT_NAME}/tropic_baselines" \
-            "/mnt/local/_data/${PROJECT_NAME}"; do
-  if [ -f "$cand/models/Olmo-3-7B-Think/config.json" ]; then BASE_DIR=$cand; break; fi
-done
-MODEL_OLMO="${BASE_DIR}/models/Olmo-3-7B-Think"
-export TROPIC_TRAIN_DATA_PATH="${BASE_DIR}/data/train"
-export TROPIC_EVAL_DATA_DIR="${BASE_DIR}/data/eval"
-
 # ---- what to run ----
 GPU_A=2; GPU_B=3
 WORKERS=2                 # 1 = a single job at a time (then set GPU_MEM_UTIL=0.95)
@@ -64,6 +52,41 @@ BENCHMARKS="aime25 aime26 hmmt25"
 MAX_TRIES=2
 STAGGER=${STAGGER:-180}; RETRY_WAIT=${RETRY_WAIT:-120}; POLL=${POLL:-60}   # seconds
 STATE="$ROOT/.queue_state"
+
+# ---- model + data: the same files may sit in several places on the server, depending on which download
+#      ("#d") commit fetched them - this folder's download.txt (tropic_baselines/, as for offline_olmo7b_b200),
+#      opsd/download.txt (OPSD/models, OPSD/data/raw), or the newer /mnt/local/_data/ layout. Take the first
+#      complete copy; as a last resort search /mnt/local. Nothing found = the preflight below says so. ----
+PROJECT_NAME="aiskylimit_new_nothingnew_2"
+ROOTS="/mnt/local/${PROJECT_NAME} /mnt/local/_data/${PROJECT_NAME} /mnt/local/_data"
+model_ok() { [ -f "$1/config.json" ] && ls "$1"/*.safetensors > /dev/null 2>&1; }
+data_ok() {  # <dir holding train/ and eval/<bench>/>
+  local b
+  [ -n "$(ls -A "$1/train" 2>/dev/null)" ] || return 1
+  for b in $BENCHMARKS; do [ -n "$(ls -A "$1/eval/$b" 2>/dev/null)" ] || return 1; done
+}
+MODEL_OLMO=""; DATA_DIR=""
+for r in $ROOTS; do
+  for sub in tropic_baselines/models OPSD/models models; do
+    if [ -z "$MODEL_OLMO" ] && model_ok "$r/$sub/Olmo-3-7B-Think"; then MODEL_OLMO="$r/$sub/Olmo-3-7B-Think"; fi
+  done
+  for sub in tropic_baselines/data OPSD/data/raw data; do
+    if [ -z "$DATA_DIR" ] && data_ok "$r/$sub"; then DATA_DIR="$r/$sub"; fi
+  done
+done
+if [ -z "$MODEL_OLMO" ]; then
+  while IFS= read -r c; do model_ok "$c" && { MODEL_OLMO=$c; break; }; done \
+    < <(find /mnt/local -maxdepth 6 -type d -name "Olmo-3-7B-Think" -not -path "*/uvenvs/*" 2>/dev/null)
+fi
+if [ -z "$DATA_DIR" ]; then
+  while IFS= read -r c; do c=$(dirname "$(dirname "$c")"); data_ok "$c" && { DATA_DIR=$c; break; }; done \
+    < <(find /mnt/local -maxdepth 7 -type d -name "aime26" -path "*/eval/aime26" -not -path "*/uvenvs/*" 2>/dev/null)
+fi
+# defaults only matter for the error message when nothing was found
+MODEL_OLMO=${MODEL_OLMO:-/mnt/local/${PROJECT_NAME}/tropic_baselines/models/Olmo-3-7B-Think}
+DATA_DIR=${DATA_DIR:-/mnt/local/${PROJECT_NAME}/tropic_baselines/data}
+export TROPIC_TRAIN_DATA_PATH="${DATA_DIR}/train"
+export TROPIC_EVAL_DATA_DIR="${DATA_DIR}/eval"
 
 cfg() {  # method -> script, tag, training steps, evaluated steps
   case $1 in
@@ -265,18 +288,16 @@ preflight() {
   echo "  python: $(command -v python)   vllm: $(command -v "$VLLM_EXECUTABLE" || echo NOT FOUND)"
   [ "$(command -v python)" = "$VENV/bin/python" ] || { echo "!!! the venv $VENV is not active - (re)install it with a '#i tropic.txt' commit"; bad=1; }
   command -v "$VLLM_EXECUTABLE" > /dev/null || { echo "!!! '$VLLM_EXECUTABLE' is not on PATH"; bad=1; }
-  echo "  base dir: $BASE_DIR"
-  [ -f "$MODEL_OLMO/config.json" ] || { echo "!!! model missing: $MODEL_OLMO/config.json"; bad=1; }
-  ls "$MODEL_OLMO"/*.safetensors > /dev/null 2>&1 || { echo "!!! no *.safetensors in $MODEL_OLMO"; bad=1; }
-  [ -n "$(ls -A "$TROPIC_TRAIN_DATA_PATH" 2>/dev/null)" ] || { echo "!!! training data missing/empty: $TROPIC_TRAIN_DATA_PATH"; bad=1; }
-  for d in $BENCHMARKS; do
-    [ -n "$(ls -A "$TROPIC_EVAL_DATA_DIR/$d" 2>/dev/null)" ] || { echo "!!! eval data missing/empty: $TROPIC_EVAL_DATA_DIR/$d"; bad=1; }
-  done
+  echo "  model: $MODEL_OLMO"
+  echo "  data:  $DATA_DIR"
+  model_ok "$MODEL_OLMO" || { echo "!!! no complete Olmo-3-7B-Think (config.json + *.safetensors) found under /mnt/local"; bad=1; }
+  data_ok "$DATA_DIR" || { echo "!!! no complete train + eval/{${BENCHMARKS// /,}} data found under /mnt/local"; bad=1; }
   if [ "$bad" = "1" ]; then
-    echo "  (model/data missing -> commit offline_olmo_seeds_b200/download.txt as a '#d' commit first;"
-    echo "   ls /mnt/local/${PROJECT_NAME}/tropic_baselines /mnt/local/_data/${PROJECT_NAME} shows what is there:)"
-    ls -la "/mnt/local/${PROJECT_NAME}/tropic_baselines" "/mnt/local/${PROJECT_NAME}/tropic_baselines/models" \
-           "/mnt/local/_data/${PROJECT_NAME}" 2>&1 | sed 's/^/  | /' | head -40
+    echo "  (missing model/data -> commit the contents of offline_olmo_seeds_b200/download.txt as commands.sh ('#d') first)"
+    echo "  what is on disk:"
+    ls -la /mnt/local "/mnt/local/${PROJECT_NAME}" "/mnt/local/${PROJECT_NAME}/tropic_baselines" \
+           "/mnt/local/${PROJECT_NAME}/tropic_baselines/models" "/mnt/local/${PROJECT_NAME}/OPSD/models" \
+           "/mnt/local/_data/${PROJECT_NAME}" /mnt/local/uvenvs 2>&1 | sed 's/^/  | /' | head -80
   fi
   # GPUs 2,3: who else is on them (a job of someone else there = out-of-memory for ours)
   nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu --format=csv,noheader 2>&1 | sed 's/^/  gpu /'
@@ -287,7 +308,8 @@ preflight() {
     elif [ "$used" -gt 20000 ]; then echo "!!! GPU $d already has ${used} MiB in use by another process - our jobs may run out of memory"; fi
   done
   # the venv itself: imports, CUDA, and that this transformers can read the OLMo-3 config (needs >= 4.57)
-  CUDA_VISIBLE_DEVICES="$GPU_A,$GPU_B" MODEL_OLMO="$MODEL_OLMO" python - <<'PY' 2>&1 | sed 's/^/  /' || bad=1
+  CUDA_VISIBLE_DEVICES="$GPU_A,$GPU_B" MODEL_OLMO="$MODEL_OLMO" BENCHMARKS="$BENCHMARKS" \
+    python - <<'PY' 2>&1 | sed 's/^/  /' || bad=1
 import importlib, os, sys
 ok = True
 for m in ["torch", "transformers", "peft", "datasets", "math_verify", "vllm"]:
@@ -305,12 +327,29 @@ try:
         free, total = torch.cuda.mem_get_info(i); print(f"  device {i}: {free / 2**30:.0f} / {total / 2**30:.0f} GiB free")
 except Exception as e:
     print(f"!!! CUDA init failed: {type(e).__name__}: {e}"); ok = False
+tok = None
 try:
     from transformers import AutoConfig, AutoTokenizer
-    c = AutoConfig.from_pretrained(os.environ["MODEL_OLMO"]); AutoTokenizer.from_pretrained(os.environ["MODEL_OLMO"])
+    c = AutoConfig.from_pretrained(os.environ["MODEL_OLMO"]); tok = AutoTokenizer.from_pretrained(os.environ["MODEL_OLMO"])
     print(f"model config + tokenizer OK ({c.model_type})")
 except Exception as e:
     print(f"!!! cannot load the model config/tokenizer: {type(e).__name__}: {e}"); ok = False
+# the very same loaders (and arguments) the jobs call first - what a job would hit in its first seconds
+try:
+    from tropic.data import load_opsd_math_examples
+    if tok is not None:
+        ex = load_opsd_math_examples(tok, num_examples=4, only_correct=True, teacher_thinking=True,
+                                     student_thinking=False, seed=0, max_length=20000,
+                                     empty_think_suffix="\n\n</think>\n\n")
+        print(f"training data OK ({len(ex)} examples through tropic.data)")
+except Exception as e:
+    print(f"!!! training data does not load: {type(e).__name__}: {e}"); ok = False
+try:
+    from tropic.eval import load_benchmark
+    for b in os.environ["BENCHMARKS"].split():
+        print(f"eval {b}: {len(load_benchmark(b, num_problems=30))} problems")
+except Exception as e:
+    print(f"!!! eval data does not load: {type(e).__name__}: {e}"); ok = False
 sys.exit(0 if ok else 1)
 PY
   if [ "$bad" = "1" ]; then echo "=== preflight FAILED - nothing was run (see the !!! lines above) ==="; return 1; fi
