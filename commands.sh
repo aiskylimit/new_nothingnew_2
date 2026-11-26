@@ -1,8 +1,8 @@
-#i tropic.txt
+#2 -0-10
 #alerd
 #v1
 
-cd SpectralGuidedLearning && bash project_commands.sh
+# cd SpectralGuidedLearning && bash project_commands.sh
 
 
 nvidia-smi
