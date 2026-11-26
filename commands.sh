@@ -1,8 +1,8 @@
-#2
-#alerd-log
+#1 +10
+#alerd
 #v1
 
-# cd SpectralGuidedLearning && bash project_commands.sh
+cd SpectralGuidedLearning && bash project_commands.sh
 
 
 nvidia-smi
