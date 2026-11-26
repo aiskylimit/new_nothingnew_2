@@ -329,6 +329,8 @@ def fig_dynamics(plt, tr, model, out):
               ("mean_rollout_len", "Training rollout length"), ("frac_correct_rollouts", "Correct training rollouts"),
               ("mean_s", "TROPIC step size s"), ("G_k", "TROPIC privileged gap G")]
     panels = [(c, t) for c, t in panels if c in d.columns and d[c].notna().any()]
+    if not panels:  # logs without any of these fields (e.g. a run still in progress)
+        return
     methods = order(d.method.unique())
     ncol = 3
     nrow = int(np.ceil(len(panels) / ncol))
