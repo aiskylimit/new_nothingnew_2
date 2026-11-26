@@ -7,7 +7,7 @@ Ngày soạn: 2026-11-26. Mọi lệnh chạy từ thư mục `SpectralGuidedLea
 ```bash
 cd SpectralGuidedLearning
 bash project_commands.sh --dry-run          # chỉ in lệnh, không chạy: kiểm tra đường dẫn trước
-bash project_commands.sh                    # chạy cả 5 nhóm, lần lượt
+bash project_commands.sh                    # chạy cả 6 nhóm, lần lượt
 bash project_commands.sh positional w4      # chỉ chạy các nhóm được nêu, theo thứ tự đó
 ```
 
@@ -18,6 +18,7 @@ bash project_commands.sh positional w4      # chỉ chạy các nhóm được n
 | `vcore_asft` | `project_commands_vcore_asft.sh` | baseline VCORE và ASFT, 1.5B, 966 trace | `rebuttal/` |
 | `positional` | `project_commands_positional.sh` | kiểm tra thiên lệch vị trí của answer gain | `results/positional/` |
 | `w4` | `project_commands_w4.sh` | độ bền theo probe và cách chia bước (reviewer HHj8, W4) | `results/w4/` |
+| `hard` | `project_commands_hard.sh` | ALG-hard: giữ/bỏ cứng theo answer gain so với trọng số mềm của ALG | `results/hard/` |
 
 **Chung cho mọi nhóm**
 
@@ -38,7 +39,7 @@ bash project_commands.sh positional w4      # chỉ chạy các nhóm được n
 - DeepSpeed ZeRO-2 có fp32 master weights.
 - ALG/ALERD công bố = arm `e7-alg-tau1` (τ=1, λ=0.5, c=2).
 
-Thứ tự trong `project_commands.sh`: rebuttal → answer_steps → vcore_asft → positional → w4. Nhóm `rebuttal` lâu nhất (3 model trên s1K). Cần kết quả 1.5B sớm thì chạy `bash project_commands.sh positional w4 vcore_asft` trước.
+Thứ tự trong `project_commands.sh`: rebuttal → answer_steps → vcore_asft → positional → w4 → hard. Nhóm `rebuttal` lâu nhất (3 model trên s1K). Cần kết quả 1.5B sớm thì chạy `bash project_commands.sh positional w4 vcore_asft` trước.
 
 ---
 
@@ -336,3 +337,49 @@ Những điểm cần xem khi chạy trên server:
 6. Hai định nghĩa trong `summary.json` của W4 chưa chắc trùng với paper: "% gain dương ở bước chứa đáp án" (khối lượng gain dương) và "khối lượng top-10%". Định nghĩa được ghi ngay trong file; hồi quy P0/S0 sẽ cho thấy có khớp số paper không.
 7. **Positional:** quy tắc quyết định có một trường hợp không phủ (in `NOT COVERED`). A1b "khác nhiều" cần đọc tay; nếu cần thì `RUNS_EXTRA=r7`.
 8. **VCORE:** trọng số có thể gần đều; xem `effective_token_fraction` trong `run-summary.json`.
+
+---
+
+## ALG-hard (`hard`): chọn cứng với cùng answer gain
+
+**File:** `project_commands_hard.sh`; code `src/sgl/hardsel/`; config `configs/sgl/r1-qwen-1.5b-palign/hard-{h59,r59,h30,alg-h59}.yaml`. 1.5B, 966 trace, recipe E7.
+
+```bash
+bash project_commands_hard.sh --dry-run
+bash project_commands_hard.sh prepare       # CPU: chọn bước, kiểm tra, thống kê, ghi quy tắc quyết định
+bash project_commands_hard.sh train A       # H59, R59 (2 GPU)
+bash project_commands_hard.sh train B       # H30, ALG∘H59
+bash project_commands_hard.sh nll_posthoc   # NLL theo vùng cho uniform / ALG
+bash project_commands_hard.sh report        # bảng, hình, decision.json
+bash project_commands_hard.sh train C       # H59 seed 43, 44, chỉ chạy khi decision.json yêu cầu
+bash project_commands_hard.sh               # tất cả: prepare, A, nll_posthoc, report, C nếu cần, B, report
+```
+
+| Run (`r1q1.5b__<arm>__P0__S0__seed<s>`) | Nhóm | Token được giám sát | Trọng số |
+|---|---|---|---|
+| `h59` | A | bước gain cao nhất cho đến khi đủ ngân sách | 1 |
+| `r59` | A | thứ tự bước ngẫu nhiên (`Random(42 + trace id)`), đủ số token của H59 ở trace đó | 1 |
+| `h30` | B | như H59, p = 0.30 | 1 |
+| `alg-h59` | B | mask H59 | ALG (τ=1, λ=0.5, c=2) tính lại trên bước giữ |
+| `h59` seed 43, 44 | C | như H59 | 1 |
+
+**Đầu vào phải có trên server**
+- Gain: `experiments/answer_gain/scores/answer_gain.json`; không có thì dùng `results/w4/signals/r1q1.5b__P0__S0` (chạy `bash project_commands_w4.sh score` trước).
+- Run seed 42 của uniform / ALG: `results/e0-uniform-r1-qwen-1.5b-palign/raw`, `results/e7-alg-tau1-r1-qwen-1.5b-palign/raw` (đổi bằng `SEED42_UNIFORM`, `SEED42_ALG`). Thiếu thì không có paired bootstrap so với ALG và `decision.json` ở trạng thái `pending`.
+- Checkpoint E0 / E7 (`checkpoints/<tag>`) và checkpoint từng epoch của W4 nhóm C: cho `nll_posthoc`. Thiếu cái nào thì bỏ qua cái đó và in cảnh báo.
+- Tùy chọn: `data/r1-qwen-1.5b-palign/train-spectral.jsonl` (gate SGL). Có file này thì mặc định (`BUDGET=auto`) ngân sách của H59/R59 là số token gate SGL giữ ở từng trace (bảng ghi `H-SGL`); `BUDGET=fixed` để luôn dùng 59%.
+
+**Report** (`results/hard/`)
+- `selection/<arm>/`: `steps.parquet`, `traces.parquet`, `select_check.json`, `selection_stats.json`, `manifest.json`. Kiểm tra nào hỏng thì không ghi file train.
+- `runs/<run_id>/`: `config.yaml`; `train/` (`train_log.jsonl` mỗi optimizer step, `epoch_log.jsonl` epoch 0–3, `health.jsonl`, `data_check.json`, `config.json`, `train_summary.json`); `checkpoints/epoch1..3`; `raw/`; `eval/` (`samples.jsonl`, `metrics.json`, `paired_vs_baselines.json`); `timing.json`, `manifest.json`, `run_check.json`.
+- `posthoc_nll/<method>__seed<s>/epoch_nll.json`.
+- `analysis/`: `table_r_h1.md`, `table_r_h2.md`, `fig_h1_dropped_nll`, `fig_h2_kept_by_position`, `results_master.csv`, `decision.json`, `selection_overlap.json`.
+
+**Lưu ý khi đọc kết quả**
+- Bước vượt ngưỡng được giữ nguyên, nên tỉ lệ giữ thực tế cao hơn p (có trace cao hơn nhiều vì một bước rất dài). Xem `selection_stats.json` sau `prepare`; R59 cũng vượt thêm tối đa một bước so với H59.
+- Số chính là Math-Verify OR OAT (theo plan); `table_r_h1.md` có thêm bảng chỉ Math-Verify, và `GRADER=mathverify` để quyết định theo Math-Verify. Số công bố 40.76 / 42.78 trong repo được ghi là chấm bằng Math-Verify.
+- Dòng SGL (s1K) trong Bảng R-H1 phải điền tay qua `SGL_ROW="..."`.
+- `w` và tỉ trọng loss trong Bảng R-H2 tính trên token của các bước (không tính EOS); "top-10% gain" là 10% bước có `u` cao nhất trong từng trace.
+- Trong `train_log.jsonl`, `n_tok_total` / `n_tok_kept` không tính EOS; `nll_kept` và `Z` có tính EOS.
+- Nhóm C của W4 phải giữ checkpoint epoch (`KEEP_EPOCH_CKPT=1`, mặc định) cho đến khi chạy xong `nll_posthoc`. Đĩa: khoảng 9 GB mỗi run.
+

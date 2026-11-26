@@ -156,7 +156,12 @@ def hardware() -> dict:
 
 
 def git_state() -> dict:
-    run = lambda *a: subprocess.run(["git", *a], capture_output=True, text=True).stdout  # noqa: E731
+    def run(*a):
+        try:
+            return subprocess.run(["git", *a], capture_output=True, text=True).stdout
+        except OSError:  # no git binary on this machine
+            return ""
+
     diff = run("diff", "HEAD")
     return {
         "commit": run("rev-parse", "HEAD").strip() or "unknown",

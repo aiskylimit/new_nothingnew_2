@@ -122,7 +122,7 @@ class StepLogger(TrainerCallback):
         self.pending = None
         self.step_start = time.time()
 
-    def add(self, logits, labels, weights, source, denominator, tags=None) -> None:
+    def add(self, logits, labels, weights, source, denominator, tags=None, input_ids=None) -> None:
         from sgl.training.baselines import per_token_ce
 
         with torch.no_grad():

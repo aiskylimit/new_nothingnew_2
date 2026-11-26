@@ -1,0 +1,4 @@
+# ALG-hard arm: H59's mask with ALG's weights recomputed over the kept steps.
+defaults: [../tracks/r1-qwen-1.5b-palign.yaml, ../methods/hardsel.yaml]
+name: hard-alg-h59
+arm: alg-h59

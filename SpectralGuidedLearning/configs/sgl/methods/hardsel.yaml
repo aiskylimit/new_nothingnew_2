@@ -1,0 +1,21 @@
+# ALG-hard (sgl.hardsel): E7's recipe on a hard keep/drop mask chosen by answer gain (or its controls).
+# The driver (project_commands_hard.sh) sets train_seed and run.gpus; the training file
+# data/<track>/train-hard-<arm>.jsonl comes from sgl.hardsel.select.
+results_dir: results/hard/runs
+run_name: r1q1.5b__${arm}__P0__S0__seed${train_seed}
+train_variant: hard-${arm}
+checkpoint: results/hard/runs/${run_name}/checkpoints/epoch3
+pipeline: [train, eval]
+run:
+  log_dir: results/hard/meta/logs
+stages:
+  train:
+    args:
+      run-log-dir: results/hard/runs/${run_name}/train
+      selection-log: true
+      logging-steps: 1
+      epoch-nll: true
+      epoch-checkpoints-dir: results/hard/runs/${run_name}/checkpoints
+      param-check-step: 64
+      # optimizer state: only the latest is kept for a resume, the driver deletes it when the run is done
+      save-total-limit: 1
