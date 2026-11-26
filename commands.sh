@@ -1,9 +1,12 @@
-#2 -0-10
-#alerd
+#1 +30
+#olmo
 #v1
 
 # cd SpectralGuidedLearning && bash project_commands.sh
 
+
+cd ./offline_olmo_seeds_b200
+bash ./project_commands.sh
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
@@ -51,7 +54,4 @@ export NCCL_DEBUG=WARN
 # bash ./project_commands.sh
 
 # cd ./grit
-# bash ./project_commands.sh
-
-# cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
