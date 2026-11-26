@@ -4,6 +4,9 @@ Each family has its own command, config tree and run names (`<arm>-<track>` for 
 `palign-<model>`, `ssft-<model>`), so results from different methods never overwrite each other and
 always land in the shared `results/` table side by side.
 
+> The upstream code was later removed from `references/`. The "Checked by" columns record the
+> comparisons made while porting (git history up to that removal); upstream-comparison tests no longer run.
+
 ## `sgl` — spectral-guided learning and step allocation
 
 Code: `sgl.data.prepare`, `sgl.signals`, `sgl.selection`, `sgl.allocation`, `sgl.transforms`,
@@ -47,7 +50,7 @@ Code: `sgl.palign` (`truncate`, `align`, `build`), `sgl.data.s1k`. Configs: `con
 | Continuation | `src/prefix-alignment.py` | `sgl.palign.align` | prompt byte-identical (upstream `process_data` run with stubs) |
 | Training file | not released as code | `sgl.palign.build` | marker layout reproduces all 966 released rows |
 | Training tokens | LLaMA-Factory alpaca converter + `deepseekr1` / `qwen3` / `qwen` templates | `sgl.data.prepare --instruction-separator "\n" [--stop-suffix "\n"]` | ids identical to LLaMA-Factory's own `encode_oneturn` (`tests/test_palign_training_format.py`) |
-| Training | LLaMA-Factory (`src/train.py` + YAML) | `sgl.training.train` | same recipe; `train_reference` stage runs the original |
+| Training | LLaMA-Factory (`src/train.py` + YAML) | `sgl.training.train` | same recipe |
 | Evaluation | `src/test.py` + `src/evaluation.py` | `sgl.eval.evaluate --palign-prompt --grader math_verify` | prompt test; grader reproduces 429/429 published labels |
 
 Notes:
@@ -66,9 +69,6 @@ Notes:
   precision: full fine-tuning keeps fp32 trainable weights under bf16 autocast (what LLaMA-Factory
   does for full tuning), LoRA keeps a bf16 base. No DeepSpeed, as in P-ALIGN's runs. Losses are the
   token mean over the optimizer step in both trainers.
-* `palign run <cfg> --stages reference_data,train_reference stages.train_reference.python=<llamafactory env>/bin/python`
-  trains with the unmodified LLaMA-Factory script; evaluate it with `--stages eval run_suffix=-llamafactory`
-  (add `lora_adapter=true` for the LoRA configs, whose LLaMA-Factory output is an adapter).
 * Not bit-identical by construction: data order and dropout RNG differ between trainers, the HF
   Trainer's default AdamW implementation may be the fused one (same update rule), and sdpa vs
   LLaMA-Factory's `flash_attn: auto` kernels. These change numbers at the level of seed noise only.
@@ -83,7 +83,7 @@ Code: `sgl.ssft` (`attribution`, `select`, `build`), `sgl.data.s1k`. Configs: `c
 | Attribution | `Attribution/grad_analyze.py` | `sgl.ssft.attribution` | per-token IG identical to upstream's class on a bf16 model |
 | Selection | `Attribution/get_important_segments.py` | `sgl.ssft.select` | output file byte-identical (unit test + regression) |
 | Labels | `SelectiveSFT/train_mask.py` `formatting_prompts_func` | `sgl.ssft.build` | identical ids and masks over 40 template / prompt / truncation modes |
-| Training | Unsloth + TRL `SFTTrainer` | `sgl.training.train` | same hyperparameters; `train_reference` stage runs the original |
+| Training | Unsloth + TRL `SFTTrainer` | `sgl.training.train` | same hyperparameters |
 | Evaluation | `eval.sh` + `score_palign.py` (math_verify) | P-ALIGN protocol | as above |
 
 Notes:

@@ -67,29 +67,3 @@ stages:
       logging-steps: 1
       save-total-limit: 3
       objective: nll
-  train_reference:
-    # the fork's own trainer, untouched (Unsloth + TRL), in its own env:
-    #   ssft run <cfg> --stages train_reference stages.train_reference.python=/envs/ssft_train/bin/python
-    script: train_mask.py
-    cwd: references/SegmentSelectiveSFT/SelectiveSFT
-    raw_keys: true
-    creates: checkpoints/${run_name}-unsloth
-    args:
-      model_name_or_path: ${model.name}
-      data_names: ../../../${build_dir}/selected.jsonl
-      output_dir: ../../../checkpoints/${run_name}-unsloth
-      epochs: 3
-      learning_rate: 5.0e-5
-      max_seq_length: 32768
-      per_device_train_batch_size: 1
-      gradient_accumulation_steps: 32
-      optim: adamw_torch
-      weight_decay: 0.0
-      lr_scheduler_type: cosine
-      warmup_ratio: 0.1
-      seed: ${train_seed}
-      segment_mode: ${segment_mode}
-      prompt_style: ${prompt_style}
-      think_prefix: ${think_prefix}
-      mask: ${selective}
-      apply_all: ${selective}

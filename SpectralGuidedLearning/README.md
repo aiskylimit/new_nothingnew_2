@@ -41,7 +41,7 @@ sgl    run r1-qwen-1.5b-palign/sft-nll --stages compare   # refresh results/comp
 ```
 
 * `key.path=value` overrides any config value (`train_seed=43`, `stages.train.args.learning-rate=1e-5`).
-* `--stages a,b` runs just those stages (including optional ones such as `train_reference`),
+* `--stages a,b` runs just those stages,
   `--from b` resumes the pipeline at `b`, `--force` reruns stages whose output already exists.
 * Each stage logs to `logs/<run>-<stage>.log`; a stage is skipped when its `creates` path exists.
 * `sgl check` validates every config of the family against the argument parsers of the modules it
@@ -66,8 +66,8 @@ src/sgl/
 configs/
   common/             base, models, datasets, training recipes, evaluation protocol
   sgl/  palign/  ssft/   experiments of each family (+ methods/ and tracks/ building blocks)
-references/           the original P-ALIGN and SegmentSelectiveSFT code, unmodified
-tests/                unit tests, equivalence tests against references/, regression + end-to-end
+references/           P-ALIGN's released training data (and its license)
+tests/                unit tests, regression + end-to-end
 results/              eval summaries (summary.json per run), comparison table
 ```
 
@@ -83,10 +83,10 @@ results/              eval summaries (summary.json per run), comparison table
 
 ```bash
 pytest                      # ~2.5 min on CPU, no GPU or network needed
-pytest -m "not regression"  # unit + equivalence tests only (~1 min)
+pytest -m "not regression"  # unit tests only (~1 min)
 ```
 
 `tests/regression/` reruns every CPU stage on fixed assets and compares the outputs with hashes
 recorded from the pre-refactor code (`paper-v1` = commit `7990089`), and trains each family's
-configs end to end through the CLI with a tiny model. The equivalence tests import the untouched
-upstream code from `references/` and check the ports against it.
+configs end to end through the CLI with a tiny model. The upstream P-ALIGN and SegmentSelectiveSFT
+code is no longer in the repository, so the ports are not re-checked against it.

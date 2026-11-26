@@ -28,10 +28,6 @@ HERE = Path(__file__).resolve().parent
 ASSETS = HERE / "assets"
 GOLDEN = HERE / "golden.json"
 TOKENIZER = str(ASSETS / "tokenizer")
-SSFT = ROOT / "references" / "SegmentSelectiveSFT"
-if not SSFT.exists():
-    SSFT = ROOT / "SegmentSelectiveSFT"
-
 PY = sys.executable
 
 
@@ -98,19 +94,8 @@ STAGES = [
         "--rescore", str(ASSETS / "raw_aime24.jsonl"), "--grader", "builtin",
     ], "eval/rescore-builtin.json"),
     ("compare_results", sgl("eval.compare") + ["--results-dir", "results"], None),
-    ("ssft_split_paragraph", [PY, str(SSFT / "Attribution" / "segment_split.py"),
-        "--input_data_file", "ssft/train.jsonl", "--output_data_file", "ssft/segments-paragraph.jsonl",
-        "--tokenizer", "none", "--segment_mode", "paragraph",
-    ], None),
-    ("ssft_split_cue", [PY, str(SSFT / "Attribution" / "segment_split.py"),
-        "--input_data_file", "ssft/train.jsonl", "--output_data_file", "ssft/segments-cue.jsonl",
-        "--tokenizer", "none", "--segment_mode", "cue",
-    ], None),
+    ("ssft_split", None, None),  # `segments` field per paragraph and per cue, see write_ssft_segments()
     ("ssft_ig", None, None),  # synthetic compact IG per segment, see write_ssft_ig()
-    ("ssft_select", [PY, str(SSFT / "Attribution" / "get_important_segments.py"),
-        "--input_data_file", "ssft/segments-paragraph.jsonl", "--IG_score_data_file", "ssft/ig_compact.jsonl",
-        "--output_data_file", "ssft/selected.jsonl",
-    ], None),
     # framework stages added after paper-v1: new outputs only, the ones above must not move
     ("data_prep_paragraph", sgl("data.prepare") + PREP_ARGS + [
         "--chat-template", "--no-enable-thinking", "--palign-prompt", "--segmenter", "paragraph",
@@ -126,9 +111,6 @@ STAGES = [
         "--no-deepseek", "--think-prefix", "plain", "--prompt-style", "palign",
     ], None),
 ]
-
-# Pairs of outputs that must be byte-identical: framework port vs the upstream script.
-SAME_OUTPUT = [("ssft/selected.jsonl", "ssft/selected-sgl.jsonl")]
 
 # Outputs that are figures or otherwise not byte-stable; everything else in the work dir is hashed.
 UNHASHED_SUFFIXES = {".png"}
@@ -185,6 +167,19 @@ def write_signals(work: Path) -> None:
     shutil.copyfile(work / "data" / "train-segmented.jsonl", work / "gain" / "train-segmented.jsonl")
 
 
+def write_ssft_segments(work: Path) -> None:
+    """SegmentSelectiveSFT's input rows plus their `segments`, in the layout the golden hashes were recorded in."""
+    sys.path.insert(0, str(ROOT / "src"))
+    from sgl.segment.rules import split_segments
+
+    rows = [json.loads(line) for line in (work / "ssft" / "train.jsonl").open()]
+    for mode in ("paragraph", "cue"):
+        with (work / "ssft" / f"segments-{mode}.jsonl").open("w") as out:
+            for row in rows:
+                segments = split_segments(row["solution"], mode)
+                out.write(json.dumps({**row, "segments": segments}, ensure_ascii=False) + "\n")
+
+
 def write_ssft_ig(work: Path) -> None:
     """Deterministic compact IG rows [n_tok, sum|IG|, sum IG] per segment, with edge cases."""
     with (work / "ssft" / "segments-paragraph.jsonl").open() as handle, \
@@ -202,7 +197,7 @@ def write_ssft_ig(work: Path) -> None:
             out.write(json.dumps({"segments": compact}) + "\n")
 
 
-SYNTHETIC = {"signals": write_signals, "ssft_ig": write_ssft_ig}
+SYNTHETIC = {"signals": write_signals, "ssft_split": write_ssft_segments, "ssft_ig": write_ssft_ig}
 
 
 def content_hash(path: Path) -> str:
@@ -239,8 +234,7 @@ def run_pipeline(work: Path) -> dict[str, str]:
 
 
 def diff(expected: dict[str, str], actual: dict[str, str]) -> list[str]:
-    problems = [f"port differs from upstream: {a} vs {b}" for a, b in SAME_OUTPUT if actual.get(a) != actual.get(b)]
-    problems += [f"missing output: {name}" for name in sorted(expected.keys() - actual.keys())]
+    problems = [f"missing output: {name}" for name in sorted(expected.keys() - actual.keys())]
     problems += [f"unexpected output: {name}" for name in sorted(actual.keys() - expected.keys())]
     problems += [
         f"changed: {name}" for name in sorted(expected.keys() & actual.keys())

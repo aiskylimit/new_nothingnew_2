@@ -25,7 +25,7 @@ read them before changing a method.
 
 ```bash
 pytest                               # everything, ~2.5 min on CPU, no GPU or network needed
-pytest -m "not regression"           # unit + equivalence tests only (~30 s)
+pytest -m "not regression"           # unit tests only (~30 s)
 pytest -m regression                 # golden outputs, legacy drivers, CLI end-to-end
 ruff check src tests scripts         # lint (config in pyproject.toml); CI runs both
 
@@ -54,7 +54,7 @@ src/sgl/
   eval/               benchmarks, vLLM generation, graders, comparison table
 configs/common/       base, models, data blocks, training recipes, eval protocol
 configs/{sgl,palign,ssft}/   experiments; `methods/`, `tracks/` and `_*.yaml` are building blocks
-references/           upstream P-ALIGN and SegmentSelectiveSFT code — read-only
+references/           P-ALIGN's released training data (966 traces) and its license — read-only
 tests/regression/     golden hashes, legacy-driver comparison, CLI end-to-end, offline assets
 scripts/, project_commands*.sh   legacy drivers (still used for tracks without configs)
 results*/, logs/      live output dirs written by runs; experiments/ holds old root logs
@@ -77,17 +77,13 @@ results*/, logs/      live output dirs written by runs; experiments/ holds old r
   decay to 0 (`min-learning-rate: 0.0`). SSFT keeps upstream quirks: no EOS appended, first /
   second-to-last / last segments always learned, seed 3407.
 - Code and comments are in English, matching the surrounding style; comments explain *why*.
-  `references/SegmentSelectiveSFT/CLAUDE.md` (Vietnamese without diacritics) applies only inside
-  that directory, which should not be edited anyway.
-- Add tests next to the area you change; for a new port, compare against the upstream code in
-  `references/` rather than against a reimplementation.
+- Add tests next to the area you change; for a new port, compare against the upstream code (not part
+  of this repository any more) rather than against a reimplementation.
 
 ## Environment notes
 
-- GPU-only paths (real training, vLLM eval / judge, the upstream reference trainers) cannot run in
+- GPU-only paths (real training, vLLM eval / judge) cannot run in
   a CPU sandbox; the end-to-end tests train a tiny random Qwen2 model instead. Say so when a change
   could only be checked on CPU.
 - HF Hub may be unreachable: tests use `tests/regression/assets/` (a local BPE tokenizer, P-ALIGN
   samples, P-ALIGN's published generations with labels) and never download.
-- The upstream reference trainers need their own environments
-  (`stages.train_reference.python=/path/to/env/bin/python`).

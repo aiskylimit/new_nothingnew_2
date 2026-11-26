@@ -1,115 +1,23 @@
-"""P-ALIGN ports, checked against the untouched upstream code under references/ and its released data."""
+"""P-ALIGN ports, checked against its published labels and released data."""
 import gzip
 import json
-import random
-import types
 from pathlib import Path
 
 import pytest
-from reference import PALIGN, ROOT, load, stub_module
 
 from sgl.eval.graders import palign as palign_grader
-from sgl.palign import align, build, truncate
+from sgl.palign import build, truncate
 
 ASSETS = Path(__file__).resolve().parent / "regression" / "assets"
-RELEASED = ROOT / "P-ALIGN" / "data" / "palign_sft_qwen2.5-7b.json.gz"
-
-
-@pytest.fixture(scope="module")
-def upstream_search():
-    return load(PALIGN / "binary_search.py", "upstream_binary_search")
-
-
-def test_judge_prompt_is_upstreams(upstream_search, monkeypatch):
-    seen = []
-    monkeypatch.setattr(upstream_search, "chat", lambda prompt, model: seen.append(prompt) or "[ENOUGH]")
-    response, ok = upstream_search.reasoning_sufficiency_check("What is 1+1?", "One plus one. It is two.")
-    assert seen == [truncate.judge_prompt("What is 1+1?", "One plus one. It is two.")]
-    assert ok and truncate.is_sufficient(response)
+RELEASED = Path(__file__).resolve().parents[1] / "references" / "P-ALIGN" / "data" / "palign_sft_qwen2.5-7b.json.gz"
 
 
 @pytest.mark.parametrize("response,verdict", [
     ("[ENOUGH]", True), ("  ENOUGH \n", True), ("[NOT_ENOUGH]", False), ("NOT ENOUGH", False),
     ("ENOUGH.", False), ("I think [ENOUGH] here", True), ("ERROR: boom", False),
 ])
-def test_verdict_rule(upstream_search, monkeypatch, response, verdict):
-    monkeypatch.setattr(upstream_search, "chat", lambda prompt, model: response)
-    assert upstream_search.reasoning_sufficiency_check("q", "r")[1] == verdict == truncate.is_sufficient(response)
-
-
-def test_lockstep_search_finds_what_the_sequential_search_finds(upstream_search, monkeypatch):
-    """Any monotone or non-monotone judge: each trace sees the same sequence of verdicts."""
-    rng = random.Random(0)
-    cases = []
-    for index in range(300):
-        n = rng.choice([0, 1, 2, 3, 7, 16, 33, 100])
-        sentences = [f"s{index}-{k}." for k in range(n)]
-        kind = rng.choice(["threshold", "never", "noisy"])
-        threshold = rng.randint(1, max(n, 1))
-        seed = rng.random()
-        cases.append((f"q{index}", sentences, kind, threshold, seed))
-
-    def oracle(case, prefix):
-        _, sentences, kind, threshold, seed = case
-        k = len(prefix.split(" ")) if prefix else 0
-        if kind == "never":
-            return "[NOT_ENOUGH]"
-        if kind == "noisy":
-            return "[ENOUGH]" if random.Random(f"{seed}-{k}").random() < 0.5 else "nope"
-        return "[ENOUGH]" if k >= threshold else "[NOT_ENOUGH]"
-
-    by_question = {case[0]: case for case in cases}
-    monkeypatch.setattr(upstream_search, "reasoning_sufficiency_check",
-                        lambda q, part: (lambda r: (r, truncate.is_sufficient(r)))(oracle(by_question[q], part)))
-    monkeypatch.setattr(upstream_search, "print", lambda *a, **k: None, raising=False)
-    expected = [upstream_search.find_minimal_sufficient_prefix(q, s, sleep_sec=0) for q, s, *_ in cases]
-
-    searches = [truncate.PrefixSearch(q, s) for q, s, *_ in cases]
-
-    def judge(prompts):
-        out = []
-        for prompt in prompts:
-            question = prompt.split("Question:\n", 1)[1].split("\n", 1)[0]
-            part = prompt.split("Partial reasoning:\n", 1)[1][:-1]
-            out.append(oracle(by_question[question], part))
-        return out
-
-    truncate.run_searches(searches, judge, batch_size=37)
-    assert [search.result() for search in searches] == expected
-
-
-def test_continuation_prompt_is_upstreams(tmp_path):
-    captured = []
-
-    class FakeLLM:
-        def generate(self, texts, sampling):
-            captured.extend(texts)
-            return [types.SimpleNamespace(outputs=[types.SimpleNamespace(text="cont")]) for _ in texts]
-
-    class FakeTokenizer:
-        def apply_chat_template(self, messages, **kwargs):
-            return messages[0]["content"]
-
-    class _Ctx:
-        def __init__(self, rows):
-            self.rows = rows
-
-        def __enter__(self):
-            return self.rows
-
-        def __exit__(self, *args):
-            return False
-
-    upstream = load(PALIGN / "prefix-alignment.py", "upstream_prefix_alignment", stubs={
-        "vllm": stub_module("vllm", LLM=object, SamplingParams=object),
-        "jsonlines": stub_module("jsonlines", open=lambda path: _Ctx([json.loads(line) for line in open(path)])),
-    })
-    source = tmp_path / "truncated.jsonl"
-    items = [{"question": "Q one?", "sufficient_reasoning": "Step. Step two."},
-             {"question": "Q {two}", "sufficient_reasoning": "x \\boxed{1}"}]
-    source.write_text("".join(json.dumps(item) + "\n" for item in items))
-    upstream.process_data(str(source), str(tmp_path / "out.jsonl"), FakeLLM(), 8, FakeTokenizer(), None)
-    assert captured == [align.continue_prompt(i["question"], i["sufficient_reasoning"]) for i in items]
+def test_verdict_rule(response, verdict):
+    assert truncate.is_sufficient(response) == verdict
 
 
 def test_grader_reproduces_palign_published_labels():
