@@ -34,3 +34,6 @@ logs-data-prep.txt
 
 # model weights of the positional-bias runs (their logs and metrics stay trackable)
 /results/positional/runs/*/checkpoint/
+
+# installer wheels do not belong in the repository
+*.whl
