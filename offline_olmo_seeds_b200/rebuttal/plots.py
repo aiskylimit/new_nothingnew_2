@@ -292,7 +292,8 @@ def fig_paper_fig1(plt, traj, tr, model, out):
         if not g.empty and {"rollout_tokens_total", "rollouts_total"} <= set(g.columns):
             g = g[g.step.isin(FIG1_STEPS) & (g.rollouts_total > 0)].copy()
             g["len"] = g.rollout_tokens_total / g.rollouts_total
-            n_all = tr[(tr.model == model) & (tr.method == m)].seed.nunique()
+            # seeds whose logs have the token counters (older logs, e.g. the paper's OLMo seed 0, do not)
+            n_all = g.seed.nunique()
             a = g.groupby("step").len.agg(["mean", "std", "count"])
             a = a[a["count"] == n_all]
             if len(a):
