@@ -1,16 +1,13 @@
-#1 +3
+#1 +10
 #nvidia-smi
 #v1
 
-# run 1 trên s1K, seed 42, mỗi GPU một run (thứ tự theo GPUS):
-#   GPU 0 ALERD tau 2 lambda 0.5 | GPU 1 ALERD tau 1 lambda 0.3 | GPU 6 ALERD tau 1 lambda 0.7 | GPU 7 ALERD tau 2 lambda 1.0
-# cd SpectralGuidedLearning
-# GPUS="0 1 6 7" bash project_commands_tune_run1.sh
+cd SpectralGuidedLearning
+GPU=6 bash project_commands_tune_run1_gpu6.sh
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
 
-kill -9 381159
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
 
