@@ -1,14 +1,11 @@
 #d
 #datasets
---hf-dataset simplescaling/s1K-1.1 /mnt/local/_data/@PROJECT@/s1K-1.1
---hf-dataset Maxwell-Jia/AIME_2024 /mnt/local/_data/@PROJECT@/AIME_2024
---hf-dataset yentinglin/aime_2025 /mnt/local/_data/@PROJECT@/aime_2025
---hf-dataset HuggingFaceH4/MATH-500 /mnt/local/_data/@PROJECT@/MATH-500
---hf-dataset AI-MO/aimo-validation-amc /mnt/local/_data/@PROJECT@/aimo-validation-amc
+--hf-dataset siyanzhao/Openthoughts_math_30k_opsd /mnt/local/@PROJECT@/tropic_baselines/data/train
+--hf-dataset yentinglin/aime_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime25
+--hf-dataset MathArena/aime_2026 /mnt/local/@PROJECT@/tropic_baselines/data/eval/aime26
+--hf-dataset MathArena/hmmt_feb_2025 /mnt/local/@PROJECT@/tropic_baselines/data/eval/hmmt25
 #models
---hf deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B /mnt/local/_models/@PROJECT@/DeepSeek-R1-Distill-Qwen-1.5B
---hf Qwen/Qwen2.5-7B-Instruct /mnt/local/_models/@PROJECT@/Qwen2.5-7B-Instruct
---hf Qwen/Qwen3-8B /mnt/local/_models/@PROJECT@/Qwen3-8B
+--hf allenai/Olmo-3-7B-Think /mnt/local/@PROJECT@/tropic_baselines/models/Olmo-3-7B-Think
 
 #alerd
 #v1
