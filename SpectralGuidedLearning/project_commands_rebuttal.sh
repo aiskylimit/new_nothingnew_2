@@ -127,8 +127,11 @@ else
   CLAIMS="$(mktemp -d)"
   trap 'rm -rf "${CLAIMS}"' EXIT
   trap 'trap - INT TERM; kill 0' INT TERM   # Ctrl-C stops the background workers too
-  for gpu in "${GPU_LIST[@]}"; do worker "${gpu}" & done
-  wait
+  # wait for the workers by pid: a bare `wait` also waits for the `exec > >(tee ...)` log process
+  # (some bash versions), which only ends with this script, so the driver would hang forever
+  worker_pids=()
+  for gpu in "${GPU_LIST[@]}"; do worker "${gpu}" & worker_pids+=($!); done
+  wait "${worker_pids[@]}"
   [[ -f "${CLAIMS}/failed" ]] && FAILED="$(tr '\n' ' ' < "${CLAIMS}/failed")"
 fi
 

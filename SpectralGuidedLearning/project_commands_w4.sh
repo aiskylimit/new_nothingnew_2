@@ -103,8 +103,11 @@ run_queue() {
       [[ "${PIPESTATUS[0]}" == 0 ]] || { echo "${jobs[$i]}" >> "${claims}/failed"; say "FAILED on gpu${gpu}: ${jobs[$i]}"; }
     done
   }
-  for gpu in "${GPU_LIST[@]}"; do worker "${gpu}" & done
-  wait
+  # wait for the workers by pid: a bare `wait` also waits for the `exec > >(tee ...)` log process
+  # (some bash versions), which only ends with this script, so the driver would hang forever
+  worker_pids=()
+  for gpu in "${GPU_LIST[@]}"; do worker "${gpu}" & worker_pids+=($!); done
+  wait "${worker_pids[@]}"
   if [[ -f "${claims}/failed" ]]; then failed=1; say "failed jobs: $(tr '\n' ';' < "${claims}/failed")"; fi
   rm -rf "${claims}"
   return "${failed}"
