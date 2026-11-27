@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2/ +a
+#3
 #logs
 #v1
 
