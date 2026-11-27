@@ -1,5 +1,5 @@
 #1 +3
-#alerd
+#nvidia-smi
 #v1
 
 # run 1 trên s1K, seed 42, mỗi GPU một run (thứ tự theo GPUS):
@@ -10,6 +10,7 @@
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
 
+kill -9 381159
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
 
