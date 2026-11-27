@@ -1,4 +1,4 @@
-#1 +5
+#i spectral_guided_learning.txt
 #alerd
 #v1
 
