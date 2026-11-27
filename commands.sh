@@ -1,4 +1,4 @@
-#2 -11 +a
+#1 +10
 #logs
 #v1
 
@@ -6,6 +6,16 @@
 # bash project_commands_phase2.sh
 # run 10 trên GPU 1 (chỉ chạy khi run 30 xong, GPU 1 trống, run 10 chưa xong/chưa chạy; foreground):
 # bash phase2_run10_gpu1.sh
+
+# ---- lấy kết quả về, bước 1 (job #1): gom kết quả, không có checkpoint/weights, chia theo giới hạn 25 MiB/job
+cd SpectralGuidedLearning
+bash phase2_collect_results.sh   # in ra số mảnh và dòng header fetch cho từng folder
+cd ..
+# bước 2: mỗi folder một job fetch, thay dòng header đầu file lần lượt bằng (giữ #logs / #v1):
+#   #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2/ +a         (file nhỏ, đọc ngay)
+#   #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2-part01/ +a  (toàn bộ, nén, mảnh 1)
+#   #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2-part02/ +a  ... (số mảnh: xem output bước 1)
+# ghép lại ở máy: cat sgl-phase2-part*/full.tar.gz.part* | tar -xzf -
 
 
 # cd ./offline_olmo_seeds_b200
