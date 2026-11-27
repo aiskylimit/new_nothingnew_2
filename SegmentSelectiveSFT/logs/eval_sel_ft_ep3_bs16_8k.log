@@ -1,0 +1,24 @@
+==============================================
+Task: aime24  |  32 mau/cau  |  GPU 0
+==============================================
++ python -u math_eval.py --model_name_or_path /Users/voluyen/dev/new_nothingnew_2/SegmentSelectiveSFT/SelectiveSFT/checkpoints/Qwen2.5-7B-Instruct_epoch3_lr5e-5_len32768_bs16/checkpoint-189 --data_name aime24 --output_dir outputs_sel_ft_ep3_bs16_8k/aime24/sel_ft_ep3_bs16_8k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 32768 --seed 0 --temperature 0.6 --n_sampling 32 --top_p 1 --repetition_penalty 1.0 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching
+==============================================
+Task: amc23  |  32 mau/cau  |  GPU 0
+==============================================
++ python -u math_eval.py --model_name_or_path /Users/voluyen/dev/new_nothingnew_2/SegmentSelectiveSFT/SelectiveSFT/checkpoints/Qwen2.5-7B-Instruct_epoch3_lr5e-5_len32768_bs16/checkpoint-189 --data_name amc23 --output_dir outputs_sel_ft_ep3_bs16_8k/amc23/sel_ft_ep3_bs16_8k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 32768 --seed 0 --temperature 0.6 --n_sampling 32 --top_p 1 --repetition_penalty 1.0 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching
+==============================================
+Task: math500  |  6 mau/cau  |  GPU 0
+==============================================
++ python -u math_eval.py --model_name_or_path /Users/voluyen/dev/new_nothingnew_2/SegmentSelectiveSFT/SelectiveSFT/checkpoints/Qwen2.5-7B-Instruct_epoch3_lr5e-5_len32768_bs16/checkpoint-189 --data_name math500 --output_dir outputs_sel_ft_ep3_bs16_8k/math500/sel_ft_ep3_bs16_8k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 32768 --seed 0 --temperature 0.6 --n_sampling 6 --top_p 1 --repetition_penalty 1.0 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching
+==============================================
+Task: minerva  |  6 mau/cau  |  GPU 0
+==============================================
++ python -u math_eval.py --model_name_or_path /Users/voluyen/dev/new_nothingnew_2/SegmentSelectiveSFT/SelectiveSFT/checkpoints/Qwen2.5-7B-Instruct_epoch3_lr5e-5_len32768_bs16/checkpoint-189 --data_name minerva --output_dir outputs_sel_ft_ep3_bs16_8k/minerva/sel_ft_ep3_bs16_8k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 32768 --seed 0 --temperature 0.6 --n_sampling 6 --top_p 1 --repetition_penalty 1.0 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching
+==============================================
+Task: gpqa  |  6 mau/cau  |  GPU 0
+==============================================
++ python -u math_eval.py --model_name_or_path /Users/voluyen/dev/new_nothingnew_2/SegmentSelectiveSFT/SelectiveSFT/checkpoints/Qwen2.5-7B-Instruct_epoch3_lr5e-5_len32768_bs16/checkpoint-189 --data_name gpqa --output_dir outputs_sel_ft_ep3_bs16_8k/gpqa/sel_ft_ep3_bs16_8k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 32768 --seed 0 --temperature 0.6 --n_sampling 6 --top_p 1 --repetition_penalty 1.0 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching
+==============================================
+Task: olympiad  |  6 mau/cau  |  GPU 0
+==============================================
++ python -u math_eval.py --model_name_or_path /Users/voluyen/dev/new_nothingnew_2/SegmentSelectiveSFT/SelectiveSFT/checkpoints/Qwen2.5-7B-Instruct_epoch3_lr5e-5_len32768_bs16/checkpoint-189 --data_name olympiad --output_dir outputs_sel_ft_ep3_bs16_8k/olympiad/sel_ft_ep3_bs16_8k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 32768 --seed 0 --temperature 0.6 --n_sampling 6 --top_p 1 --repetition_penalty 1.0 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching

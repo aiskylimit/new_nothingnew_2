@@ -1,8 +1,8 @@
-#i tropic.txt
-#olmo
+#1 +5
+#alerd
 #v1
 
-# cd SpectralGuidedLearning && bash project_commands.sh
+cd SpectralGuidedLearning && bash project_commands.sh
 
 
 # cd ./offline_olmo_seeds_b200

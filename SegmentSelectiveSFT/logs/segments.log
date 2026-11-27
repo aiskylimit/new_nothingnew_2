@@ -1,0 +1,6 @@
+==============================================================
+  STAGE segments - Xac dinh important segments
+==============================================================
++ python -u get_important_segments.py --input_data_file /Users/voluyen/dev/new_nothingnew_2/SegmentSelectiveSFT//private/tmp/claude-501/-Users-voluyen-dev-new-nothingnew-2-SegmentSelectiveSFT/66992ca8-405e-4d7b-8626-ae944973a63b/scratchpad/solution_segments.jsonl --IG_score_data_file /Users/voluyen/dev/new_nothingnew_2/SegmentSelectiveSFT/Attribution/processed_data/s1k/IG_compact.jsonl --output_data_file /Users/voluyen/dev/new_nothingnew_2/SegmentSelectiveSFT/data/s1k/solutions_selected.jsonl
+
+[1;34m[23:53:53][0m Da tao training file: data/s1k/solutions_selected.jsonl

@@ -1,0 +1,16 @@
+==============================================
+Task: aime24  |  3 mau/cau  |  GPU 1
+==============================================
++ python -u math_eval.py --model_name_or_path /private/tmp/claude-501/-Users-voluyen-dev-new-nothingnew-2-SegmentSelectiveSFT/66992ca8-405e-4d7b-8626-ae944973a63b/scratchpad/ck/Qwen3-8B_epoch3_lr5e-5_len32768_lora_r16/checkpoint-90-merged --data_name aime24 --output_dir outputs_qwen3_8b_sel_r16_ep3_4k/aime24/qwen3_8b_sel_r16_ep3_4k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 4096 --seed 0 --temperature 0.6 --n_sampling 3 --top_p 0.9 --repetition_penalty 1.05 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching
+==============================================
+Task: aime25  |  3 mau/cau  |  GPU 1
+==============================================
++ python -u math_eval.py --model_name_or_path /private/tmp/claude-501/-Users-voluyen-dev-new-nothingnew-2-SegmentSelectiveSFT/66992ca8-405e-4d7b-8626-ae944973a63b/scratchpad/ck/Qwen3-8B_epoch3_lr5e-5_len32768_lora_r16/checkpoint-90-merged --data_name aime25 --output_dir outputs_qwen3_8b_sel_r16_ep3_4k/aime25/qwen3_8b_sel_r16_ep3_4k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 4096 --seed 0 --temperature 0.6 --n_sampling 3 --top_p 0.9 --repetition_penalty 1.05 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching
+==============================================
+Task: amc12  |  3 mau/cau  |  GPU 1
+==============================================
++ python -u math_eval.py --model_name_or_path /private/tmp/claude-501/-Users-voluyen-dev-new-nothingnew-2-SegmentSelectiveSFT/66992ca8-405e-4d7b-8626-ae944973a63b/scratchpad/ck/Qwen3-8B_epoch3_lr5e-5_len32768_lora_r16/checkpoint-90-merged --data_name amc12 --output_dir outputs_qwen3_8b_sel_r16_ep3_4k/amc12/qwen3_8b_sel_r16_ep3_4k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 4096 --seed 0 --temperature 0.6 --n_sampling 3 --top_p 0.9 --repetition_penalty 1.05 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching
+==============================================
+Task: math500  |  3 mau/cau  |  GPU 1
+==============================================
++ python -u math_eval.py --model_name_or_path /private/tmp/claude-501/-Users-voluyen-dev-new-nothingnew-2-SegmentSelectiveSFT/66992ca8-405e-4d7b-8626-ae944973a63b/scratchpad/ck/Qwen3-8B_epoch3_lr5e-5_len32768_lora_r16/checkpoint-90-merged --data_name math500 --output_dir outputs_qwen3_8b_sel_r16_ep3_4k/math500/qwen3_8b_sel_r16_ep3_4k --split test --prompt_type deepseek-longcot --num_test_sample -1 --max_tokens_per_call 4096 --seed 0 --temperature 0.6 --n_sampling 3 --top_p 0.9 --repetition_penalty 1.05 --start 0 --end -1 --use_vllm --save_outputs --apply_chat_template --gpu_memory_utilization 0.90 --enable_prefix_caching
