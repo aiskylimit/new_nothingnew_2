@@ -1,11 +1,11 @@
-#1 +10
+#1 +3
 #alerd
 #v1
 
 # run 1 trên s1K, seed 42, mỗi GPU một run (thứ tự theo GPUS):
-#   GPU 0 ALERD tau 2 lambda 0.5 | GPU 1 ALERD tau 1 lambda 0.3 | GPU 6 SFT uniform | GPU 7 ALERD tau 2 lambda 1.0
-cd SpectralGuidedLearning
-GPUS="0 1 6 7" bash project_commands_tune_run1.sh
+#   GPU 0 ALERD tau 2 lambda 0.5 | GPU 1 ALERD tau 1 lambda 0.3 | GPU 6 ALERD tau 1 lambda 0.7 | GPU 7 ALERD tau 2 lambda 1.0
+# cd SpectralGuidedLearning
+# GPUS="0 1 6 7" bash project_commands_tune_run1.sh
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh

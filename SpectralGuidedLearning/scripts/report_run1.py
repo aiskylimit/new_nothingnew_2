@@ -1,4 +1,4 @@
-"""Table of the run 1 ALERD sweep (project_commands_tune_run1.sh): test scores of the ALERD configurations and uniform SFT.
+"""Table of the run 1 ALERD sweep (project_commands_tune_run1.sh): test scores of all six configurations.
 
 No configuration is picked here: with no dev set, choosing by these scores would be selection on test.
 Reads files only.
@@ -10,11 +10,11 @@ from pathlib import Path
 TEST = ["aime24", "aime25", "math500", "amc12"]
 OLD, NEW = "rebuttal/results", "rebuttal/tune/results"
 ARMS = [  # tau, lambda, arm name, test results root
-    ("-", "unif", "sft-nll", NEW),
     ("1", "0.5", "iwc-gain-l05", OLD),
     ("0.5", "0.5", "iwc-gain-t05-l05", NEW),
     ("2", "0.5", "iwc-gain-t2-l05", NEW),
     ("1", "0.3", "iwc-gain-t1-l03", NEW),
+    ("1", "0.7", "iwc-gain-t1-l07", NEW),
     ("2", "1.0", "iwc-gain-t2-l10", NEW),
 ]
 

@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Run 1 sweep (1.5B student, s1K-1.1, seed 42): three ALERD allocation strengths and the uniform control.
+# Run 1 sweep (1.5B student, s1K-1.1, seed 42): four ALERD allocation strengths, one per GPU.
 #   GPU 0  tau 2, lambda 0.5   iwc-gain-t2-l05
 #   GPU 1  tau 1, lambda 0.3   iwc-gain-t1-l03
-#   GPU 6  SFT uniform (no allocation, the control)   sft-nll
+#   GPU 6  tau 1, lambda 0.7   iwc-gain-t1-l07
 #   GPU 7  tau 2, lambda 1.0   iwc-gain-t2-l10
 # Already run: tau 1 lambda 0.5 (paper) and tau 0.5 lambda 0.5.
 # A sensitivity sweep scored directly on the test benchmarks, with no dev set: report all of them, and keep
@@ -34,7 +34,6 @@ export WANDB_DISABLED=true WANDB_MODE=disabled TOKENIZERS_PARALLELISM=false
 
 OUT=rebuttal/tune
 CONFIG=r1-qwen-1.5b-s1k/iwc-gain-l05
-UNIFORM=r1-qwen-1.5b-s1k/sft-nll
 
 if [[ "${DRY_RUN}" == 0 ]]; then
   [[ -f "${PROJECT_ENV}/bin/activate" ]] || { echo "venv not found: ${PROJECT_ENV}" >&2; exit 1; }
@@ -49,7 +48,7 @@ if [[ "${DRY_RUN}" == 0 ]]; then
   nvidia-smi -i "$(IFS=,; echo "${G[*]}")" --query-gpu=index,name,memory.total,memory.used --format=csv
 fi
 
-# sgl_run <gpu> <stages> [overrides]; runs ${CONFIG}
+# sgl_run <gpu> <stages> [overrides]
 sgl_run() {
   local gpu="$1" stages="$2"
   python -m sgl.cli run "${CONFIG}" --stages "${stages}" "run.gpus=[${gpu}]" "model.name=${MODEL_PATH}" \
@@ -64,8 +63,7 @@ arm() {
 
 job0() { arm "$1" iwc-gain-t2-l05 2.0 0.5; }
 job1() { arm "$1" iwc-gain-t1-l03 1.0 0.3; }
-# same traces and training recipe, every supervised token weighted 1
-job2() { CONFIG="${UNIFORM}" sgl_run "$1" vanilla,train,eval; }
+job2() { arm "$1" iwc-gain-t1-l07 1.0 0.7; }
 job3() { arm "$1" iwc-gain-t2-l10 2.0 1.0; }
 
 # the traces and gains are shared by all arms: build them once (skipped if run 1 left them) before starting
