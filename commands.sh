@@ -1,10 +1,10 @@
-#1 +5
+#1 +10
 #alerd
 #v1
 
 cd SpectralGuidedLearning
 # bash project_commands_phase2.sh
-bash runs_status.sh
+bash phase2_diag.sh
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
