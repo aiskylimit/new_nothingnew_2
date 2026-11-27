@@ -1,13 +1,9 @@
-#1 +60
-#alerd
+#2 -0-10
+#alerd-log
 #v1
 
-# ---- 3 run rebuttal, mỗi run một cấu hình, một GPU (GPU 0, 1, 6):
-#   GPU 0  run 1  ALERD s1K-1.1, tau 0.5      GPU 1  run 10 answer-steps, 966 traces      GPU 6  run 13 ASFT, KL 0.1
-cd SpectralGuidedLearning
-GPUS="0 1 6" bash project_commands_tune_rebuttal.sh
-cd ..
-
+# cd SpectralGuidedLearning
+# GPUS="0 1 6" bash project_commands_tune_rebuttal.sh
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
