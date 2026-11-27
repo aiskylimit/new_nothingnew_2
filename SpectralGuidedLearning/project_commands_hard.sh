@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 # ALG-hard: ALG's soft weights against a hard keep/drop mask chosen by the same answer gain.
 # DeepSeek-R1-Distill-Qwen-1.5B, P-ALIGN's 966 traces, E7's recipe (code: src/sgl/hardsel/).
-#   bash project_commands_hard.sh                 # all: prepare, train A, nll_posthoc, report,
-#                                                 #      C if decision.json asks for it, train B, report
+#   bash project_commands_hard.sh                 # all: prepare, train A, nll_posthoc, report, train B, report
 #   bash project_commands_hard.sh prepare         # CPU: step selection, checks, statistics, decision rule
 #   bash project_commands_hard.sh train A         # H59 and R59, one per GPU   (B: H30, ALG-H59)
-#   bash project_commands_hard.sh train C         # H59 seeds 43, 44; only if decision.json asks (FORCE_C=1 overrides)
 #   bash project_commands_hard.sh nll_posthoc     # NLL by region of the uniform / ALG checkpoints
 #   bash project_commands_hard.sh report          # tables, figures, decision.json from disk
 #   bash project_commands_hard.sh --dry-run       # print every command, run nothing
@@ -53,9 +51,9 @@ MODE=all DRY_RUN=0 PRIO=()
 for arg in "$@"; do
   case "${arg}" in
     all|prepare|train|nll_posthoc|report) MODE="${arg}" ;;
-    A|B|C) PRIO+=("${arg}") ;;
+    A|B) PRIO+=("${arg}") ;;   # group C (H59 seeds 43, 44) was dropped from the plan
     --dry-run) DRY_RUN=1 ;;
-    *) echo "unknown argument: ${arg} (modes: all prepare train nll_posthoc report; groups: A B C; --dry-run)" >&2; exit 2 ;;
+    *) echo "unknown argument: ${arg} (modes: all prepare train nll_posthoc report; groups: A B; --dry-run)" >&2; exit 2 ;;
   esac
 done
 if [[ "${MODE}" == train && "${#PRIO[@]}" -eq 0 ]]; then PRIO=(A); fi
@@ -164,16 +162,11 @@ train_eval() {  # <gpu> <arm> <seed>
   [[ "${KEEP_EPOCH_CKPT}" == 1 ]] || run rm -rf "${dir}/checkpoints/epoch1" "${dir}/checkpoints/epoch2"
 }
 
-train_group() {  # <A|B|C>
+train_group() {  # <A|B>
   local jobs=() entry arm seed file
   case "$1" in
     A) jobs=("h59 42" "r59 42") ;;
     B) jobs=("h30 42" "alg-h59 42") ;;
-    C) if [[ "${DRY_RUN}" == 0 && "${FORCE_C:-0}" != 1 ]] \
-          && ! python -m sgl.hardsel.report needs-c --root "${ROOT}"; then
-         say "group C: decision.json does not ask for it (FORCE_C=1 to run anyway)"; return 0
-       fi
-       jobs=("h59 43" "h59 44") ;;
   esac
   for entry in "${jobs[@]}"; do   # every training file must exist before any GPU is taken
     read -r arm seed <<< "${entry}"
@@ -225,9 +218,6 @@ case "${MODE}" in
     status=0
     [[ " ${HARD_GROUPS} " == *" A "* ]] && { train_group A || status=1; }
     nll_posthoc || status=1
-    report || status=1
-    # group C only when the pre-registered rule asks for it (checked inside train_group)
-    train_group C || status=1
     report || status=1
     if [[ " ${HARD_GROUPS} " == *" B "* ]]; then
       train_group B || status=1

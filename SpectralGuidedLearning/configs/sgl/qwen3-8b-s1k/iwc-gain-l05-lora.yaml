@@ -1,5 +1,9 @@
 defaults: [../tracks/qwen3-8b-s1k.yaml, ../methods/iwc-gain.yaml]
 name: iwc-gain-l05-lora
+# the published ALG recipe (Table 6, Sec. 3.2): tau 1, lambda 0.5, c 2, epsilon 1e-8;
+# _iwc.yaml's default temperature is the older IWC-Stable 2.0
+iwc:
+  temperature: 1.0
 stages:
   answer_gain:
     args:

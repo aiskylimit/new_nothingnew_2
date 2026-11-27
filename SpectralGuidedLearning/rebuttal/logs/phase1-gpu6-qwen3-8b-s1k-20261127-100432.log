@@ -1,0 +1,39 @@
+
+=== [iwc-gain-l05-lora] stage prepare ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.data.prepare --dataset-name /mnt/local/_data/aiskylimit_new_nothingnew_2/s1K-1.1 --tokenizer /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --max-tokens 32768 --chat-template --no-enable-thinking --output-path data/qwen3-8b-s1k/train-segmented.jsonl
+
+=== [iwc-gain-l05-lora] stage capture ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.signals.capture --model-name /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --data-path data/qwen3-8b-s1k/train-segmented.jsonl --output-dir data/qwen3-8b-s1k/spectral --strengths-path data/qwen3-8b-s1k/spectral-strengths.parquet --energy-cutoff 0.95 --chunk-size 1024 --verify
+
+=== [iwc-gain-l05-lora] stage answer_gain ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.signals.answer_gain --data-path data/qwen3-8b-s1k/train-segmented.jsonl --model /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --output data/qwen3-8b-s1k/signals/step_answer_gain.json --gpu-memory-utilization 0.4 --max-model-len 32768
+
+=== [iwc-gain-l05-lora] stage gain_signal ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.signals.gain_parquet --data-path data/qwen3-8b-s1k/train-segmented.jsonl --gains data/qwen3-8b-s1k/signals/step_answer_gain.json --strengths data/qwen3-8b-s1k/spectral-strengths.parquet --output data/qwen3-8b-s1k/signals/signal-answer-gain.parquet
+
+=== [iwc-gain-l05-lora] stage weights ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.allocation.build --data-path data/qwen3-8b-s1k/train-segmented.jsonl --strengths data/qwen3-8b-s1k/signals/signal-answer-gain.parquet --variants iwc-stable --energy-threshold-p 1.0 --temperature 1.0 --interpolation 0.5 --clip 2.0 --seed 42 --output-name iwc-stable-gain-nogate-l05 --check-mass
+
+=== [iwc-gain-l05-lora] stage answer_stats ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.diagnostics.answer_steps --data-path data/qwen3-8b-s1k/train-segmented.jsonl --tokenizer /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --weights data/qwen3-8b-s1k/train-iwc-stable-gain-nogate-l05.jsonl --gains data/qwen3-8b-s1k/signals/step_answer_gain.json --output-dir rebuttal/answer-steps/qwen3-8b-s1k
+
+=== [iwc-gain-l05-lora] stage train ===
+CUDA_VISIBLE_DEVICES=6 DS_SKIP_CUDA_CHECK=1 /home/luyenv/miniconda3/bin/python -m torch.distributed.run --nproc_per_node 1 --nnodes 1 --node_rank 0 --rdzv_backend static --master_addr localhost --master_port <free-port> -m sgl.training.train --model-name /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --data-path data/qwen3-8b-s1k/train-iwc-stable-gain-nogate-l05.jsonl --output-dir checkpoints/iwc-gain-l05-lora-qwen3-8b-s1k --epochs 3 --learning-rate 5e-05 --min-learning-rate 1e-05 --warmup-ratio 0.1 --per-device-batch-size 1 --attn-implementation sdpa --logging-steps 5 --save-strategy epoch --save-total-limit 2 --seed 42 --max-seq-len 32768 --use-lora --deepspeed-config configs/deepspeed/ds_config_zero2_offload.json --model-dtype bfloat16 --lora-r 16 --lora-alpha 16 --lora-dropout 0.05 --lora-target-modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj --no-lora-merge --gradient-accumulation-steps 32
+
+=== [sft-nll-lora] stage prepare ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.data.prepare --dataset-name /mnt/local/_data/aiskylimit_new_nothingnew_2/s1K-1.1 --tokenizer /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --max-tokens 32768 --chat-template --no-enable-thinking --output-path data/qwen3-8b-s1k/train-segmented.jsonl
+
+=== [sft-nll-lora] stage vanilla ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.selection.build_masks --data-path data/qwen3-8b-s1k/train-segmented.jsonl --vanilla-only
+
+=== [sft-nll-lora] stage train ===
+CUDA_VISIBLE_DEVICES=6 DS_SKIP_CUDA_CHECK=1 /home/luyenv/miniconda3/bin/python -m torch.distributed.run --nproc_per_node 1 --nnodes 1 --node_rank 0 --rdzv_backend static --master_addr localhost --master_port <free-port> -m sgl.training.train --model-name /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --data-path data/qwen3-8b-s1k/train-vanilla.jsonl --output-dir checkpoints/sft-nll-lora-qwen3-8b-s1k --epochs 3 --learning-rate 5e-05 --min-learning-rate 1e-05 --warmup-ratio 0.1 --per-device-batch-size 1 --attn-implementation sdpa --logging-steps 5 --save-strategy epoch --save-total-limit 2 --seed 42 --max-seq-len 32768 --use-lora --deepspeed-config configs/deepspeed/ds_config_zero2_offload.json --model-dtype bfloat16 --lora-r 16 --lora-alpha 16 --lora-dropout 0.05 --lora-target-modules q_proj,k_proj,v_proj,o_proj,gate_proj,up_proj,down_proj --no-lora-merge --objective nll --gradient-accumulation-steps 32
+
+=== [iwc-gain-l05-lora] stage eval ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.eval.evaluate --model checkpoints/iwc-gain-l05-lora-qwen3-8b-s1k --tag iwc-gain-l05-lora-qwen3-8b-s1k --benchmarks math500,aime24,aime25,amc12 --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --n-samples 3 --max-tokens 4096 --max-model-len 4096 --batch-size 64 --gpu-memory-utilization 0.5 --enforce-eager --seed 42 --chat-template --no-enable-thinking --palign-prompt --grader math_verify --base-model /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --lora-adapter --lora-r 16 --results-dir rebuttal/results
+
+=== [sft-nll-lora] stage eval ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.eval.evaluate --model checkpoints/sft-nll-lora-qwen3-8b-s1k --tag sft-nll-lora-qwen3-8b-s1k --benchmarks math500,aime24,aime25,amc12 --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --n-samples 3 --max-tokens 4096 --max-model-len 4096 --batch-size 64 --gpu-memory-utilization 0.5 --enforce-eager --seed 42 --chat-template --no-enable-thinking --palign-prompt --grader math_verify --base-model /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --lora-adapter --lora-r 16 --results-dir rebuttal/results
+
+=== [zeroshot] stage eval ===
+CUDA_VISIBLE_DEVICES=6 /home/luyenv/miniconda3/bin/python -u -m sgl.eval.evaluate --model /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --tag zeroshot-qwen3-8b-s1k --benchmarks math500,aime24,aime25,amc12 --temperature 0.6 --top-p 0.9 --repetition-penalty 1.05 --n-samples 3 --max-tokens 4096 --max-model-len 4096 --batch-size 64 --gpu-memory-utilization 0.5 --enforce-eager --seed 42 --chat-template --no-enable-thinking --palign-prompt --grader math_verify --base-model /mnt/local/_models/aiskylimit_new_nothingnew_2/Qwen3-8B --no-lora-adapter --lora-r 16 --results-dir rebuttal/results

@@ -1,8 +1,9 @@
-#i opened.txt
+#1 +60
 #alerd
 #v1
 
-cd SpectralGuidedLearning && bash project_commands.sh
+cd SpectralGuidedLearning
+bash project_commands_phase1.sh
 
 
 # cd ./offline_olmo_seeds_b200

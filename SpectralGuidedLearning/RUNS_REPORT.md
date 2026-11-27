@@ -41,6 +41,29 @@ bash project_commands.sh positional w4      # chỉ chạy các nhóm được n
 
 Thứ tự trong `project_commands.sh`: rebuttal → answer_steps → vcore_asft → positional → w4 → hard. Nhóm `rebuttal` lâu nhất (3 model trên s1K). Cần kết quả 1.5B sớm thì chạy `bash project_commands.sh positional w4 vcore_asft` trước.
 
+### Giai đoạn 1 (chạy trước): run 1–9 và 13–14, trên GPU 0, 1, 6, 7
+
+Ghi ngày 2026-11-27. File `project_commands_phase1.sh`. Mỗi run train trên 1 GPU, mỗi GPU được gán cố định:
+
+| GPU | Run | Nội dung |
+|---|---|---|
+| 0 | 1, 2, 3 → 13 | R1-Distill-Qwen-1.5B trên s1K-1.1 (ALG, SFT, zero-shot), xong thì ASFT (1.5B, 966 trace) |
+| 1 | 4, 5, 6 | Qwen2.5-7B-Instruct trên s1K-1.1 (ALG, SFT, zero-shot), LoRA r16 |
+| 6 | 7, 8, 9 | Qwen3-8B trên s1K-1.1 (ALG, SFT, zero-shot), LoRA r16 |
+| 7 | 14 | VCORE (1.5B, 966 trace), nặng khoảng 3–4 lần SFT nên chạy riêng một GPU |
+
+```bash
+bash project_commands_phase1.sh --dry-run    # in lệnh, kiểm tra GPU của từng run
+nohup bash project_commands_phase1.sh > phase1.out 2>&1 &
+PHASE1_GPUS="0 1 6 7" bash project_commands_phase1.sh   # đổi GPU, theo đúng thứ tự 4 làn ở bảng trên
+```
+
+- Bốn làn ghi vào các thư mục data khác nhau (`data/<model>-s1k/`, `data/r1-qwen-1.5b-palign/`) nên chạy song song được.
+- Log từng làn: `rebuttal/logs/phase1-<làn>-<thời gian>.log`. Kết quả: `rebuttal/results/comparison-table.md`, được dựng lại một lần sau khi cả 4 làn xong.
+- Run 1, 4, 7 dùng τ=1, λ=0.5, c=2, ε=1e-8 (đã sửa từ τ=2 ngày 2026-11-27). Nếu server đã từng chạy chúng với τ=2, xóa `data/<model>-s1k/train-iwc-stable-gain-nogate-l05.jsonl`, `checkpoints/iwc-gain-l05*-<model>-s1k` và `rebuttal/answer-steps/<model>-s1k/` trước khi chạy.
+- Lỗi một làn không dừng các làn khác; cuối cùng in `FAILED: ...`. Chạy lại cùng lệnh thì các bước đã xong được bỏ qua.
+- Chạy riêng một làn: `GPUS=1 MODELS=qwen25-7b bash project_commands_rebuttal.sh`, `GPUS=7 ARMS=sft-vcore bash project_commands_vcore_asft.sh`.
+
 ---
 
 ## 1. `rebuttal`: answer gain trên s1K-1.1 (3 model)
@@ -55,7 +78,7 @@ Mỗi model chạy trên một GPU, lần lượt các bước sau.
 
 | Run (config) | Bước | Làm gì |
 |---|---|---|
-| `iwc-gain-l05[-lora]` | prepare, capture, answer_gain, gain_signal, weights, answer_stats, train, eval | chia bước theo câu → chấm answer gain (probe P0, max-model-len 32768) → trọng số IWC-Stable λ=0.5 → thống kê step chứa đáp án → train → eval |
+| `iwc-gain-l05[-lora]` | prepare, capture, answer_gain, gain_signal, weights, answer_stats, train, eval | chia bước theo câu → chấm answer gain (probe P0, max-model-len 32768) → trọng số IWC-Stable τ=1, λ=0.5, c=2, ε=1e-8 → thống kê step chứa đáp án → train → eval |
 | `sft-nll[-lora]` | prepare, vanilla, train, eval | SFT thường, NLL đều trên mọi token |
 | `zeroshot` | eval | model gốc, không train |
 
@@ -351,8 +374,7 @@ bash project_commands_hard.sh train A       # H59, R59 (2 GPU)
 bash project_commands_hard.sh train B       # H30, ALG∘H59
 bash project_commands_hard.sh nll_posthoc   # NLL theo vùng cho uniform / ALG
 bash project_commands_hard.sh report        # bảng, hình, decision.json
-bash project_commands_hard.sh train C       # H59 seed 43, 44, chỉ chạy khi decision.json yêu cầu
-bash project_commands_hard.sh               # tất cả: prepare, A, nll_posthoc, report, C nếu cần, B, report
+bash project_commands_hard.sh               # tất cả: prepare, A, nll_posthoc, report, B, report
 ```
 
 | Run (`r1q1.5b__<arm>__P0__S0__seed<s>`) | Nhóm | Token được giám sát | Trọng số |
@@ -361,7 +383,8 @@ bash project_commands_hard.sh               # tất cả: prepare, A, nll_postho
 | `r59` | A | thứ tự bước ngẫu nhiên (`Random(42 + trace id)`), đủ số token của H59 ở trace đó | 1 |
 | `h30` | B | như H59, p = 0.30 | 1 |
 | `alg-h59` | B | mask H59 | ALG (τ=1, λ=0.5, c=2) tính lại trên bước giữ |
-| `h59` seed 43, 44 | C | như H59 | 1 |
+
+Nhóm C (H59 seed 43, 44) đã bỏ khỏi kế hoạch.
 
 **Đầu vào phải có trên server**
 - Gain: `experiments/answer_gain/scores/answer_gain.json`; không có thì dùng `results/w4/signals/r1q1.5b__P0__S0` (chạy `bash project_commands_w4.sh score` trước).

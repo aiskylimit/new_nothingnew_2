@@ -90,7 +90,8 @@ run_model() {
 # One run trains on one GPU; the GPUs work side by side. All arms of a model stay on one GPU, in order,
 # because they share data/<model>-s1k/. Each free GPU takes the next model of the list.
 read -ra GPU_LIST <<< "${GPUS//,/ }"
-MODELS=(r1-qwen-1.5b qwen25-7b qwen3-8b)
+# MODELS="qwen3-8b" pins a launch to some students (several launches on disjoint GPUs: disjoint data dirs)
+read -ra MODELS <<< "${MODELS:-r1-qwen-1.5b qwen25-7b qwen3-8b}"
 ARGS=("$@")
 
 # sgl_run <gpu> <config> <model dir name> <stages> [extra args]
