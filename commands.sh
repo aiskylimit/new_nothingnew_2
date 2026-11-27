@@ -1,5 +1,5 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/rebuttal/
-#alerd
+#1 +60
+#opened
 #v1
 
 # cd SpectralGuidedLearning
@@ -8,14 +8,9 @@
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
 
+
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd/results/gpt2/eval_main/results/ +a
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-2/results/gpt2/eval_main/results/ +a
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-math-code/results/eval_math_code_export/ +a
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_direct_mlp_ablation/ +a
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/contra-kd-datdvt/logs/gpt2_loss_ramp_ablation/ +a
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/cred/MMEB-evaloutputs-json-v5/ +a
 
 export PATH=/usr/local/cuda/bin:$PATH
 export LD_LIBRARY_PATH=/usr/local/cuda/lib64:${LD_LIBRARY_PATH:-}
@@ -26,14 +21,8 @@ export NCCL_DEBUG=WARN
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-# cd ./contra-kd-datdvt
-# bash ./project_commands.sh nonuniform
-
-# cd ./contra-kd-2
-# bash ./project_commands.sh fdd-seed-study
-
-# cd ./contra-kd-math-code
-# bash ./project_commands.sh .
+cd ./OpenED
+bash ./project_commands_23.sh
 
 # cd ./VLM_Embed_Gvendi
 # bash ./project_commands.sh
