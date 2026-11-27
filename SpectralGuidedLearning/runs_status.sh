@@ -28,8 +28,8 @@ RUNS=(
   "13|1+2|run|6|ASFT, 966 traces|rebuttal/results/sft-asft-r1-qwen-1.5b-palign|checkpoints/sft-asft-r1-qwen-1.5b-palign||"
   "14|1|run|7|VCORE, 966 traces|rebuttal/results/sft-vcore-r1-qwen-1.5b-palign|checkpoints/sft-vcore-r1-qwen-1.5b-palign||"
   "15|2|run|6|positional R6|results/positional/runs/r6|results/positional/runs/r6/checkpoint||results/positional/runs/r6/eval/metrics.json"
-  "18|2|run|1|W4 ALERD P1/S0|${W4}/r1q1.5b__alg__P1__S0__tau1_lam0.5_c2__seed42|${W4}/r1q1.5b__alg__P1__S0__tau1_lam0.5_c2__seed42/checkpoints/epoch3|${W4}/r1q1.5b__alg__P1__S0__tau1_lam0.5_c2__seed42/checkpoints|${W4}/r1q1.5b__alg__P1__S0__tau1_lam0.5_c2__seed42/run_check.json"
-  "20|2|run|6|W4 ALERD P0/S1|${W4}/r1q1.5b__alg__P0__S1__tau1_lam0.5_c2__seed42|${W4}/r1q1.5b__alg__P0__S1__tau1_lam0.5_c2__seed42/checkpoints/epoch3|${W4}/r1q1.5b__alg__P0__S1__tau1_lam0.5_c2__seed42/checkpoints|${W4}/r1q1.5b__alg__P0__S1__tau1_lam0.5_c2__seed42/run_check.json"
+  "18|2|run|7|W4 ALERD P1/S0|${W4}/r1q1.5b__alg__P1__S0__tau1_lam0.5_c2__seed42|${W4}/r1q1.5b__alg__P1__S0__tau1_lam0.5_c2__seed42/checkpoints/epoch3|${W4}/r1q1.5b__alg__P1__S0__tau1_lam0.5_c2__seed42/checkpoints|${W4}/r1q1.5b__alg__P1__S0__tau1_lam0.5_c2__seed42/run_check.json"
+  "20|2|run|7|W4 ALERD P0/S1|${W4}/r1q1.5b__alg__P0__S1__tau1_lam0.5_c2__seed42|${W4}/r1q1.5b__alg__P0__S1__tau1_lam0.5_c2__seed42/checkpoints/epoch3|${W4}/r1q1.5b__alg__P0__S1__tau1_lam0.5_c2__seed42/checkpoints|${W4}/r1q1.5b__alg__P0__S1__tau1_lam0.5_c2__seed42/run_check.json"
   "30|2|run|1|ALG-hard h59|${HARD}/r1q1.5b__h59__P0__S0__seed42|${HARD}/r1q1.5b__h59__P0__S0__seed42/checkpoints/epoch3|${HARD}/r1q1.5b__h59__P0__S0__seed42/checkpoints|${HARD}/r1q1.5b__h59__P0__S0__seed42/run_check.json"
 )
 
