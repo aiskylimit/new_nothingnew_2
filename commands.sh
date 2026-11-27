@@ -1,11 +1,9 @@
-#1 +30
+#2 -0-10
 #logs
 #v1
 
-cd SpectralGuidedLearning
-# bash project_commands_phase2.sh
-# run 10 trên GPU 1 (chỉ chạy khi run 30 xong, GPU 1 trống, run 10 chưa xong/chưa chạy; foreground):
-bash phase2_run10_gpu1.sh
+# cd SpectralGuidedLearning
+# bash phase2_run10_gpu1.sh
 
 # ---- tiến độ các run SGL (chỉ đọc file, không thay đổi gì)
 # cd SpectralGuidedLearning
