@@ -312,11 +312,18 @@ preflight() {
     python - <<'PY' 2>&1 | sed 's/^/  /' || bad=1
 import importlib, os, sys
 ok = True
-for m in ["torch", "transformers", "peft", "datasets", "math_verify", "vllm"]:
+for m in ["torch", "transformers", "peft", "math_verify", "vllm", "numpy", "pyarrow", "yaml"]:
     try:
         print(f"{m:<12} {getattr(importlib.import_module(m), '__version__', 'ok')}")
     except Exception as e:
         print(f"!!! cannot import {m}: {type(e).__name__}: {e}"); ok = False
+# `datasets` (via pandas) is optional: tropic/local_dataset.py reads the local snapshots with pyarrow when it
+# does not import - e.g. pandas 3.x (needs numpy >= 2) next to tropic.txt's numpy 1.26.4.
+for m in ["pandas", "datasets"]:
+    try:
+        print(f"{m:<12} {getattr(importlib.import_module(m), '__version__', 'ok')}")
+    except Exception as e:
+        print(f"(note) {m} does not import ({type(e).__name__}: {str(e)[:70]}...) - data is read with pyarrow instead")
 try:
     import torch
     n = torch.cuda.device_count()

@@ -57,7 +57,7 @@ import os
 from dataclasses import dataclass
 
 import torch
-from datasets import load_dataset
+from tropic.local_dataset import load_dataset  # = datasets.load_dataset; pyarrow fallback when `datasets` does not import
 from transformers import PreTrainedTokenizerBase
 
 OPSD_DATASET_PATH = "siyanzhao/Openthoughts_math_30k_opsd"

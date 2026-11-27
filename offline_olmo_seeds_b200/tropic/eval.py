@@ -27,7 +27,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
-from datasets import load_dataset
+from tropic.local_dataset import load_dataset  # = datasets.load_dataset; pyarrow fallback when `datasets` does not import
 
 try:
     from math_verify import parse as _mv_parse, verify as _mv_verify
