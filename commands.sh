@@ -1,8 +1,8 @@
-#1 +5
-#nvidia-smi
+#2 -0-10
+#logs
 #v1
 
-cd SpectralGuidedLearning
+# cd SpectralGuidedLearning
 # bash project_commands_phase2.sh
 
 # cd ./offline_olmo_seeds_b200
