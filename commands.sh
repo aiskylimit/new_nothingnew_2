@@ -1,4 +1,4 @@
-#1 +60
+#2 -0-10
 #opened
 #v1
 
@@ -7,7 +7,6 @@
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
-
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a
@@ -21,8 +20,8 @@ export NCCL_DEBUG=WARN
 
 # CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 python ./talas_vlm_embed/multi_gpu_v2.py
 
-cd ./OpenED
-bash ./project_commands_23.sh
+# cd ./OpenED
+# bash ./project_commands_23.sh
 
 # cd ./VLM_Embed_Gvendi
 # bash ./project_commands.sh
