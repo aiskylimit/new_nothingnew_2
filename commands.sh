@@ -1,5 +1,5 @@
-#2 -0-10
-#olmo
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectraGuidedLearning/rebuttal/
+#alerd
 #v1
 
 # cd SpectralGuidedLearning
