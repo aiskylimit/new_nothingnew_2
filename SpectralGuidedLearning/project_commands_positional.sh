@@ -5,6 +5,7 @@
 #   bash project_commands_positional.sh report        # rebuild report.md from what is on disk
 #   bash project_commands_positional.sh --dry-run     # print the commands, run nothing
 #   RUNS_EXTRA=r7 bash project_commands_positional.sh # also run R7 (the plan's "A1b profiles differ" case)
+#   FOLLOWUPS=0 bash project_commands_positional.sh   # R6 and the decision only: never R7/R8
 #   PALIGN_RUN=<tag> ALERD_RUN=<tag> ...              # which results/<tag> are the published baselines
 # Everything is written under results/positional/ (report.md, decision.json, analysis/, runs/<id>/).
 set -euo pipefail
@@ -140,6 +141,10 @@ run python -m sgl.positional.decide --root "${ROOT}"
 NEXT=""
 [[ "${DRY_RUN}" == 0 ]] && NEXT="$(python -m sgl.positional.decide --root "${ROOT}" --print-next)"
 read -ra MORE <<< "$(printf '%s\n' ${NEXT} ${RUNS_EXTRA:-} | sort -u | tr '\n' ' ')"
+if [[ "${FOLLOWUPS:-1}" == 0 && "${#MORE[@]}" -gt 0 ]]; then
+  say "FOLLOWUPS=0: not running ${MORE[*]} (the rule's verdict is still in ${ROOT}/decision.json)"
+  MORE=()
+fi
 if [[ "${#MORE[@]}" -gt 0 ]]; then
   say "follow-up runs: ${MORE[*]}"
   pids=() failed=0

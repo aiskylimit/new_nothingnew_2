@@ -7,6 +7,8 @@
 #                                               #   B (P2, P3, S2a, S2b), C (uniform + ALG default, seeds 43/44)
 #   bash project_commands_w4.sh report          # rebuild results_master.csv and the two tables from disk
 #   bash project_commands_w4.sh --dry-run       # print every command, run nothing
+#   VARIANTS="P1/S0 P0/S1" bash project_commands_w4.sh   # only these probe/segmentation pairs (+ P0/S0):
+#                                               #   scored, trained at seed 42 in place of groups A and B; C unchanged
 #   GPUS="0 1"  KEEP_EPOCH_CKPT=0  SEED42_UNIFORM=<results tag>  SEED42_ALG=<results tag>  MODEL_PATH=...
 # Finished steps are skipped, so after a crash launch the same command again.
 # Everything lands under results/w4/ (signals/, runs/, analysis/, meta/); training files in data/<track>/.
@@ -44,6 +46,24 @@ SEGS=(S0 S1 S2a S2b S3)
 SCORED=("P0 S0" "P1 S0" "P2 S0" "P3 S0" "P0 S1" "P0 S2a" "P0 S2b" "P0 S3")
 declare -A PROBE_TEXT=([P0]=$'\n\nTherefore, the final answer is \\boxed{' [P1]=$'\n\nThe answer is \\boxed{'
                        [P2]=$'\n\nFinal Answer: \\boxed{' [P3]=$'\n\n**Final Answer**\n\n\\boxed{')
+
+SIGNALS=("${SCORED[@]}" "Pavg S0")   # variants that get tables, weights and a training file
+ALG_RUNS=()                          # VARIANTS only: the seed-42 ALG runs that replace groups A and B
+if [[ -n "${VARIANTS:-}" ]]; then
+  SCORED=("P0 S0") SEGS=(S0) SIGNALS=("P0 S0")   # P0/S0 is the reference of every comparison
+  for v in ${VARIANTS}; do
+    probe="${v%/*}" seg="${v#*/}"
+    [[ "${probe}" == Pavg || -n "${PROBE_TEXT[${probe}]:-}" ]] && [[ " S0 S1 S2a S2b S3 " == *" ${seg} "* ]] \
+      || { echo "bad VARIANTS entry: ${v} (probe P0-P3|Pavg / seg S0|S1|S2a|S2b|S3)" >&2; exit 2; }
+    [[ "${probe}" == Pavg && "${seg}" != S0 ]] && { echo "Pavg exists on S0 only" >&2; exit 2; }
+    if [[ "${probe}" == Pavg ]]; then for q in P0 P1 P2 P3; do SCORED+=("${q} S0"); done
+    else SCORED+=("${probe} ${seg}"); fi
+    SEGS+=("${seg}") SIGNALS+=("${probe} ${seg}") ALG_RUNS+=("alg ${probe} ${seg} 42")
+  done
+  dedup() { printf '%s\n' "$@" | awk '!seen[$0]++'; }
+  mapfile -t SCORED < <(dedup "${SCORED[@]}"); mapfile -t SEGS < <(dedup "${SEGS[@]}")
+  mapfile -t SIGNALS < <(dedup "${SIGNALS[@]}")
+fi
 
 MODE=all DRY_RUN=0 PRIO=()
 for arg in "$@"; do
@@ -177,7 +197,7 @@ if [[ "${MODE}" == all || "${MODE}" == score ]]; then
   say "scoring: token log-probs + ${#SCORED[@]} probe/segmentation pairs over GPUs ${GPUS}"
   run_queue job tokenlogp "${SCORED[@]}"
   say "signals, weights and training files (training does not start if a check fails)"
-  for pair in "${SCORED[@]}" "Pavg S0"; do signals ${pair}; done
+  for pair in "${SIGNALS[@]}"; do signals ${pair}; done
   report
   [[ "${MODE}" == score ]] && { say "done: ${ROOT}/analysis/table_r_w4a.md"; exit 0; }
 fi
@@ -218,8 +238,12 @@ train_eval() {  # <gpu> <method> <probe> <seg> <seed>
 }
 
 if [[ "${MODE}" == all || "${MODE}" == train ]]; then
-  RUNS=()
+  RUNS=() added_variants=0
   for group in "${PRIO[@]}"; do
+    if [[ -n "${VARIANTS:-}" && "${group}" != C ]]; then   # VARIANTS replace groups A and B
+      [[ "${added_variants}" == 1 ]] || RUNS+=("${ALG_RUNS[@]}")
+      added_variants=1; continue
+    fi
     case "${group}" in
       A) RUNS+=("alg P1 S0 42" "alg Pavg S0 42" "alg P0 S1 42" "alg P0 S3 42") ;;
       B) RUNS+=("alg P2 S0 42" "alg P3 S0 42" "alg P0 S2a 42" "alg P0 S2b 42") ;;

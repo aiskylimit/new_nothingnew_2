@@ -3,6 +3,7 @@
 # Same students, s1K-1.1 data, schedule and eval as project_commands_rebuttal.sh; plain NLL, no answer gain.
 #   bash project_commands_answer_steps.sh                       # answer string anywhere in the step, GPUs 0,1
 #   ANSWER_DEF=boxed bash project_commands_answer_steps.sh      # only steps that write \boxed{answer}
+#   MODELS=r1-qwen-1.5b bash project_commands_answer_steps.sh  # some students only
 #   bash project_commands_answer_steps.sh --dry-run             # print every stage command, run nothing
 # Run it after project_commands_rebuttal.sh, or at least not at the same time: both write data/<model>-s1k/.
 # Outputs: rebuttal/results/ansstep-<definition>[-lora]-<model>-s1k/, rebuttal/logs/.
@@ -80,7 +81,8 @@ run_model() {
 # One run trains on one GPU; the GPUs work side by side. All arms of a model stay on one GPU, in order,
 # because they share data/<model>-s1k/. Each free GPU takes the next model of the list.
 read -ra GPU_LIST <<< "${GPUS//,/ }"
-MODELS=(r1-qwen-1.5b qwen25-7b qwen3-8b)
+# MODELS="r1-qwen-1.5b" pins a launch to some students
+read -ra MODELS <<< "${MODELS:-r1-qwen-1.5b qwen25-7b qwen3-8b}"
 ARGS=("$@")
 
 # sgl_run <gpu> <config> <model dir name> <stages> [extra args]

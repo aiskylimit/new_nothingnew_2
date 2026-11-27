@@ -8,6 +8,7 @@
 #   bash project_commands_hard.sh report          # tables, figures, decision.json from disk
 #   bash project_commands_hard.sh --dry-run       # print every command, run nothing
 #   GPUS="0 1"  BUDGET=auto|fixed|sgl  HARD_GROUPS="A B"  GRADER=either|mathverify  KEEP_EPOCH_CKPT=0
+#   HARD_ARMS="h59"  (train only these of h59 r59 h30 alg-h59)  NLL_SEEDS="42"  (nll_posthoc: seeds 43/44 need W4 group C checkpoints; default "42 43 44")
 #   SEED42_UNIFORM=<results tag>  SEED42_ALG=<results tag>  SGL_ROW="..."  MODEL_PATH=...
 # Needs the answer gain: experiments/answer_gain/scores/answer_gain.json, else W4's P0/S0 scoring
 # (bash project_commands_w4.sh score). Finished steps are skipped: after a crash launch it again.
@@ -168,6 +169,12 @@ train_group() {  # <A|B>
     A) jobs=("h59 42" "r59 42") ;;
     B) jobs=("h30 42" "alg-h59 42") ;;
   esac
+  if [[ -n "${HARD_ARMS:-}" ]]; then   # HARD_ARMS="h59": train only these arms of the group
+    local kept=()
+    for entry in "${jobs[@]}"; do [[ " ${HARD_ARMS} " == *" ${entry%% *} "* ]] && kept+=("${entry}"); done
+    jobs=(${kept[@]+"${kept[@]}"})
+    [[ "${#jobs[@]}" -gt 0 ]] || { say "group $1: no arm in HARD_ARMS=${HARD_ARMS}, nothing to train"; return 0; }
+  fi
   for entry in "${jobs[@]}"; do   # every training file must exist before any GPU is taken
     read -r arm seed <<< "${entry}"
     file="${DATA_DIR}/train-hard-${arm}.jsonl"
@@ -196,7 +203,7 @@ nll_job() {  # <gpu> <method> <seed>
 nll_posthoc() {
   [[ "${DRY_RUN}" == 1 || -f "${DATA_DIR}/train-hard-h59.jsonl" ]] || { echo "run prepare first" >&2; return 1; }
   local jobs=() method seed
-  for method in uniform alg; do for seed in 42 43 44; do jobs+=("${method} ${seed}"); done; done
+  for method in uniform alg; do for seed in ${NLL_SEEDS:-42 43 44}; do jobs+=("${method} ${seed}"); done; done
   run_queue nll_job "${jobs[@]}"
 }
 

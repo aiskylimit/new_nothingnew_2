@@ -64,6 +64,34 @@ PHASE1_GPUS="0 1 6 7" bash project_commands_phase1.sh   # đổi GPU, theo đún
 - Lỗi một làn không dừng các làn khác; cuối cùng in `FAILED: ...`. Chạy lại cùng lệnh thì các bước đã xong được bỏ qua.
 - Chạy riêng một làn: `GPUS=1 MODELS=qwen25-7b bash project_commands_rebuttal.sh`, `GPUS=7 ARMS=sft-vcore bash project_commands_vcore_asft.sh`.
 
+### Giai đoạn 2: phân bổ lại GPU 0, 1, 6 (GPU 7 vẫn chạy run 14)
+
+Ghi ngày 2026-11-27. Các run trên GPU 0, 1, 6 của giai đoạn 1 đã bị dừng. **Bỏ hẳn** run 2–9 (SFT, zero-shot 1.5B; toàn bộ Qwen2.5-7B, Qwen3-8B), run 11–12 (answer-steps của 7B, 8B), run 16–17 (positional R7, R8), run 19, 21–29 (W4: Pavg, S3, cả nhóm B và nhóm C) và run 31–33 (ALG-hard R59, H30, ALERD-H59). W4 chỉ thử **1 probe khác (P1) và 1 cách chia khác (S1)**, seed 42, không có nhóm C. GPU 7 tiếp tục VCORE (run 14), script giai đoạn 2 không đụng tới. File `project_commands_phase2.sh`:
+
+| Bước | GPU | Run | Nội dung |
+|---|---|---|---|
+| Mở đầu | 0 | phân tích | A1–A4 của `positional` (`analyze`), chọn step của ALG-hard (`hard prepare`); vài phút, chủ yếu CPU |
+| Làn A | 0 | 1 → 10 | ALERD 1.5B trên s1K-1.1; answer-steps-only 1.5B (cùng thư mục data nên nối tiếp) |
+| Làn B | 1, 6 | 18, 20 | W4 với `VARIANTS="P1/S0 P0/S1"`, chỉ nhóm A: chấm P0/S0, P1/S0, P0/S1 + độ ổn định thứ hạng; P1/S0 và P0/S1, mỗi GPU một run |
+| ↳ sau W4 | 1 | 30 | ALG-hard chỉ H59 (`HARD_ARMS=h59`) |
+| ↳ sau W4 | 6 | 13 → 15 | ASFT; positional R6 và quy tắc quyết định (không chạy R7/R8: `FOLLOWUPS=0`) |
+| Kết thúc | 0, 1, 6 | phân tích | NLL post-hoc của ALG-hard, chỉ seed 42 (`NLL_SEEDS=42`), report ALG-hard, bảng so sánh |
+
+Không có nhóm C: không có σ nhiễu theo seed. Quy tắc của ALG-hard dùng seed 42, paired bootstrap, ngưỡng 1.0 (`sigma_source: pending`); bảng W4 không có mean ± std.
+
+```bash
+bash project_commands_phase2.sh --dry-run    # in lệnh, kiểm tra GPU của từng run
+nohup bash project_commands_phase2.sh > phase2.out 2>&1 &
+PHASE2_GPUS="0 1 6" bash project_commands_phase2.sh   # đúng 3 GPU, theo vai trò của 0, 1, 6 ở bảng trên
+```
+
+- Phần mở đầu chạy trước hai làn nên `data/r1-qwen-1.5b-palign/` chỉ do một tiến trình dựng (thực tế đã có sẵn từ VCORE, bước này được bỏ qua); sau đó hai làn chỉ đọc. Run 1 và 10 cùng ghi `data/r1-qwen-1.5b-s1k/` nên chạy nối tiếp trên GPU 0.
+- Nếu `experiments/answer_gain/scores/answer_gain.json` không có trên server, `positional analyze` chấm lại answer gain trên GPU 0 và ghi vào đúng file đó, nên `hard prepare` ngay sau vẫn chạy được.
+- Run 1 trước đây đã chạy với τ=1 thì các bước đã xong được bỏ qua; nếu từng chạy với τ=2 thì xóa như ghi chú ở giai đoạn 1.
+- Log: `rebuttal/logs/phase2-<bước>-<thời gian>.log`, cộng log riêng của từng driver (`rebuttal/logs/`, `results/{positional,w4,hard}/meta/`).
+- Chạy riêng run 1 / run 10: `GPUS=0 MODELS=r1-qwen-1.5b ARMS=alg bash project_commands_rebuttal.sh`, `GPUS=0 MODELS=r1-qwen-1.5b bash project_commands_answer_steps.sh` (`ARMS`, `MODELS` mới thêm; mặc định vẫn là tất cả).
+- `decision.json` vẫn ghi quy tắc đề xuất gì (kể cả R7/R8), nhưng giai đoạn 2 không train chúng. Khi VCORE xong, GPU 7 rảnh; script không tự dùng nó.
+
 ---
 
 ## 1. `rebuttal`: answer gain trên s1K-1.1 (3 model)
@@ -144,6 +172,7 @@ Lệnh `prepare,vanilla` chạy trước, sau đó mỗi GPU một arm. Có th�
 - `bash project_commands_positional.sh analyze`: chỉ phân tích, vài phút, CPU.
 - `... report`: dựng lại report từ đĩa.
 - `RUNS_EXTRA=r7`: chạy thêm R7.
+- `FOLLOWUPS=0`: chỉ R6 và quyết định, không bao giờ chạy R7/R8.
 - `PALIGN_RUN=<tag> ALERD_RUN=<tag>`: chỉ định run baseline.
 
 **Các bước:**
@@ -188,6 +217,7 @@ bash project_commands_w4.sh             # tất cả: score → A, B, C → repo
 ```
 
 Biến môi trường:
+- `VARIANTS="P1/S0 P0/S1"`: chỉ chấm, dựng tín hiệu và train (seed 42) các cặp probe/cách chia này, cộng P0/S0 làm mốc so sánh; thay cho nhóm A và B, nhóm C giữ nguyên. Giai đoạn 2 dùng đúng giá trị này.
 - `KEEP_EPOCH_CKPT=0`: xóa checkpoint epoch 1–2 sau khi eval xong, tiết kiệm khoảng 6 GB mỗi run.
 - `SEED42_UNIFORM`, `SEED42_ALG`: tag của run seed 42 có sẵn, mặc định `e0-uniform-…` và `e7-alg-tau1-…`.
 

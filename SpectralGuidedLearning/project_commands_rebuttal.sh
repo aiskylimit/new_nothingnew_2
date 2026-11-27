@@ -5,6 +5,7 @@
 # Just run it; it activates the venv, checks inputs and environment, then splits the runs over GPUs 0 and 1:
 #   cd SpectralGuidedLearning && bash project_commands_rebuttal.sh
 #   GPUS=3 bash project_commands_rebuttal.sh                 # other GPUs (space-separated ids)
+#   MODELS=r1-qwen-1.5b ARMS=alg bash project_commands_rebuttal.sh   # some students / arms only
 #   bash project_commands_rebuttal.sh --dry-run              # print every stage command, check and run nothing
 # A rerun skips stages whose output exists (--force redoes them). Extra arguments go to every `sgl run`.
 # Comment out any line you don't want to run.
@@ -78,13 +79,14 @@ run_model() {
     qwen3-8b) dir=Qwen3-8B ;;
   esac
   # answer gain: data -> capture -> gain -> signal -> weights -> answer-step statistics -> train
-  sgl_run "${gpu}" "${model}-s1k/iwc-gain-l05${lora}" "${dir}" "${TRAIN_STAGES}" "${ARGS[@]}"
+  has_arm alg && sgl_run "${gpu}" "${model}-s1k/iwc-gain-l05${lora}" "${dir}" "${TRAIN_STAGES}" "${ARGS[@]}"
   # baseline: plain SFT on every step (NLL)
-  sgl_run "${gpu}" "${model}-s1k/sft-nll${lora}" "${dir}" prepare,vanilla,train "${ARGS[@]}"
+  has_arm sft && sgl_run "${gpu}" "${model}-s1k/sft-nll${lora}" "${dir}" prepare,vanilla,train "${ARGS[@]}"
   # eval: answer gain, NLL, zero-shot
-  sgl_run "${gpu}" "${model}-s1k/iwc-gain-l05${lora}" "${dir}" eval "${ARGS[@]}"
-  sgl_run "${gpu}" "${model}-s1k/sft-nll${lora}" "${dir}" eval "${ARGS[@]}"
-  sgl_run "${gpu}" "${model}-s1k/zeroshot" "${dir}" eval "${ARGS[@]}"
+  has_arm alg && sgl_run "${gpu}" "${model}-s1k/iwc-gain-l05${lora}" "${dir}" eval "${ARGS[@]}"
+  has_arm sft && sgl_run "${gpu}" "${model}-s1k/sft-nll${lora}" "${dir}" eval "${ARGS[@]}"
+  has_arm zeroshot && sgl_run "${gpu}" "${model}-s1k/zeroshot" "${dir}" eval "${ARGS[@]}"
+  return 0   # a skipped last arm must not count as a failure
 }
 
 # One run trains on one GPU; the GPUs work side by side. All arms of a model stay on one GPU, in order,
@@ -92,6 +94,9 @@ run_model() {
 read -ra GPU_LIST <<< "${GPUS//,/ }"
 # MODELS="qwen3-8b" pins a launch to some students (several launches on disjoint GPUs: disjoint data dirs)
 read -ra MODELS <<< "${MODELS:-r1-qwen-1.5b qwen25-7b qwen3-8b}"
+# ARMS="alg" keeps only some arms of each model: alg (answer gain), sft (NLL), zeroshot
+read -ra ARM_LIST <<< "${ARMS:-alg sft zeroshot}"
+has_arm() { [[ " ${ARM_LIST[*]} " == *" $1 "* ]]; }
 ARGS=("$@")
 
 # sgl_run <gpu> <config> <model dir name> <stages> [extra args]
