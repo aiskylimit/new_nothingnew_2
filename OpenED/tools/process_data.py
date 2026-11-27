@@ -107,7 +107,7 @@ def main():
             t_bin_file = os.path.join(args.processed_data_dir, f"teacher_train_0.bin")
             t_idx_file = os.path.join(args.processed_data_dir, f"teacher_train_0.idx")
                     
-        if args.model_type not in CHAT_MODEL_TYPES:   # vocab < 65536
+        if args.model_type not in CHAT_MODEL_TYPES:
             binary_builder = make_builder(bin_file, impl="mmap", dtype=np.uint16)
         else:
             binary_builder = make_builder(bin_file, impl="mmap", dtype=np.uint32)
@@ -142,10 +142,10 @@ def main():
                 
                 binary_builder.add_item(torch.IntTensor(prompt + [-1] + response))
 
-            json_file.write(json.dumps({
-                "prompt": prompt_str,
-                "response": line["response"],
-            }) + "\n")
+            rec = {"prompt": prompt_str, "response": line["response"]}
+            if "is_memory" in line:  # sentence-level CRE marks its memory rows (build_cre_sent.py)
+                rec["is_memory"] = line["is_memory"]
+            json_file.write(json.dumps(rec) + "\n")
 
             prompt_lens.append(len(prompt))
             response_lens.append(len(response))

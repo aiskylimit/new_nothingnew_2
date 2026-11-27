@@ -26,14 +26,11 @@ NUM_TASKS=$(${ENV_BIN:-$HOME/miniconda3/envs/mta/bin}/python -c \
 # run_ced_v2.sh writes the training output to results/<run>/task<t>/train.log and is
 # fingerprinted into every run manifest, so it stays as is: task<t>.log is a symlink to that
 # file while the run trains, a copy once it ends.
-# MODEL_TAG (e.g. llama1b) keeps the logs of another base model apart; Qwen runs leave it empty.
-LOGS="logs/${DATA_PREFIX%%_*}${MODEL_TAG:+_${MODEL_TAG}}_dist"
+LOGS="logs/${DATA_PREFIX%%_*}_dist"
 mkdir -p logs
 micro_acc () {  # $1=max micro batch per GPU -> "micro acc" giving eff batch 32 over NGPU GPUs
-    local mb=$((32 / NGPU)) cap=$1
-    # MB_CAP lowers every cap, e.g. 8 for a larger model or vocabulary
-    [ -n "${MB_CAP:-}" ] && [ "${MB_CAP}" -lt "${cap}" ] && cap=${MB_CAP}
-    [ "${mb}" -le "${cap}" ] || mb=${cap}
+    local mb=$((32 / NGPU))
+    [ "${mb}" -le "$1" ] || mb=$1
     echo "${mb} $((32 / (mb * NGPU)))"
 }
 link_logs () {  # $1=run name $2=log prefix $3..=tasks
