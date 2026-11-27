@@ -26,6 +26,12 @@ prog "run 13 (GPU 6) ASFT"              "rebuttal/logs/phase2-gpu6-run13-asft-*.
 prog "run 15 (GPU 6) positional R6"     "rebuttal/logs/phase2-gpu6-run15-positional-*.log"
 prog "run 18 (GPU 7) W4 P1/S0"          "${W4R}__P1__S0__tau1_lam0.5_c2__seed42/train/stdout.log ${W4R}__P1__S0__tau1_lam0.5_c2__seed42/eval.log"
 prog "run 20 (GPU 7) W4 P0/S1"          "${W4R}__P0__S1__tau1_lam0.5_c2__seed42/train/stdout.log ${W4R}__P0__S1__tau1_lam0.5_c2__seed42/eval.log"
+# ---- lấy kết quả về, bước 1: gom kết quả (không có checkpoint/weights) vào một folder
+bash phase2_collect_results.sh   # -> SpectralGuidedLearning/_fetch/sgl-phase2/
+# bước 2: nộp job fetch, thay 3 dòng header đầu file bằng:
+#   #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2/ +a
+#   #logs
+#   #v1
 cd ..
 
 # cd ./offline_olmo_seeds_b200

@@ -37,3 +37,6 @@ logs-data-prep.txt
 
 # installer wheels do not belong in the repository
 *.whl
+
+# copies of results gathered for a fetch job (phase2_collect_results.sh)
+/_fetch/
