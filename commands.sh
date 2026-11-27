@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectraGuidedLearning/rebuttal/
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/rebuttal/
 #alerd
 #v1
 
