@@ -1,5 +1,5 @@
-#2 -0-10
-#opened
+#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/rebuttal/results/ +a
+#alerd
 #v1
 
 # cd SpectralGuidedLearning
