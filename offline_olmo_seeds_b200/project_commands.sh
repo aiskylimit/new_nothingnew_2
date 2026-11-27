@@ -22,7 +22,9 @@
 #   A failed job is retried once (e.g. two vLLM servers starting at the same moment); finished jobs are
 #   skipped, so the script can simply be re-submitted after a crash.
 #
-# At the end, still on this server: every generation is re-graded and reduced to per-sample records
+# After EVERY finished train/eval job (in the background, the GPUs keep working) and once more at the end, still on
+# this server, the bundle below is rebuilt - so if the run is cut off, it still holds every finished checkpoint.
+# Every generation is re-graded and reduced to per-sample records
 # (rebuttal/import_legacy.py -> runs/olmo3-7b-think/<method>/seed<k>/, a few MB instead of ~1 GB of text),
 # rebuttal/analyze.py writes the seed tables (analysis/report.md, appendix_seeds_table.tex, CSVs) and
 # rebuttal/plots.py the figures when matplotlib is installed. Everything needed later - runs/, analysis/,
@@ -35,14 +37,8 @@ cd "$(dirname "$0")"
 ROOT="$(pwd)"
 export PYTHONPATH=.
 
-source /mnt/local/uvenvs/tropic/bin/activate
-
-# ---- paths (same @PROJECT@ as offline_olmo7b_b200/, so the model and data are already on disk) ----
-PROJECT_NAME="aiskylimit_new_nothingnew_2"
-BASE_DIR="/mnt/local/${PROJECT_NAME}/tropic_baselines"
-MODEL_OLMO="${BASE_DIR}/models/Olmo-3-7B-Think"
-export TROPIC_TRAIN_DATA_PATH="${BASE_DIR}/data/train"
-export TROPIC_EVAL_DATA_DIR="${BASE_DIR}/data/eval"
+VENV=/mnt/local/uvenvs/tropic            # built by a "#i tropic.txt" commit
+if [ -f "$VENV/bin/activate" ]; then source "$VENV/bin/activate"; else echo "!!! no venv at $VENV"; fi
 
 # ---- what to run ----
 GPU_A=2; GPU_B=3
@@ -56,6 +52,41 @@ BENCHMARKS="aime25 aime26 hmmt25"
 MAX_TRIES=2
 STAGGER=${STAGGER:-180}; RETRY_WAIT=${RETRY_WAIT:-120}; POLL=${POLL:-60}   # seconds
 STATE="$ROOT/.queue_state"
+
+# ---- model + data: the same files may sit in several places on the server, depending on which download
+#      ("#d") commit fetched them - this folder's download.txt (tropic_baselines/, as for offline_olmo7b_b200),
+#      opsd/download.txt (OPSD/models, OPSD/data/raw), or the newer /mnt/local/_data/ layout. Take the first
+#      complete copy; as a last resort search /mnt/local. Nothing found = the preflight below says so. ----
+PROJECT_NAME="aiskylimit_new_nothingnew_2"
+ROOTS="/mnt/local/${PROJECT_NAME} /mnt/local/_data/${PROJECT_NAME} /mnt/local/_data"
+model_ok() { [ -f "$1/config.json" ] && ls "$1"/*.safetensors > /dev/null 2>&1; }
+data_ok() {  # <dir holding train/ and eval/<bench>/>
+  local b
+  [ -n "$(ls -A "$1/train" 2>/dev/null)" ] || return 1
+  for b in $BENCHMARKS; do [ -n "$(ls -A "$1/eval/$b" 2>/dev/null)" ] || return 1; done
+}
+MODEL_OLMO=""; DATA_DIR=""
+for r in $ROOTS; do
+  for sub in tropic_baselines/models OPSD/models models; do
+    if [ -z "$MODEL_OLMO" ] && model_ok "$r/$sub/Olmo-3-7B-Think"; then MODEL_OLMO="$r/$sub/Olmo-3-7B-Think"; fi
+  done
+  for sub in tropic_baselines/data OPSD/data/raw data; do
+    if [ -z "$DATA_DIR" ] && data_ok "$r/$sub"; then DATA_DIR="$r/$sub"; fi
+  done
+done
+if [ -z "$MODEL_OLMO" ]; then
+  while IFS= read -r c; do model_ok "$c" && { MODEL_OLMO=$c; break; }; done \
+    < <(find /mnt/local -maxdepth 6 -type d -name "Olmo-3-7B-Think" -not -path "*/uvenvs/*" 2>/dev/null)
+fi
+if [ -z "$DATA_DIR" ]; then
+  while IFS= read -r c; do c=$(dirname "$(dirname "$c")"); data_ok "$c" && { DATA_DIR=$c; break; }; done \
+    < <(find /mnt/local -maxdepth 7 -type d -name "aime26" -path "*/eval/aime26" -not -path "*/uvenvs/*" 2>/dev/null)
+fi
+# defaults only matter for the error message when nothing was found
+MODEL_OLMO=${MODEL_OLMO:-/mnt/local/${PROJECT_NAME}/tropic_baselines/models/Olmo-3-7B-Think}
+DATA_DIR=${DATA_DIR:-/mnt/local/${PROJECT_NAME}/tropic_baselines/data}
+export TROPIC_TRAIN_DATA_PATH="${DATA_DIR}/train"
+export TROPIC_EVAL_DATA_DIR="${DATA_DIR}/eval"
 
 cfg() {  # method -> script, tag, training steps, evaluated steps
   case $1 in
@@ -129,7 +160,12 @@ run_job() {  # run_job <job> <worker>
           --eval-engine vllm --vllm-gpu-ids "$GPU_A,$GPU_B" --eval-benchmarks $BENCHMARKS > "$log" 2>&1 ;;
   esac
   job_done "$1" && return 0
-  echo "  (log: $log)"; return 1
+  echo "  (log: $log) - last lines:"
+  tail -n 40 "$log" 2>/dev/null | sed 's/^/  | /'     # the error itself, right in the main output
+  for f in "$out"/vllm*.log; do
+    [ -e "$f" ] && { echo "  ($f) - last lines:"; tail -n 15 "$f" | sed 's/^/  | /'; }
+  done
+  return 1
 }
 
 worker() {  # worker <id>
@@ -152,6 +188,9 @@ worker() {  # worker <id>
       echo "[w$w] START $job (try $n) $(date '+%F %T')"
       if run_job "$job" "$w"; then
         echo "[w$w] done  $job $(date '+%F %T')"
+        # refresh the bundle in the background (the worker goes straight on to its next job), so that
+        # olmo_seeds_results.tgz always holds every finished checkpoint even if the run is cut off
+        [[ "$job" != dry:* ]] && { package_results incremental >> pack.log 2>&1 & }
       else
         echo "[w$w] !!! FAILED $job (try $n) $(date '+%F %T')"
         if [ "$n" -ge "$MAX_TRIES" ]; then touch "$STATE/gaveup_${job//:/_}"; else sleep "$RETRY_WAIT"; fi
@@ -164,20 +203,30 @@ worker() {  # worker <id>
       sleep "$POLL"
     fi
   done
+  wait                             # this worker's background packers
   echo "[w$w] no jobs left $(date '+%F %T')"
 }
 
-rm -rf "$STATE"; mkdir -p "$STATE"
-echo "=== OLMo seeds $SEEDS on GPUs $GPU_A,$GPU_B: ${#JOBS[@]} jobs, $WORKERS worker(s) ($(date)) ==="
-for ((w = 0; w < WORKERS; w++)); do worker $w & done
-wait
+# ---- results bundle: rebuilt after every finished train/eval job and once more at the very end ----
+# package_results incremental : only newly finished evals are re-graded (a minute or so), output -> pack.log
+# package_results final       : everything re-graded from scratch (--overwrite), as the original end-of-run step
+package_results() {
+  local mode=$1 waited=0 ow=""
+  [ "$mode" = "final" ] && ow="--overwrite"
+  until mkdir "$STATE/pack_lock" 2>/dev/null; do     # one packer at a time
+    sleep 5; waited=$((waited + 5))
+    if [ "$waited" -ge 3600 ]; then echo "!!! packer lock held for 1 h - skipping this refresh"; return 1; fi
+  done
+  echo "=== package ($mode) $(date '+%F %T') ==="
+  _package_body "$ow"
+  rmdir "$STATE/pack_lock"
+}
 
-echo "=== summary ==="
-for job in "${JOBS[@]}"; do job_done "$job" && echo "  ok      $job" || echo "  MISSING $job"; done
-
+_package_body() {
+local ow=$1
 # ---- aggregate every finished eval into final_results.json ----
 python - <<'PYEOF'
-import glob, json, re
+import glob, json, os, re
 pat = re.compile(r"\[(?P<tag>[A-Za-z0-9_]+?)_step(?P<step>\d+)[^\]]*\]\s+(?P<bench>aime25|aime26|hmmt25)\s+"
                  r"avg@12=(?P<avg>[\d.]+)\s+pass@12=(?P<pass_>[\d.]+)")
 rows = []
@@ -187,7 +236,8 @@ for path in sorted(glob.glob("results_olmo7b_*_seed*_eval_step*.log")):
     for m in pat.finditer(text):
         rows.append(dict(method=m0["method"], seed=int(m0["seed"]), step=int(m["step"]), benchmark=m["bench"],
                          avg12=float(m["avg"]), pass12=float(m["pass_"]), log=path))
-json.dump(rows, open("final_results.json", "w"), indent=2)
+json.dump(rows, open("final_results.json.tmp", "w"), indent=2)
+os.replace("final_results.json.tmp", "final_results.json")
 print(f"{'method':<7} {'seed':>4} {'step':>4}  {'benchmark':<8} {'avg@12':>7} {'pass@12':>8}")
 for r in sorted(rows, key=lambda r: (r["method"], r["seed"], r["step"], r["benchmark"])):
     print(f"{r['method']:<7} {r['seed']:>4} {r['step']:>4}  {r['benchmark']:<8} {r['avg12']:>7.3f} {r['pass12']:>8.3f}")
@@ -199,10 +249,10 @@ for m in tropic opsd; do
   cfg $m
   for s in $SEEDS; do
     out=$(out_dir $m $s)
-    [ -d "$out" ] || continue
+    compgen -G "$out/${TAG}_step*generations.json" > /dev/null || continue   # no finished eval yet
     echo "=== import $m seed $s ==="
     python rebuttal/import_legacy.py --src "$out" --tag "$TAG" --model "$MODEL_KEY" --method "$m" --seed "$s" \
-        --steps $STEPS --tokenizer "$MODEL_OLMO" --workers 16 --overwrite \
+        --steps $STEPS --tokenizer "$MODEL_OLMO" --workers 16 $ow \
       || echo "!!! import failed for $out (its generations are still in $out/)"
   done
 done
@@ -215,16 +265,106 @@ fi
 
 # ---- ONE small bundle: compact results + analysis + log tails (no generations, no checkpoints) ----
 mkdir -p log_tails
-for f in results_olmo7b_*_*.log; do [ -e "$f" ] && tail -n 300 "$f" > "log_tails/$f"; done
+for f in results_olmo7b_*_*.log pack.log; do [ -e "$f" ] && tail -n 300 "$f" > "log_tails/$f"; done
 for s in $SEEDS; do for m in tropic opsd; do cfg $m; out=$(out_dir $m $s)
   [ -f "$out/${TAG}_train_logs.json" ] && cp "$out/${TAG}_train_logs.json" "log_tails/${out}_train_logs.json"
 done; done
-rm -f olmo_seeds_results.tgz olmo_seeds_results.tgz.part-*
-tar czf olmo_seeds_results.tgz final_results.json runs analysis log_tails 2>/dev/null
+tar czf olmo_seeds_results.tgz.tmp final_results.json runs analysis log_tails 2>/dev/null
+rm -f olmo_seeds_results.tgz.part-*
+mv -f olmo_seeds_results.tgz.tmp olmo_seeds_results.tgz   # swapped in whole: a fetch never sees half a file
 size=$(stat -c %s olmo_seeds_results.tgz)
 if [ "$size" -gt $((24 * 1024 * 1024)) ]; then
   split -b 24M olmo_seeds_results.tgz olmo_seeds_results.tgz.part-
   echo "bundle is $((size / 1024 / 1024)) MB - split into: $(ls olmo_seeds_results.tgz.part-* | tr '\n' ' ')"
 fi
+echo "bundle refreshed $(date '+%F %T'): $(du -h olmo_seeds_results.tgz | cut -f1)"
+}
+
+# ---- preflight: checks everything the jobs need and prints it to the main output; stops early with the
+#      reason instead of letting every job die a few seconds after it starts ----
+preflight() {
+  local bad=0 d
+  echo "=== preflight $(date '+%F %T') on $(hostname) ==="
+  echo "  python: $(command -v python)   vllm: $(command -v "$VLLM_EXECUTABLE" || echo NOT FOUND)"
+  [ "$(command -v python)" = "$VENV/bin/python" ] || { echo "!!! the venv $VENV is not active - (re)install it with a '#i tropic.txt' commit"; bad=1; }
+  command -v "$VLLM_EXECUTABLE" > /dev/null || { echo "!!! '$VLLM_EXECUTABLE' is not on PATH"; bad=1; }
+  echo "  model: $MODEL_OLMO"
+  echo "  data:  $DATA_DIR"
+  model_ok "$MODEL_OLMO" || { echo "!!! no complete Olmo-3-7B-Think (config.json + *.safetensors) found under /mnt/local"; bad=1; }
+  data_ok "$DATA_DIR" || { echo "!!! no complete train + eval/{${BENCHMARKS// /,}} data found under /mnt/local"; bad=1; }
+  if [ "$bad" = "1" ]; then
+    echo "  (missing model/data -> commit the contents of offline_olmo_seeds_b200/download.txt as commands.sh ('#d') first)"
+    echo "  what is on disk:"
+    ls -la /mnt/local "/mnt/local/${PROJECT_NAME}" "/mnt/local/${PROJECT_NAME}/tropic_baselines" \
+           "/mnt/local/${PROJECT_NAME}/tropic_baselines/models" "/mnt/local/${PROJECT_NAME}/OPSD/models" \
+           "/mnt/local/_data/${PROJECT_NAME}" /mnt/local/uvenvs 2>&1 | sed 's/^/  | /' | head -80
+  fi
+  # GPUs 2,3: who else is on them (a job of someone else there = out-of-memory for ours)
+  nvidia-smi --query-gpu=index,name,memory.used,memory.total,utilization.gpu --format=csv,noheader 2>&1 | sed 's/^/  gpu /'
+  local used
+  for d in $GPU_A $GPU_B; do
+    used=$(nvidia-smi -i "$d" --query-gpu=memory.used --format=csv,noheader,nounits 2>/dev/null | tr -d ' ')
+    if [ -z "$used" ]; then echo "!!! nvidia-smi cannot see GPU $d"; bad=1
+    elif [ "$used" -gt 20000 ]; then echo "!!! GPU $d already has ${used} MiB in use by another process - our jobs may run out of memory"; fi
+  done
+  # the venv itself: imports, CUDA, and that this transformers can read the OLMo-3 config (needs >= 4.57)
+  CUDA_VISIBLE_DEVICES="$GPU_A,$GPU_B" MODEL_OLMO="$MODEL_OLMO" BENCHMARKS="$BENCHMARKS" \
+    python - <<'PY' 2>&1 | sed 's/^/  /' || bad=1
+import importlib, os, sys
+ok = True
+for m in ["torch", "transformers", "peft", "datasets", "math_verify", "vllm"]:
+    try:
+        print(f"{m:<12} {getattr(importlib.import_module(m), '__version__', 'ok')}")
+    except Exception as e:
+        print(f"!!! cannot import {m}: {type(e).__name__}: {e}"); ok = False
+try:
+    import torch
+    n = torch.cuda.device_count()
+    print(f"CUDA available={torch.cuda.is_available()} devices={n} " + ", ".join(torch.cuda.get_device_name(i) for i in range(n)))
+    if n < 2:
+        print("!!! fewer than 2 CUDA devices visible"); ok = False
+    for i in range(n):
+        free, total = torch.cuda.mem_get_info(i); print(f"  device {i}: {free / 2**30:.0f} / {total / 2**30:.0f} GiB free")
+except Exception as e:
+    print(f"!!! CUDA init failed: {type(e).__name__}: {e}"); ok = False
+tok = None
+try:
+    from transformers import AutoConfig, AutoTokenizer
+    c = AutoConfig.from_pretrained(os.environ["MODEL_OLMO"]); tok = AutoTokenizer.from_pretrained(os.environ["MODEL_OLMO"])
+    print(f"model config + tokenizer OK ({c.model_type})")
+except Exception as e:
+    print(f"!!! cannot load the model config/tokenizer: {type(e).__name__}: {e}"); ok = False
+# the very same loaders (and arguments) the jobs call first - what a job would hit in its first seconds
+try:
+    from tropic.data import load_opsd_math_examples
+    if tok is not None:
+        ex = load_opsd_math_examples(tok, num_examples=4, only_correct=True, teacher_thinking=True,
+                                     student_thinking=False, seed=0, max_length=20000,
+                                     empty_think_suffix="\n\n</think>\n\n")
+        print(f"training data OK ({len(ex)} examples through tropic.data)")
+except Exception as e:
+    print(f"!!! training data does not load: {type(e).__name__}: {e}"); ok = False
+try:
+    from tropic.eval import load_benchmark
+    for b in os.environ["BENCHMARKS"].split():
+        print(f"eval {b}: {len(load_benchmark(b, num_problems=30))} problems")
+except Exception as e:
+    print(f"!!! eval data does not load: {type(e).__name__}: {e}"); ok = False
+sys.exit(0 if ok else 1)
+PY
+  if [ "$bad" = "1" ]; then echo "=== preflight FAILED - nothing was run (see the !!! lines above) ==="; return 1; fi
+  echo "=== preflight OK ==="
+}
+preflight || exit 1
+
+rm -rf "$STATE"; mkdir -p "$STATE"; rm -f pack.log
+echo "=== OLMo seeds $SEEDS on GPUs $GPU_A,$GPU_B: ${#JOBS[@]} jobs, $WORKERS worker(s) ($(date)) ==="
+echo "(olmo_seeds_results.tgz is refreshed after every finished job; packer log: pack.log)"
+for ((w = 0; w < WORKERS; w++)); do worker $w & done
+wait
+
+echo "=== summary ==="
+for job in "${JOBS[@]}"; do job_done "$job" && echo "  ok      $job" || echo "  MISSING $job"; done
+package_results final
 echo "ALL DONE - fetch olmo_seeds_results.tgz ($(du -h olmo_seeds_results.tgz | cut -f1)); report: analysis/report.md"
 [ -f analysis/report.md ] && head -n 80 analysis/report.md
