@@ -1,9 +1,10 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/rebuttal/results/ +a
+#1 +5
 #alerd
 #v1
 
-# cd SpectralGuidedLearning
+cd SpectralGuidedLearning
 # bash project_commands_phase2.sh
+bash runs_status.sh
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
