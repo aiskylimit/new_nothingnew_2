@@ -4,6 +4,8 @@
 
 # cd SpectralGuidedLearning
 # bash project_commands_phase2.sh
+# run 10 trên GPU 1 (chỉ chạy khi run 30 xong, GPU 1 trống, run 10 chưa xong/chưa chạy; foreground):
+# bash phase2_run10_gpu1.sh
 
 # ---- tiến độ các run SGL (chỉ đọc file, không thay đổi gì)
 cd SpectralGuidedLearning
@@ -18,7 +20,7 @@ prog() {  # <tên run> "<log glob...>": log mới nhất, dòng progress mới n
 }
 W4R=results/w4/runs/r1q1.5b__alg
 prog "run 1  (GPU 0) ALERD s1K-1.1"     "rebuttal/logs/phase2-gpu0-run1-alerd-s1k-*.log"
-prog "run 10 (GPU 0) answer-steps"      "rebuttal/logs/phase2-gpu0-run10-answer-steps-*.log"
+prog "run 10 (GPU 1) answer-steps"      "rebuttal/logs/driver-answer-steps-*.log rebuttal/logs/phase2-gpu0-run10-answer-steps-*.log"
 prog "run 30 (GPU 1) ALG-hard H59"      "rebuttal/logs/phase2-gpu1-run30-hard-h59-*.log"
 prog "run 13 (GPU 6) ASFT"              "rebuttal/logs/phase2-gpu6-run13-asft-*.log"
 prog "run 15 (GPU 6) positional R6"     "rebuttal/logs/phase2-gpu6-run15-positional-*.log"

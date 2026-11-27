@@ -24,7 +24,7 @@ RUNS=(
   "7|1|dropped|6|Qwen3-8B ALERD LoRA, s1K|${R}/iwc-gain-l05-lora-qwen3-8b-s1k|checkpoints/iwc-gain-l05-lora-qwen3-8b-s1k||"
   "8|1|dropped|6|Qwen3-8B SFT LoRA, s1K|${R}/sft-nll-lora-qwen3-8b-s1k|checkpoints/sft-nll-lora-qwen3-8b-s1k||"
   "9|1|dropped|6|Qwen3-8B zero-shot, s1K|${R}/zeroshot-qwen3-8b-s1k|||"
-  "10|2|run|0|1.5B answer-steps, s1K-1.1|rebuttal/results/ansstep-mention-r1-qwen-1.5b-s1k|checkpoints/ansstep-mention-r1-qwen-1.5b-s1k||"
+  "10|2|run|1|1.5B answer-steps, s1K-1.1|rebuttal/results/ansstep-mention-r1-qwen-1.5b-s1k|checkpoints/ansstep-mention-r1-qwen-1.5b-s1k||"
   "13|1+2|run|6|ASFT, 966 traces|rebuttal/results/sft-asft-r1-qwen-1.5b-palign|checkpoints/sft-asft-r1-qwen-1.5b-palign||"
   "14|1|run|7|VCORE, 966 traces|rebuttal/results/sft-vcore-r1-qwen-1.5b-palign|checkpoints/sft-vcore-r1-qwen-1.5b-palign||"
   "15|2|run|6|positional R6|results/positional/runs/r6|results/positional/runs/r6/checkpoint||results/positional/runs/r6/eval/metrics.json"
