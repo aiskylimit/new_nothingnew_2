@@ -1,30 +1,12 @@
-#2 -0-20
-#logs
-#v2
+#1 +60
+#alerd
+#v1
 
-# ---- báo cáo kết quả: MỘT file markdown nhỏ (bảng mọi run + bảng phân tích + runs_status), in thẳng ra log
-# file nằm ở _fetch/sgl-report/report.md; muốn tải file thì một job: #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-report/ +a
+# ---- 3 run rebuttal, mỗi run một cấu hình, một GPU (GPU 0, 1, 6):
+#   GPU 0  run 1  ALERD s1K-1.1, tau 0.5      GPU 1  run 10 answer-steps, 966 traces      GPU 6  run 13 ASFT, KL 0.1
 cd SpectralGuidedLearning
-/mnt/local/uvenvs/spectral_guided_learning/bin/python phase2_report.py
+GPUS="0 1 6" bash project_commands_tune_rebuttal.sh
 cd ..
-
-# cd SpectralGuidedLearning
-# bash project_commands_phase2.sh
-# run 10 trên GPU 1 (chỉ chạy khi run 30 xong, GPU 1 trống, run 10 chưa xong/chưa chạy; foreground):
-# bash phase2_run10_gpu1.sh
-
-# ---- lấy kết quả về, bước 1 (job #1): gom kết quả, không có checkpoint/weights, chia theo giới hạn 25 MiB/job
-# (đã chạy 14:12 27/11; để comment khi đang fetch: gom lại giữa chừng làm các mảnh không ghép được)
-# cd SpectralGuidedLearning
-# bash phase2_collect_results.sh   # in ra số mảnh và dòng header fetch cho từng folder
-# cd ..
-# bước 2: mỗi folder một job fetch, thay dòng header đầu file lần lượt bằng (giữ #logs / #v1):
-#   #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2/ +a         (file nhỏ, đọc ngay)
-#   #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2-part01/ +a  (toàn bộ, nén, mảnh 1)
-#   #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2-part02/ +a
-#   #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2-part03/ +a
-#   #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/SpectralGuidedLearning/_fetch/sgl-phase2-part04/ +a  (mảnh cuối, gom lúc 14:12 27/11)
-# ghép lại ở máy: cat sgl-phase2-part*/full.tar.gz.part* | tar -xzf -
 
 
 # cd ./offline_olmo_seeds_b200
