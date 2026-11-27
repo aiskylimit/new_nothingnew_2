@@ -4,7 +4,9 @@
 
 cd SpectralGuidedLearning
 # bash project_commands_phase2.sh
-bash phase2_diag.sh
+pstree -ap 25396 | head -30
+ps -eo pid,ppid,etime,stat,cmd | grep -E "answer_gain|EngineCore|compile_worker|sed -u|nvidia-smi.*-lms" | grep -v grep
+ls -la results/w4/signals/r1q1.5b__P0__S1/raw/
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
