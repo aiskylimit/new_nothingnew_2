@@ -1,9 +1,9 @@
-#1 +60
+#1 +3
 #alerd
 #v1
 
-cd SpectralGuidedLearning
-bash project_commands_phase1.sh
+# cd SpectralGuidedLearning
+# bash project_commands_phase1.sh
 
 
 # cd ./offline_olmo_seeds_b200
