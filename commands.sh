@@ -1,14 +1,9 @@
 #1 +30
-#alerd
+#alerd-log
 #v4
 
-# ---- kill 2 tiến trình sgl.cli treo (run 4, run 7) rồi chạy lại phase 3; stage đã xong được bỏ qua
-P='sgl\.cli run (qwen25-7b|qwen3-8b)-s1k/iwc-gain-l05-lora '
-pgrep -af "$P"   # ghi vào log những tiến trình sắp bị kill
-pkill -f "$P"
-sleep 10
 cd SpectralGuidedLearning
-bash phase3_alerd_7b_8b.sh
+bash phase3_status.sh
 cd ..
 
 # cd ./offline_olmo_seeds_b200
