@@ -1,10 +1,12 @@
-#2 -0-20
+#1 +5
 #alerd
-#v3
+#v4
 
+# ---- tiến độ run 4 (7B, GPU 0) và run 7 (8B, GPU 1): stage nào xong, stage đang chạy + đuôi log của nó (chỉ đọc)
 cd SpectralGuidedLearning
-bash phase3_alerd_7b_8b.sh
+LINES=10 bash phase3_status.sh
 cd ..
+
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
