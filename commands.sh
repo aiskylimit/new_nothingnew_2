@@ -1,16 +1,6 @@
 #1 +10
-#alerd
-#v4
-
-# ---- in lý do lane 11:58 dừng sau answer_gain, rồi chạy tiếp (answer_gain đã xong được bỏ qua)
-cd SpectralGuidedLearning
-for f in rebuttal/logs/phase3-gpu*-20261128-115854.log; do
-  echo "======== ${f}"
-  tr '\r' '\n' < "$f" | grep -A20 "wrote gains" | cut -c1-200
-  tr '\r' '\n' < "$f" | grep -E "failed with exit code|Traceback|Error" | cut -c1-200
-done
-bash phase3_alerd_7b_8b.sh
-cd ..
+#nvidia-smi
+#v1
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
