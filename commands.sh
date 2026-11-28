@@ -1,9 +1,19 @@
 #1 +10
-#nvidia-smi
+#alerd-log
 #v1
 
 cd SpectralGuidedLearning
-GPU=6 bash project_commands_tune_run1_gpu6.sh
+/mnt/local/uvenvs/spectral_guided_learning/bin/python scripts/report_run1.py
+for a in iwc-gain-t2-l05 iwc-gain-t1-l03 iwc-gain-t1-l07 iwc-gain-t2-l10; do
+  tag=$a-r1-qwen-1.5b-s1k
+  if [ -f rebuttal/tune/results/$tag/summary.json ]; then
+    echo; echo "== $tag: xong"
+  else
+    echo; echo "== $tag: CHƯA có điểm, đuôi log:"
+    log=$(ls -t rebuttal/tune/logs/$tag-*.log 2>/dev/null | head -1)
+    if [ -n "$log" ]; then echo "$log"; tail -n 15 "$log"; else echo "(chưa có log)"; fi
+  fi
+done
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
