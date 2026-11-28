@@ -1,4 +1,4 @@
-#2 -f-/mnt/local/aiskylimit_new_nothingnew_2/OpenED/logs/p26_logs.tar.gz +a
+#2 -20 +a
 #alerd-log
 #v1
 
