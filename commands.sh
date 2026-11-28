@@ -1,21 +1,15 @@
-#1 +30
-#alerd-log
+#1 +10
+#alerd
 #v4
 
-# ---- trạng thái + kết quả run 4 (7B) và run 7 (8B), chỉ đọc
+# ---- in lý do lane 11:58 dừng sau answer_gain, rồi chạy tiếp (answer_gain đã xong được bỏ qua)
 cd SpectralGuidedLearning
-LINES=3 bash phase3_status.sh
-for m in qwen25-7b qwen3-8b; do
-  n="iwc-gain-l05-lora-${m}-s1k"
-  echo; echo "======== ${m}: answer_gain"
-  # số probe, số probe chấm lại, thời gian chấm
-  tr '\r' '\n' < "rebuttal/logs/${n}-answer_gain.log" | grep -E "probes|wrote gains|Error|Traceback"
-  echo "======== ${m}: kết quả eval"
-  cat "rebuttal/results/${n}/summary.json" 2>/dev/null || echo "(chưa có)"
-  echo
+for f in rebuttal/logs/phase3-gpu*-20261128-115854.log; do
+  echo "======== ${f}"
+  tr '\r' '\n' < "$f" | grep -A20 "wrote gains" | cut -c1-200
+  tr '\r' '\n' < "$f" | grep -E "failed with exit code|Traceback|Error" | cut -c1-200
 done
-echo "======== bảng so sánh"
-cat rebuttal/results/comparison-table.md 2>/dev/null || echo "(chưa có)"
+bash phase3_alerd_7b_8b.sh
 cd ..
 
 # cd ./offline_olmo_seeds_b200
