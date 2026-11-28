@@ -1,6 +1,6 @@
 #1 +30
 #alerd-log
-#v4
+#v1
 
 
 # ---- tiến độ + kết quả run 4 (7B) và run 7 (8B), chỉ đọc
