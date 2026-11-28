@@ -1,15 +1,14 @@
-#1 +60
+#1 +3
 #alerd
 #v2
 
-cd SpectralGuidedLearning
-bash phase3_alerd_7b_8b.sh
-cd ..
+# cd SpectralGuidedLearning
+# bash phase3_alerd_7b_8b.sh
+# cd ..
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
 
-# (đã nộp ở job #tropic_rev trước; để comment để job này không chạy lại OLMo)
 # cd ./offline_olmo_seeds_b200_rev
 # bash ./project_commands.sh
 
