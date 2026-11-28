@@ -1,9 +1,9 @@
 #1 +30
-#alerd
+#alerd-log
 #v4
 
 cd SpectralGuidedLearning
-bash phase3_alerd_7b_8b.sh
+bash phase3_status.sh
 # cd ..
 
 # cd ./offline_olmo_seeds_b200
