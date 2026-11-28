@@ -1,25 +1,17 @@
 #1 +60
-#tropic_rev
-#v1
+#alerd
+#v2
 
-# cd SpectralGuidedLearning
-# /mnt/local/uvenvs/spectral_guided_learning/bin/python scripts/report_run1.py
-# for a in iwc-gain-t2-l05 iwc-gain-t1-l03 iwc-gain-t1-l07 iwc-gain-t2-l10; do
-#   tag=$a-r1-qwen-1.5b-s1k
-#   if [ -f rebuttal/tune/results/$tag/summary.json ]; then
-#     echo; echo "== $tag: xong"
-#   else
-#     echo; echo "== $tag: CHƯA có điểm, đuôi log:"
-#     log=$(ls -t rebuttal/tune/logs/$tag-*.log 2>/dev/null | head -1)
-#     if [ -n "$log" ]; then echo "$log"; tail -n 15 "$log"; else echo "(chưa có log)"; fi
-#   fi
-# done
+cd SpectralGuidedLearning
+bash phase3_alerd_7b_8b.sh
+cd ..
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
 
-cd ./offline_olmo_seeds_b200_rev
-bash ./project_commands.sh
+# (đã nộp ở job #tropic_rev trước; để comment để job này không chạy lại OLMo)
+# cd ./offline_olmo_seeds_b200_rev
+# bash ./project_commands.sh
 
 nvidia-smi
 #2 -f-/mnt/local/aiskylimit_new_nothingnew_2/talas_vlm_embed/MMEB-evaloutputs-json-v2/ +a

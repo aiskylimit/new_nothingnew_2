@@ -17,6 +17,8 @@ KNOWN = {
     "rebuttal/results/iwc-gain-l05-r1-qwen-1.5b-s1k": ("1", "1.5B ALERD, s1K-1.1"),
     "rebuttal/results/sft-nll-r1-qwen-1.5b-s1k": ("2", "1.5B SFT, s1K-1.1 (dropped)"),
     "rebuttal/results/zeroshot-r1-qwen-1.5b-s1k": ("3", "1.5B zero-shot (dropped)"),
+    "rebuttal/results/iwc-gain-l05-lora-qwen25-7b-s1k": ("4", "Qwen2.5-7B ALERD LoRA, s1K-1.1"),
+    "rebuttal/results/iwc-gain-l05-lora-qwen3-8b-s1k": ("7", "Qwen3-8B ALERD LoRA, s1K-1.1"),
     "rebuttal/results/ansstep-mention-r1-qwen-1.5b-s1k": ("10", "1.5B answer-steps, s1K-1.1"),
     "rebuttal/results/sft-asft-r1-qwen-1.5b-palign": ("13", "ASFT, 966 traces"),
     "rebuttal/results/sft-vcore-r1-qwen-1.5b-palign": ("14", "VCORE, 966 traces"),

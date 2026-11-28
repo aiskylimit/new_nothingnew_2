@@ -2,7 +2,7 @@
 # Which runs of phase 1 and phase 2 are done? Reads only files on disk (and ps), changes nothing; safe while
 # runs are going.
 #   bash runs_status.sh
-# Phase 1 runs 2-9 were killed and dropped ("dropped" in the Plan column): whatever they finished is still shown.
+# Phase 1 runs 2-9 were killed and dropped; runs 4 and 7 restarted in phase 3 (phase3_alerd_7b_8b.sh, GPUs 0/1) ("dropped" in the Plan column): whatever they finished is still shown.
 # State per run: done (eval summary written; W4/hard/R6 also finalized), eval (final checkpoint, no scores yet),
 # train (epoch k/3 checkpoints so far), - (not started). Avg = mean over the benchmarks of pass@1 / pass@3.
 set -uo pipefail
@@ -18,10 +18,10 @@ RUNS=(
   "1|1+2|run|0|1.5B ALERD, s1K-1.1|rebuttal/results/iwc-gain-l05-r1-qwen-1.5b-s1k|checkpoints/iwc-gain-l05-r1-qwen-1.5b-s1k||"
   "2|1|dropped|0|1.5B SFT, s1K-1.1|${R}/sft-nll-r1-qwen-1.5b-s1k|checkpoints/sft-nll-r1-qwen-1.5b-s1k||"
   "3|1|dropped|0|1.5B zero-shot, s1K-1.1|${R}/zeroshot-r1-qwen-1.5b-s1k|||"
-  "4|1|dropped|1|7B ALERD LoRA, s1K-1.1|${R}/iwc-gain-l05-lora-qwen25-7b-s1k|checkpoints/iwc-gain-l05-lora-qwen25-7b-s1k||"
+  "4|3|run|0|7B ALERD LoRA, s1K-1.1|${R}/iwc-gain-l05-lora-qwen25-7b-s1k|checkpoints/iwc-gain-l05-lora-qwen25-7b-s1k||"
   "5|1|dropped|1|7B SFT LoRA, s1K-1.1|${R}/sft-nll-lora-qwen25-7b-s1k|checkpoints/sft-nll-lora-qwen25-7b-s1k||"
   "6|1|dropped|1|7B zero-shot, s1K-1.1|${R}/zeroshot-qwen25-7b-s1k|||"
-  "7|1|dropped|6|Qwen3-8B ALERD LoRA, s1K|${R}/iwc-gain-l05-lora-qwen3-8b-s1k|checkpoints/iwc-gain-l05-lora-qwen3-8b-s1k||"
+  "7|3|run|1|Qwen3-8B ALERD LoRA, s1K|${R}/iwc-gain-l05-lora-qwen3-8b-s1k|checkpoints/iwc-gain-l05-lora-qwen3-8b-s1k||"
   "8|1|dropped|6|Qwen3-8B SFT LoRA, s1K|${R}/sft-nll-lora-qwen3-8b-s1k|checkpoints/sft-nll-lora-qwen3-8b-s1k||"
   "9|1|dropped|6|Qwen3-8B zero-shot, s1K|${R}/zeroshot-qwen3-8b-s1k|||"
   "10|2|run|1|1.5B answer-steps, s1K-1.1|rebuttal/results/ansstep-mention-r1-qwen-1.5b-s1k|checkpoints/ansstep-mention-r1-qwen-1.5b-s1k||"
