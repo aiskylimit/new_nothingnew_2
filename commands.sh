@@ -1,12 +1,11 @@
-#1 +5
+#1 +30
 #alerd
-#v4
+#v5
 
-kill -9 442970
-kill -9 434163
-# cd SpectralGuidedLearning
-# bash phase3_alerd_7b_8b.sh
-# cd ..
+# ---- chạy lại phase 3 (run 4 + run 7) với answer_gain dùng prefix cache; stage đã xong được bỏ qua
+cd SpectralGuidedLearning
+bash phase3_alerd_7b_8b.sh
+cd ..
 
 # cd ./offline_olmo_seeds_b200
 # bash ./project_commands.sh
