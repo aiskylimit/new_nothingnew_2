@@ -136,6 +136,55 @@ job_dep() {  # the job this one waits for (empty = none)
 }
 gave_up() { [ -f "$STATE/gaveup_${1//:/_}" ]; }
 
+# ---- progress in the main output: a training line every PROGRESS_EVERY steps, each benchmark score as soon as
+#      it is graded, and the scores of the checkpoint on its "done" line. The full logs stay in the job log files.
+PROGRESS_EVERY=${PROGRESS_EVERY:-10}
+TAIL_PID_OK=0; tail --pid=$$ -n 0 /dev/null > /dev/null 2>&1 && TAIL_PID_OK=1   # GNU tail; else: no live lines
+progress() {  # progress <prefix> <training steps>   (stdin = a job log)
+  awk -v pre="$1" -v total="$2" -v every="$PROGRESS_EVERY" '
+    function num(key,   s) {
+      if (!match($0, "\"" key "\": [-+0-9.eEaNinf]+")) return ""
+      s = substr($0, RSTART, RLENGTH); sub(/^[^:]*: /, "", s); return s
+    }
+    /"student_updates_total"/ {
+      st = num("step") + 1
+      if (st == 1 || st % every == 0 || st == total) {
+        printf "%s step %3d/%d  loss %.4g  rollout len %.0f  truncated %.2f  grad norm %.3g  drift %.3g  eta %sm\n",
+               pre, st, total, num("loss"), num("mean_rollout_len"), num("rollout_truncated_frac"),
+               num("grad_norm"), num("kl_student_old_drift"), num("eta_min")
+        fflush()
+      }
+      next
+    }
+    / avg@[0-9]+=[0-9.]+ pass@[0-9]+=[0-9.]+$/ {
+      split($(NF-1), a, "="); split($NF, p, "=")
+      printf "%s %-7s %s %5.1f   %s %5.1f\n", pre, $(NF-2), a[1], 100 * a[2], p[1], 100 * p[2]
+      fflush()
+    }'
+}
+logged() {  # logged <log> <prefix> <training steps> <command...> : command -> <log>, progress lines -> stdout
+  local log=$1 pre=$2 total=$3 pid; shift 3
+  : > "$log"
+  "$@" > "$log" 2>&1 &
+  pid=$!
+  if [ "$TAIL_PID_OK" = "1" ]; then
+    tail --pid="$pid" -n +1 -F "$log" 2>/dev/null | progress "$pre" "$total"
+  fi
+  wait "$pid"
+}
+eval_scores() {  # eval_scores <eval log> -> "aime25 43.3 | aime26 40.1 | hmmt25 25.0" (avg@12, %)
+  awk '/ avg@[0-9]+=[0-9.]+ pass@[0-9]+=[0-9.]+$/ {
+         split($(NF-1), a, "="); s = s (s == "" ? "" : " | ") $(NF-2) " " sprintf("%.1f", 100 * a[2]) }
+       END { print s }' "$1" 2>/dev/null
+}
+job_note() {  # extra text for a job's done/summary line: duration (given a start time) and eval scores
+  local kind m s k t
+  IFS=: read -r kind m s k <<< "$1"
+  [ -n "${2:-}" ] && { t=$(( $(date +%s) - $2 )); printf " (%dh%02dm)" $((t / 3600)) $((t % 3600 / 60)); }
+  [ "$kind" = "eval" ] && printf " avg@12: %s" "$(eval_scores "$(out_dir "$m" "$s")_eval_step${k}.log")"
+  return 0
+}
+
 run_job() {  # run_job <job> <worker>
   IFS=: read -r kind m s k <<< "$1"; cfg "$m"
   local w=$2 main repl port log out
@@ -146,18 +195,21 @@ run_job() {  # run_job <job> <worker>
   case $kind in
     dry)
       out="results_olmo7b_${m}_dryrun"; log="${out}_train.log"; rm -rf "$out"
-      env CUDA_VISIBLE_DEVICES=$main python "scripts/$SCRIPT" "${common[@]}" --seed 0 --output-dir "$out" \
-          --skip-eval --training-steps 3 --use-vllm-rollout --vllm-gpu-ids "$repl" > "$log" 2>&1
+      logged "$log" "[w$w]   $m dry" 3 \
+        env CUDA_VISIBLE_DEVICES=$main python "scripts/$SCRIPT" "${common[@]}" --seed 0 --output-dir "$out" \
+          --skip-eval --training-steps 3 --use-vllm-rollout --vllm-gpu-ids "$repl"
       [ -f "$out/${TAG}_train_logs.json" ] && touch "$STATE/ok_dry_$m" ;;
     train)
       out=$(out_dir $m $s); log="${out}_train.log"
-      env CUDA_VISIBLE_DEVICES=$main python "scripts/$SCRIPT" "${common[@]}" --seed "$s" --output-dir "$out" \
-          --skip-eval --training-steps "$TRAIN_STEPS" --use-vllm-rollout --vllm-gpu-ids "$repl" > "$log" 2>&1 ;;
+      logged "$log" "[w$w]   $m s$s" "$TRAIN_STEPS" \
+        env CUDA_VISIBLE_DEVICES=$main python "scripts/$SCRIPT" "${common[@]}" --seed "$s" --output-dir "$out" \
+          --skip-eval --training-steps "$TRAIN_STEPS" --use-vllm-rollout --vllm-gpu-ids "$repl" ;;
     eval)
       out=$(out_dir $m $s); log="${out}_eval_step${k}.log"
-      env CUDA_VISIBLE_DEVICES=$main python "scripts/$SCRIPT" "${common[@]}" --skip-train \
+      logged "$log" "[w$w]   $m s$s step$k" 0 \
+        env CUDA_VISIBLE_DEVICES=$main python "scripts/$SCRIPT" "${common[@]}" --skip-train \
           --checkpoint-path "$ROOT/$out/${TAG}_checkpoint_step${k}" --output-dir "$ROOT/$out" \
-          --eval-engine vllm --vllm-gpu-ids "$GPU_A,$GPU_B" --eval-benchmarks $BENCHMARKS > "$log" 2>&1 ;;
+          --eval-engine vllm --vllm-gpu-ids "$GPU_A,$GPU_B" --eval-benchmarks $BENCHMARKS ;;
   esac
   job_done "$1" && return 0
   echo "  (log: $log) - last lines:"
@@ -169,7 +221,7 @@ run_job() {  # run_job <job> <worker>
 }
 
 worker() {  # worker <id>
-  local w=$1 job dep n waiting ran
+  local w=$1 job dep n waiting ran t0
   [ "$w" != "0" ] && sleep "$STAGGER"  # do not start two vLLM servers on the same GPU at the same moment
   while true; do
     waiting=0; ran=0
@@ -186,8 +238,9 @@ worker() {  # worker <id>
       mkdir "$STATE/claim_${job//:/_}" 2>/dev/null || continue      # someone else is running it
       n=$(( $(cat "$STATE/tries_${job//:/_}" 2>/dev/null || echo 0) + 1 )); echo $n > "$STATE/tries_${job//:/_}"
       echo "[w$w] START $job (try $n) $(date '+%F %T')"
+      t0=$(date +%s)
       if run_job "$job" "$w"; then
-        echo "[w$w] done  $job $(date '+%F %T')"
+        echo "[w$w] done  $job $(date '+%F %T')$(job_note "$job" "$t0")"
         # refresh the bundle in the background (the worker goes straight on to its next job), so that
         # olmo_seeds_results.tgz always holds every finished checkpoint even if the run is cut off
         [[ "$job" != dry:* ]] && { package_results incremental >> pack.log 2>&1 & }
@@ -371,7 +424,7 @@ for ((w = 0; w < WORKERS; w++)); do worker $w & done
 wait
 
 echo "=== summary ==="
-for job in "${JOBS[@]}"; do job_done "$job" && echo "  ok      $job" || echo "  MISSING $job"; done
+for job in "${JOBS[@]}"; do job_done "$job" && echo "  ok      $job$(job_note "$job")" || echo "  MISSING $job"; done
 package_results final
 echo "ALL DONE - fetch olmo_seeds_results.tgz ($(du -h olmo_seeds_results.tgz | cut -f1)); report: analysis/report.md"
 [ -f analysis/report.md ] && head -n 80 analysis/report.md
