@@ -4,8 +4,8 @@
 #   GPU 1: run 7   qwen3-8b   (configs/sgl/qwen3-8b-s1k/iwc-gain-l05-lora.yaml)
 # ALG arm only (no SFT / zero-shot). The two lanes write disjoint data dirs (data/<model>-s1k/), so they run
 # side by side. Answer gain is scored by the student itself, so it is several times slower than run 1's.
-# Each lane starts only if: its GPU uses at most MAX_USED_MIB (10000), the run is neither done nor
-# running, and for GPU 0, run 1 is finished (its eval summary exists; the GPU is briefly empty between stages).
+# GPU usage is NOT checked: make sure the GPUs are free yourself. Each lane starts only if the run is neither
+# done nor running, and for GPU 0, run 1 is finished (its eval summary exists).
 # Finished stages are skipped: after a crash, launch it again. Foreground, waits for both lanes.
 #   bash phase3_alerd_7b_8b.sh
 #   PHASE3_GPUS="2 3" bash phase3_alerd_7b_8b.sh   # other GPU ids, in the order of the lanes above
@@ -19,19 +19,10 @@ RUN1_EVAL=rebuttal/results/iwc-gain-l05-r1-qwen-1.5b-s1k/summary.json
 STAMP="$(date +%Y%m%d-%H%M%S)"
 mkdir -p rebuttal/logs
 
-# The server keeps small processes on every GPU even when it is free (about 4.7 GB in nvidia-smi), so "free"
-# is judged by used memory, not by the absence of processes.
-MAX_USED_MIB="${MAX_USED_MIB:-10000}"
-
-# ready <gpu> <model> <run no>: prints why not and returns 1 when the lane must not start
+# ready <model> <run no>: prints why not and returns 1 when the lane must not start
 ready() {
-  local gpu="$1" model="$2" run="$3" ok=0 used running
+  local model="$1" run="$2" ok=0 running
   local cfg="${model}-s1k/iwc-gain-l05-lora" eval="rebuttal/results/iwc-gain-l05-lora-${model}-s1k/summary.json"
-  if ! used=$(nvidia-smi -i "${gpu}" --query-gpu=memory.used --format=csv,noheader,nounits 2>&1) ||
-     ! [[ "${used}" =~ ^[0-9]+$ ]]; then
-    echo "STOP run ${run}: nvidia-smi failed for GPU ${gpu}: ${used:0:100}"; return 1
-  fi
-  (( used <= MAX_USED_MIB )) || { echo "STOP run ${run}: GPU ${gpu} is in use (${used} MiB)"; ok=1; }
   [[ -f "${eval}" ]] && { echo "STOP run ${run}: already done (${eval})"; ok=1; }
   running=$(pgrep -af "sgl\.cli run ${cfg//./\\.}( |$)")
   [[ -z "${running}" ]] || { echo "STOP run ${run}: already running:"; echo "${running}"; ok=1; }
@@ -46,7 +37,7 @@ for lane in "${LANES[@]}"; do
   if [[ "${gpu}" == 0 && ! -f "${RUN1_EVAL}" ]]; then
     echo "STOP run ${run}: run 1 is not finished on GPU 0 (${RUN1_EVAL} missing)"; extra=1
   fi
-  ready "${gpu}" "${model}" "${run}" && [[ "${extra}" == 0 ]] && go+=("${lane}")
+  ready "${model}" "${run}" && [[ "${extra}" == 0 ]] && go+=("${lane}")
 done
 [[ "${#go[@]}" -gt 0 ]] || { echo "nothing started"; exit 1; }
 
