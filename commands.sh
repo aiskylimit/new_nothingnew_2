@@ -1,9 +1,21 @@
-#2 -33 +a
+#1 +30
 #alerd-log
 #v4
 
+# ---- trạng thái + kết quả run 4 (7B) và run 7 (8B), chỉ đọc
 cd SpectralGuidedLearning
-bash phase3_status.sh
+LINES=3 bash phase3_status.sh
+for m in qwen25-7b qwen3-8b; do
+  n="iwc-gain-l05-lora-${m}-s1k"
+  echo; echo "======== ${m}: answer_gain"
+  # số probe, số probe chấm lại, thời gian chấm
+  tr '\r' '\n' < "rebuttal/logs/${n}-answer_gain.log" | grep -E "probes|wrote gains|Error|Traceback"
+  echo "======== ${m}: kết quả eval"
+  cat "rebuttal/results/${n}/summary.json" 2>/dev/null || echo "(chưa có)"
+  echo
+done
+echo "======== bảng so sánh"
+cat rebuttal/results/comparison-table.md 2>/dev/null || echo "(chưa có)"
 cd ..
 
 # cd ./offline_olmo_seeds_b200
